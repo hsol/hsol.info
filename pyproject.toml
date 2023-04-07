@@ -8,6 +8,7 @@ packages = [{include = "hsol"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pynecone = "^0.1.21"
 
 
 [build-system]
