@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["molmoty <molmoty@gmail.com>"]
 readme = "README.md"
-packages = [{include = "hsol"}]
+packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
