@@ -427,6 +427,22 @@ files = [
 plugins = ["importlib-metadata"]
 
 [[package]]
+name = "pymysql"
+version = "1.0.3"
+description = "Pure Python MySQL Driver"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "PyMySQL-1.0.3-py3-none-any.whl", hash = "sha256:89fc6ae41c0aeb6e1f7710cdd623702ea2c54d040565767a78b00a5ebb12f4e5"},
+    {file = "PyMySQL-1.0.3.tar.gz", hash = "sha256:3dda943ef3694068a75d69d071755dbecacee1adf9a1fc5b206830d2b67d25e8"},
+]
+
+[package.extras]
+ed25519 = ["PyNaCl (>=1.4.0)"]
+rsa = ["cryptography"]
+
+[[package]]
 name = "pynecone"
 version = "0.1.21"
 description = "Web apps in pure Python."
@@ -933,4 +949,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "b8bb8100ddb57f651e597e626bb519a4b122a1e6c25d32e38ad41b2d40266ce9"
+content-hash = "627bacd7ba126f1c50cd58e05e9abd1253a7848fee08cb883c84750b0f261665"
