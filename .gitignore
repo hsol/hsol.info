@@ -1,5 +1,4 @@
 .idea
-.web
-
 pynecone.db
 /.web/
+/.env
