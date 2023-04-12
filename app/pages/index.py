@@ -1,5 +1,6 @@
 import pynecone
 
+from app import components
 from app.pages import BasePage
 from pcconfig import config
 
@@ -11,24 +12,13 @@ class Index(BasePage):
     route = "/"
 
     def get_component(self) -> pynecone.Component:
-        return pynecone.center(
-            pynecone.vstack(
-                pynecone.heading("Welcome to Pynecone!", font_size="2em"),
-                pynecone.box(
-                    "Get started by editing ", pynecone.code(filename, font_size="1em")
+        return pynecone.box(
+            components.navbar(),
+            components.hero(
+                pynecone.container(
+                    pynecone.heading("안녕하세요, 임한솔입니다.", font_size="2em"),
+                    font_size="2em",
                 ),
-                pynecone.link(
-                    "Check out our docs!",
-                    href=docs_url,
-                    border="0.1em solid",
-                    padding="0.5em",
-                    border_radius="0.5em",
-                    _hover={
-                        "color": "rgb(107,99,246)",
-                    },
-                ),
-                spacing="1.5em",
-                font_size="2em",
+                background_image="url(/bg/full_01.jpg)",
             ),
-            padding_top="10%",
         )
