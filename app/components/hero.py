@@ -6,7 +6,10 @@ import pynecone
 hero = partial(
     pynecone.hstack,
     max_height="100vh",
-    background_color="green",
     padding="10% 0",
     justify_content="center",
+    background_attachment="fixed",
+    background_position="center",
+    background_repeat="no-repeat",
+    background_size="cover",
 )

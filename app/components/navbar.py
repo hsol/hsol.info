@@ -6,17 +6,19 @@ from app.constants import GlobalStyle
 def navbar():
     return pynecone.box(
         pynecone.box(
-            pynecone.link(
-                pynecone.image(src="favicon.ico", width="1.5em", height="1.5em"),
-                href="/",
-            ),
+            pynecone.image(src="favicon.ico", width="1.5em", height="1.5em"),
             width="100%",
             padding="1em",
             visible="hidden",
         ),
         pynecone.box(
             pynecone.link(
-                pynecone.image(src="signature.png", width="1.5em", height="1.5em"),
+                pynecone.hstack(
+                    pynecone.image(src="signature.png", width="1.5em", height="1.5em"),
+                    pynecone.text(
+                        "임한솔", color=GlobalStyle.Palette.BIRCH, padding_top="0.1em"
+                    ),
+                ),
                 href="/",
             ),
             position="fixed",

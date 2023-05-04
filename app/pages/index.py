@@ -1,11 +1,8 @@
 import pynecone
 
-from app import components
+from app import components, styles
+from app.constants import GlobalStyle
 from app.pages import BasePage
-from pcconfig import config
-
-docs_url = "https://pynecone.io/docs/getting-started/introduction"
-filename = f"{config.app_name}/{config.app_name}.py"
 
 
 class Index(BasePage):
@@ -18,7 +15,11 @@ class Index(BasePage):
                 pynecone.container(
                     pynecone.heading("안녕하세요, 임한솔입니다.", font_size="2em"),
                     font_size="2em",
+                    font_weight="600",
+                    text_shadow="0 2px 2px rgba(0, 0, 0, 0.45)",
                 ),
                 background_image="url(/bg/full_01.jpg)",
+                color=GlobalStyle.Palette.BIRCH,
+                **styles.background_darken(40),
             ),
         )
