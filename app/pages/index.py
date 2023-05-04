@@ -18,8 +18,8 @@ class Index(BasePage):
                     font_weight="600",
                     text_shadow="0 2px 2px rgba(0, 0, 0, 0.45)",
                 ),
-                background_image="url(/bg/full_01.jpg)",
                 color=GlobalStyle.Palette.BIRCH,
+                **styles.background_image("full_01.jpg"),
                 **styles.background_darken(40),
             ),
         )
