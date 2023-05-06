@@ -5,22 +5,20 @@ from app.states.base import BaseState
 import pynecone
 
 
-def get_route_pages() -> list[str, type[pages.BasePage]]:
-    return {page.route: page for page in pages.__all__}.items()
-
-
+default_title = "임한솔 (About HansolLim)"
 app = pynecone.App(
     state=BaseState,
     stylesheets=GlobalStyle.STYLE_SHEETS,
     style=GlobalStyle.STYLE,
 )
-for route, page in get_route_pages():
+for page in pages.__all__:
     instance: pages.BasePage = page()
     app.add_page(
         instance.get_component(),
         **{
             **instance.get_add_page_options(),
-            "route": route,
+            "title": page.title or default_title,
+            "route": page.route,
             "on_load": instance.get_on_load_event_handler(),
         },
     )

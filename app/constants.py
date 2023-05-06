@@ -1,11 +1,16 @@
+import pynecone
+
+
 class GlobalStyle:
     class FontFamily:
-        DEFAULT = "'Noto Sans KR', sans-serif;"
-        LOGO = "'Jeju Gothic', sans-serif"
+        DEFAULT = "'Jeju Gothic', sans-serif"
+        NOTO = "'Noto Sans KR', sans-serif;"
 
     class Palette:
         WHITE = "#FFFFFF"
-        CINDER = "#030305"
+        BLACK = "#030305"
+        SIGNATURE = "#1ABC9C"
+        FONT_COLOR = "#363636"
         BIRCH = "#F2F4EF"
         RONCHI = "#EFB730"
         CLEARDAY = "#CEE3F4"
@@ -18,8 +23,8 @@ class GlobalStyle:
         "https://fonts.googleapis.com/earlyaccess/jejugothic.css",
     ]
     STYLE = {
-        "font_family": FontFamily.LOGO,
-        "color": Palette.CINDER,
+        "font_family": FontFamily.DEFAULT,
+        "color": Palette.FONT_COLOR,
         "box_sizing": "border-box",
-        "--chakra-fonts-heading": FontFamily.LOGO,
+        pynecone.Heading: {"font_family": FontFamily.DEFAULT},
     }
