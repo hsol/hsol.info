@@ -30,15 +30,15 @@ def Hero(
     return components.hero(
         pynecone.container(
             pynecone.box(
-                pynecone.text("안녕하세요,", font_size=["1em", "2em"], as_="span"),
+                pynecone.text("안녕하세요,", font_size=["1em", "1.5em", "2em"], as_="span"),
                 pynecone.html("<br/>", display=["inline", "inline", "none"]),
                 pynecone.text(
                     profile.name,
-                    font_size=["1em", "2em"],
+                    font_size=["1em", "1.5em", "2em"],
                     as_="span",
                     color=GlobalStyle.Palette.SIGNATURE,
                 ),
-                pynecone.text("입니다.", font_size=["1em", "2em"], as_="span"),
+                pynecone.text("입니다.", font_size=["1em", "1.5em", "2em"], as_="span"),
                 font_size="2em",
                 font_weight="600",
                 text_shadow="0 2px 2px rgba(0, 0, 0, 0.45)",

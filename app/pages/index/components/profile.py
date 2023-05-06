@@ -4,7 +4,7 @@ from app import components
 from app.models.profile import Profile
 
 
-def profile_card(profile_image_path: str, items: list[tuple]):
+def _card(profile_image_path: str, items: list[tuple]):
     return components.fullfill_card(
         "프로필",
         pynecone.box(
@@ -41,7 +41,7 @@ def profile_card(profile_image_path: str, items: list[tuple]):
 
 
 def ProfileCard(profile: Profile) -> pynecone.Component:
-    return profile_card(
+    return _card(
         profile_image_path="/profile/바디프로필.jpg",
         items=[
             ("이름", pynecone.text(profile.name)),

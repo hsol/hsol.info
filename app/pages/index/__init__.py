@@ -6,8 +6,13 @@ from app import components
 from app.constants import GlobalStyle
 from app.models.profile import Profile, ProfileTag
 from app.pages import BasePage
+from app.pages.index.components.education import EducationCard
+from app.pages.index.components.experience import ExperienceCard
+from app.pages.index.components.footer import Footer
 from app.pages.index.components.hero import Hero
-from app.pages.index.components.profile import profile_card, ProfileCard
+from app.pages.index.components.portpolio import PortfolioCard
+from app.pages.index.components.profile import _card, ProfileCard
+from app.pages.index.components.stack import StackCard
 from app.states.base import BaseState
 
 hero_badge_comp = partial(
@@ -56,6 +61,11 @@ class Index(BasePage):
                 hero_min_height=str(IndexState.hero_min_height + "vh"),
             ),
             ProfileCard(profile=profile_model),
+            ExperienceCard(),
+            StackCard(),
+            EducationCard(),
+            PortfolioCard(),
+            Footer(),
             min_width="375px",
             height="100vh",
             overflow_y="scroll",

@@ -3,13 +3,27 @@ import pynecone
 from app.constants import GlobalStyle
 
 
-def fullfill_card(*components, title: str = None):
+def fullfill_card(*components, title: str = None, **kwargs):
     components = list(components)
     if isinstance(components[0], str):
         title = components.pop(0)
 
     if title is None:
         raise NotImplementedError
+
+    if (
+        "background_image" not in kwargs
+        and "background_color" not in kwargs
+        and "background" not in kwargs
+    ):
+        kwargs.update(
+            background_image="url(/bg/white_pattern.jpg)",
+            background_blend_mode="soft-light",
+            background_color=GlobalStyle.Palette.WHITE + "90",
+            background_position="center",
+            background_repeat="no-repeat",
+            background_size="cover",
+        )
 
     return pynecone.box(
         pynecone.vstack(
@@ -33,10 +47,5 @@ def fullfill_card(*components, title: str = None):
             *components,
             padding="48px 24px",
         ),
-        background_image="url(/bg/white_pattern.jpg)",
-        background_blend_mode="soft-light",
-        background_color=GlobalStyle.Palette.WHITE + "90",
-        background_position="center",
-        background_repeat="no-repeat",
-        background_size="cover",
+        **kwargs,
     )
