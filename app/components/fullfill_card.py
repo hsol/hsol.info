@@ -33,5 +33,10 @@ def fullfill_card(*components, title: str = None):
             *components,
             padding="48px 24px",
         ),
-        background_color=GlobalStyle.Palette.WHITE,
+        background_image="url(/bg/white_pattern.jpg)",
+        background_blend_mode="soft-light",
+        background_color=GlobalStyle.Palette.WHITE + "90",
+        background_position="center",
+        background_repeat="no-repeat",
+        background_size="cover",
     )
