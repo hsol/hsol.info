@@ -16,6 +16,7 @@ def profile_card(profile_image_path: str, items: list[tuple]):
                 background_size="cover",
                 margin_right=[0, 0, "32px"],
                 margin_bottom=["32px", "32px", 0],
+                border_radius="4px",
             ),
             pynecone.vstack(
                 *(
