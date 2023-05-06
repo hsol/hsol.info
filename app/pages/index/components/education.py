@@ -12,7 +12,7 @@ def _card():
         background_position="center",
         background_repeat="no-repeat",
         background_size="cover",
-        background_image=f"url(/bg/full_02.jpg)",
+        background_image=f"url(/bg/full_03.jpg)",
         **styles.background_darken(40),
         color=GlobalStyle.Palette.WHITE,
     )
