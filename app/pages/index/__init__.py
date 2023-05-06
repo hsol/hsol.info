@@ -1,3 +1,5 @@
+import typing
+
 import pynecone
 
 from app import components, styles
@@ -7,9 +9,11 @@ from app.pages.index.profile import profile_card
 from app.states.base import BaseState
 
 
-class ScrollState(BaseState):
-    def change_hero_height(self):
-        print("hero")
+class IndexState(BaseState):
+    hero_min_height = 100
+
+    def change_hero_height(self, *args, **kwargs):
+        self.hero_min_height = 30
 
 
 class Index(BasePage):
@@ -33,6 +37,9 @@ class Index(BasePage):
                     text_shadow="0 2px 2px rgba(0, 0, 0, 0.45)",
                     padding="24px 48px",
                 ),
+                padding="calc(66px + 10%) 0 10%",
+                min_height=IndexState.hero_min_height + "vh",
+                transition_duration="0.6s",
                 color=GlobalStyle.Palette.BIRCH,
                 background_image=f"url(/bg/full_01.jpg)",
                 **styles.background_darken(40),
@@ -76,6 +83,8 @@ class Index(BasePage):
                     ),
                 ],
             ),
-            on_scroll=ScrollState.change_hero_height,
             min_width="375px",
+            height="100vh",
+            overflow_y="scroll",
+            on_scroll=IndexState.change_hero_height,
         )
