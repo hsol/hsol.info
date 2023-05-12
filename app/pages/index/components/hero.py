@@ -3,25 +3,9 @@ from functools import partial
 import pynecone
 
 from app import components, styles
+from app.components.badge import white_badge
 from app.constants import GlobalStyle
 from app.models.profile import Profile, ProfileTag
-
-hero_badge_comp = partial(
-    pynecone.box,
-    align_items="center",
-    background_color=GlobalStyle.Palette.BIRCH,
-    border_radius="4px",
-    color=GlobalStyle.Palette.FONT_COLOR,
-    display="inline-flex",
-    font_size="0.75rem",
-    height="2em",
-    justify_content="center",
-    line_height="1.5",
-    padding="0 0.75em",
-    white_space="nowrap",
-    margin="0 0.3em 0.3em 0",
-    opacity="0.98",
-)
 
 
 def Hero(
@@ -46,8 +30,9 @@ def Hero(
             ),
             pynecone.box(
                 *[
-                    hero_badge_comp(
-                        pynecone.text("#" + profile_tag.text.replace(" ", "_"))
+                    white_badge(
+                        pynecone.text("#" + profile_tag.text.replace(" ", "_")),
+                        margin="0 0.3em 0.3em 0",
                     )
                     for profile_tag in profile_tags
                 ]
