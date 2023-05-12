@@ -4,7 +4,9 @@ import pynecone
 
 from app import components
 from app.constants import GlobalStyle
+from app.models.experience import Experience
 from app.models.profile import Profile, ProfileTag
+from app.models.stack import Stack
 from app.pages import BasePage
 from app.pages.index.components.education import EducationCard
 from app.pages.index.components.experience import ExperienceCard
@@ -53,6 +55,9 @@ class Index(BasePage):
             profile_model = profiles[0]
             profile_tags = session.query(ProfileTag).all()
 
+            experiences = session.query(Experience).all()
+            stacks = session.query(Stack).all()
+
         return pynecone.box(
             components.navbar(),
             Hero(
@@ -61,8 +66,8 @@ class Index(BasePage):
                 hero_min_height=str(IndexState.hero_min_height + "vh"),
             ),
             ProfileCard(profile=profile_model),
-            ExperienceCard(),
-            StackCard(),
+            ExperienceCard(experiences=experiences),
+            StackCard(stacks=stacks),
             EducationCard(),
             PortfolioCard(),
             Footer(),
