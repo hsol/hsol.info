@@ -7,7 +7,6 @@ from app.models.history import Portfolio
 
 def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
     portfolios = sorted(portfolios, key=lambda p: p.when, reverse=True)
-    print(portfolios)
 
     return components.fullfill_card(
         "포트폴리오",
@@ -25,15 +24,25 @@ def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
                         *[pynecone.badge(stack.title) for stack in portfolio.stacks],
                         spacing="0.5em",
                     ),
+                    pynecone.code_block(
+                        portfolio.description,
+                        language="markdown",
+                        width="100%",
+                        wrap_long_lines=True,
+                        font_size="0.8em",
+                        height="10em",
+                    ),
                     align_items="flex-start",
                     background_color=GlobalStyle.Palette.WHITE,
                     box_shadow="0 2px 3px rgba(10, 10, 10, 0.1), 0 0 0 1px rgba(10, 10, 10, 0.1)",
                     padding="1em",
+                    opacity="0.8",
+                    _hover=dict(opacity="1"),
                 )
                 for portfolio in portfolios
             ],
             width="100%",
-            columns=[1, 2, 3],
+            columns=[1, 2, 2, 3],
             gap="8px",
         ),
     )
