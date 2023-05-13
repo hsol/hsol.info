@@ -21,8 +21,9 @@ def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
                         margin_top="0",
                         font_size=["0.6em", "0.8em"],
                     ),
-                    pynecone.box(
-                        *[pynecone.badge(stack.title) for stack in portfolio.stacks]
+                    pynecone.hstack(
+                        *[pynecone.badge(stack.title) for stack in portfolio.stacks],
+                        spacing="0.5em",
                     ),
                     align_items="flex-start",
                     background_color=GlobalStyle.Palette.WHITE,
