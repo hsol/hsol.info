@@ -1,7 +1,9 @@
 from datetime import date
 
 import pynecone
-from sqlmodel import Field
+from sqlmodel import Field, Relationship
+
+from app.models.history_to_stack import PortfolioToStack
 
 
 class Experience(pynecone.Model, table=True):
@@ -21,7 +23,7 @@ class Portfolio(pynecone.Model, table=True):
     sub_title: str
     description: str
 
-
-class PortfolioToStack(pynecone.Model, table=True):
-    portfolio_id: int = Field(foreign_key="portfolio.id")
-    stack_id: int = Field(foreign_key="stack.id")
+    stacks: list["Stack"] = Relationship(
+        back_populates="portfolios",
+        link_model=PortfolioToStack,
+    )

@@ -1,6 +1,7 @@
 from functools import partial
 
 import pynecone
+from sqlalchemy.orm import joinedload
 
 from app import components
 from app.constants import GlobalStyle
@@ -58,7 +59,9 @@ class Index(BasePage):
             experiences = session.query(Experience).all()
             stacks = session.query(Stack).all()
             educations = session.query(Education).all()
-            portfolios = session.query(Portfolio).all()
+            portfolios = (
+                session.query(Portfolio).options(joinedload(Portfolio.stacks)).all()
+            )
 
         return pynecone.box(
             components.navbar(),

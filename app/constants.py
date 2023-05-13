@@ -9,6 +9,7 @@ class GlobalStyle:
     class Palette:
         WHITE = "#FFFFFF"
         BLACK = "#030305"
+        GRAY = "#9BA4B5"
         SIGNATURE = "#1ABC9C"
         FONT_COLOR = "#363636"
         BIRCH = "#F2F4EF"
