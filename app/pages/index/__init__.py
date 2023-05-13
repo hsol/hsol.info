@@ -4,7 +4,7 @@ import pynecone
 
 from app import components
 from app.constants import GlobalStyle
-from app.models.experience import Experience, Education
+from app.models.history import Experience, Education, Portfolio
 from app.models.profile import Profile, ProfileTag
 from app.models.stack import Stack
 from app.pages import BasePage
@@ -58,6 +58,7 @@ class Index(BasePage):
             experiences = session.query(Experience).all()
             stacks = session.query(Stack).all()
             educations = session.query(Education).all()
+            portfolios = session.query(Portfolio).all()
 
         return pynecone.box(
             components.navbar(),
@@ -70,7 +71,7 @@ class Index(BasePage):
             ExperienceCard(experiences=experiences),
             StackCard(stacks=stacks),
             EducationCard(educations=educations),
-            PortfolioCard(),
+            PortfolioCard(portfolios=portfolios),
             Footer(),
             min_width="375px",
             height="100vh",

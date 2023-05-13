@@ -3,7 +3,7 @@ import pynecone
 from app import components, styles
 from app.components.badge import white_badge
 from app.constants import GlobalStyle
-from app.models.experience import Education
+from app.models.history import Education
 
 
 def EducationCard(educations: list[Education]) -> pynecone.Component:

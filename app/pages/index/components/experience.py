@@ -5,7 +5,7 @@ import pynecone
 
 from app import components, styles
 from app.constants import GlobalStyle
-from app.models.experience import Experience
+from app.models.history import Experience
 
 
 def ExperienceCard(experiences: list[Experience]) -> pynecone.Component:
@@ -13,7 +13,6 @@ def ExperienceCard(experiences: list[Experience]) -> pynecone.Component:
         sorted(experiences, key=lambda ex: ex.when, reverse=True),
         key=lambda ex: ex.when.year,
     )
-
 
     return components.fullfill_card(
         "경험",
