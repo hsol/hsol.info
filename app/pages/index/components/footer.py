@@ -18,7 +18,7 @@ def Footer() -> pynecone.Component:
                     font_size=["0.5em", "0.8em", "1em", "1.2em", "1.8em"],
                     color=GlobalStyle.Palette.BIRCH + "80",
                 ),
-                padding="48px 24px",
+                padding="10vw 24px 16px 24px",
             ),
             pynecone.html(
                 """
@@ -32,7 +32,6 @@ def Footer() -> pynecone.Component:
                 """,
                 width="100%",
             ),
-            padding="9rem 0",
         ),
         display="flex",
         justify_content="center",
