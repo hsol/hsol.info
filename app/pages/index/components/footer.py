@@ -11,14 +11,16 @@ def Footer() -> pynecone.Component:
                 pynecone.heading(
                     '"사람을 얻는 자는 번창하고, 사람을 잃는 자는 망한다."',
                     color=GlobalStyle.Palette.BIRCH,
-                    font_size=["0.8em", "1em", "1.8em", "2em", "2.5em"],
+                    font_size=["0.9em", "1em", "1.6em", "1.9em", "2.5em"],
+                    text_align="center",
                 ),
                 pynecone.heading(
                     "여기까지 보셨다면, 이제 저에게 연락해보세요!",
-                    font_size=["0.5em", "0.8em", "1em", "1.2em", "1.8em"],
+                    font_size=["0.8em", "1em", "1.2em", "1.8em"],
                     color=GlobalStyle.Palette.BIRCH + "80",
+                    text_align="center",
                 ),
-                padding="10vw 24px 16px 24px",
+                padding="10vw 24px 5vw 24px",
             ),
             pynecone.html(
                 """
@@ -31,6 +33,7 @@ def Footer() -> pynecone.Component:
                 </script>
                 """,
                 width="100%",
+                min_height="10vw",
             ),
         ),
         display="flex",
