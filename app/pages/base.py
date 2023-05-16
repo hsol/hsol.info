@@ -5,6 +5,7 @@ import pynecone
 
 class BasePage:
     title: str | None = None
+    description: str | None = None
     route: str | None = None
 
     def __init__(self, *args, **kwargs):
