@@ -24,4 +24,6 @@ config = pc.Config(
     db_url=get_mysql_db_url(),
     env=os.environ.get("APP_ENVIRONMENT") or pc.Env.DEV,
     api_url=os.environ.get("BACKEND_URL") or pc.constants.API_URL,
+    port=os.environ.get("FRONTEND_PORT") or pc.constants.FRONTEND_PORT,
+    backend_port=os.environ.get("BACKEND_PORT") or pc.constants.BACKEND_PORT,
 )
