@@ -25,6 +25,7 @@ def stack_column(stack_groups: dict, stack_node: Stack, **kwargs):
         flex_basis="0",
         flex_grow="1",
         flex_shrink="1",
+        width="100%",
         **kwargs,
     )
 
