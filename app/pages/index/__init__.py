@@ -47,6 +47,27 @@ class Index(BasePage):
     title = "임한솔 (About HansolLim)"
     route = "/"
 
+    def get_add_page_options(self) -> dict:
+        return {
+            "meta": [
+                {"name": "msapplication-TileColor", "content": "#FFFFFF"},
+                {
+                    "name": "msapplication-TileImage",
+                    "content": "/meta/ms-icon-144x144.png",
+                },
+                {"property": "og:title", "content": "Hello Word, I'm HansolLim"},
+                {"property": "og:type", "content": "article"},
+                {"property": "og:url", "content": "https://hsol.info"},
+                {
+                    "property": "og:description",
+                    "content": "With amateur creativity and professional skills.",
+                },
+                {"property": "og:image", "content": "/meta/ms-icon-310x310.png"},
+                {"property": "og:image:width", "content": "310"},
+                {"property": "og:image:height", "content": "310"},
+            ],
+        }
+
     def get_component(self, *args, **kwargs) -> pynecone.Component:
         with pynecone.session() as session:
             profiles = session.query(Profile).all()
