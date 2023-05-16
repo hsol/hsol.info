@@ -24,7 +24,7 @@ def Footer() -> pynecone.Component:
                 """
                 <script src='https://utteranc.es/client.js'
                         repo='hsol/hsol.github.io'
-                        issue-term='pathname'
+                        issue-number='3'
                         theme='github-light'
                         crossorigin='anonymous'
                         async>
