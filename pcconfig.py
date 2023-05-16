@@ -20,6 +20,7 @@ def get_mysql_db_url():
 load_dotenv()
 config = pc.Config(
     app_name="app",
+    disable_bun=True,
     deploy_url=os.environ.get("DEPLOY_URL") or None,
     db_url=get_mysql_db_url(),
     env=os.environ.get("APP_ENVIRONMENT") or pc.Env.DEV,
