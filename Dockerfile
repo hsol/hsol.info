@@ -3,9 +3,6 @@ FROM python:3.10-slim as base
 RUN adduser --disabled-password pynecone
 FROM base as build
 
-ARG FRONTEND_PORT=${FRONTEND_PORT}
-ARG BACKEND_PORT=${BACKEND_PORT}
-
 WORKDIR /app
 ENV VIRTUAL_ENV=/app/venv
 RUN python3 -m venv $VIRTUAL_ENV
@@ -48,5 +45,5 @@ USER pynecone
 WORKDIR /app
 CMD ["pc","run" , "--env", "prod"]
 
-EXPOSE $FRONTEND_PORT
-EXPOSE $BACKEND_PORT
+EXPOSE 3000
+EXPOSE 8000
