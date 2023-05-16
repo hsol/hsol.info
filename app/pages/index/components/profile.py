@@ -42,7 +42,7 @@ def _card(profile_image_path: str, items: list[tuple]):
 
 def ProfileCard(profile: Profile) -> pynecone.Component:
     return _card(
-        profile_image_path="/profile/바디프로필.jpg",
+        profile_image_path="/profile/body_profile.jpg",
         items=[
             ("이름", pynecone.text(profile.name)),
             ("생일", pynecone.text(profile.birthday)),
