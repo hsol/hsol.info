@@ -43,7 +43,7 @@ class IndexState(BaseState):
         self.hero_min_height = 30
 
 
-class Index(BasePage):
+class IndexPage(BasePage):
     title = "임한솔 (About HansolLim)"
     route = "/"
 
@@ -63,7 +63,7 @@ class Index(BasePage):
                 session.query(Portfolio).options(joinedload(Portfolio.stacks)).all()
             )
 
-        return pynecone.box(
+        return components.page_container(
             components.navbar(),
             Hero(
                 profile=profile_model,

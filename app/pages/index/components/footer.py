@@ -38,10 +38,7 @@ def Footer() -> pynecone.Component:
         ),
         display="flex",
         justify_content="center",
-        background_attachment="fixed",
-        background_position="center",
-        background_repeat="no-repeat",
-        background_size="cover",
         background_image=f"url(/bg/full_04.jpg)",
         **styles.background_darken(40),
+        **styles.background_cover(),
     )

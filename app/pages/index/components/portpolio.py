@@ -3,6 +3,7 @@ import pynecone
 from app import components
 from app.constants import GlobalStyle
 from app.models.history import Portfolio
+from app.pages.portfolio import PortfolioPage
 
 
 def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
@@ -10,39 +11,69 @@ def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
 
     return components.fullfill_card(
         "포트폴리오",
-        pynecone.responsive_grid(
-            *[
-                pynecone.vstack(
-                    pynecone.heading(portfolio.title, font_size=["0.8em", "1em"]),
-                    pynecone.text(
-                        portfolio.sub_title,
-                        color=GlobalStyle.Palette.GRAY,
-                        margin_top="0",
-                        font_size=["0.6em", "0.8em"],
+        pynecone.box(
+            pynecone.hstack(
+                *[
+                    pynecone.vstack(
+                        pynecone.heading(portfolio.title, font_size=["0.8em", "1em"]),
+                        pynecone.text(
+                            portfolio.sub_title,
+                            color=GlobalStyle.Palette.GRAY,
+                            margin_top="0",
+                            font_size=["0.6em", "0.8em"],
+                        ),
+                        pynecone.hstack(
+                            *[
+                                pynecone.badge(stack.title)
+                                for stack in portfolio.stacks
+                            ],
+                            spacing="0.5em",
+                        ),
+                        pynecone.code_block(
+                            portfolio.description,
+                            language="markdown",
+                            width="100%",
+                            wrap_long_lines=True,
+                            font_size="0.8em",
+                            height="10em",
+                            overflow_x="hidden",
+                        ),
+                        align_items="flex-start",
+                        background_color=GlobalStyle.Palette.WHITE,
+                        box_shadow="0 2px 3px rgba(10, 10, 10, 0.1), 0 0 0 1px rgba(10, 10, 10, 0.1)",
+                        padding="1em",
+                        flex_basis=["100%", "100%", "60%", "33%"],
+                        flex_shrink="0",
+                    )
+                    for portfolio in portfolios
+                ],
+                width="100%",
+                overflow_x="scroll",
+                align_items="baseline",
+                padding="8px",
+            ),
+            pynecone.link(
+                pynecone.tooltip(
+                    pynecone.flex(
+                        pynecone.icon(tag="arrow_forward", width="100%", height="100%"),
+                        position="absolute",
+                        top="calc(50% - 16px)",
+                        right="8px",
+                        align_items="center",
+                        justify_contents="center",
+                        padding="8px",
+                        background_color=GlobalStyle.Palette.WHITE,
+                        border="1px solid",
+                        border_color=GlobalStyle.Palette.RAISIN,
+                        width="32px",
+                        height="32px",
+                        cursor="pointer",
                     ),
-                    pynecone.hstack(
-                        *[pynecone.badge(stack.title) for stack in portfolio.stacks],
-                        spacing="0.5em",
-                    ),
-                    pynecone.code_block(
-                        portfolio.description,
-                        language="markdown",
-                        width="100%",
-                        wrap_long_lines=True,
-                        font_size="0.8em",
-                        height="10em",
-                    ),
-                    align_items="flex-start",
-                    background_color=GlobalStyle.Palette.WHITE,
-                    box_shadow="0 2px 3px rgba(10, 10, 10, 0.1), 0 0 0 1px rgba(10, 10, 10, 0.1)",
-                    padding="1em",
-                    opacity="0.8",
-                    _hover=dict(opacity="1"),
-                )
-                for portfolio in portfolios
-            ],
+                    label="우측으로 스크롤하여 보거나, 클릭하여 전체 포트폴리오 페이지로 이동합니다.",
+                ),
+                href=PortfolioPage.route,
+            ),
             width="100%",
-            columns=[1, 2, 2, 3],
-            gap="8px",
+            position="relative",
         ),
     )

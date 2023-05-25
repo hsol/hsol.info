@@ -20,11 +20,8 @@ def EducationCard(educations: list[Education]) -> pynecone.Component:
                 for education in educations
             )
         ),
-        background_attachment="fixed",
-        background_position="center",
-        background_repeat="no-repeat",
-        background_size="cover",
         background_image=f"url(/bg/full_03.jpg)",
         **styles.background_darken(40),
+        **styles.background_cover(),
         color=GlobalStyle.Palette.WHITE,
     )
