@@ -1,4 +1,6 @@
+import json
 from datetime import date
+from functools import partial
 
 import pynecone
 from sqlmodel import Field, Relationship
@@ -27,3 +29,6 @@ class Portfolio(pynecone.Model, table=True):
         back_populates="portfolios",
         link_model=PortfolioToStack,
     )
+
+    class Config:
+        json_dumps = partial(json.dumps, default=str)

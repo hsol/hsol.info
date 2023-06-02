@@ -3,7 +3,8 @@ import pynecone
 from app import components
 from app.constants import GlobalStyle
 from app.models.history import Portfolio
-from app.pages.portfolio import PortfolioPage
+from app.pages.portfolio import PortfolioListPage
+from app.utils import replace_dynamic_route_args
 
 
 def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
@@ -71,7 +72,10 @@ def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
                     ),
                     label="우측으로 스크롤하여 보거나, 클릭하여 전체 포트폴리오 페이지로 이동합니다.",
                 ),
-                href=PortfolioPage.route,
+                href=replace_dynamic_route_args(
+                    route=PortfolioListPage.route,
+                    portfolio_id=str(portfolios[0].id),
+                ),
             ),
             width="100%",
             position="relative",

@@ -22,3 +22,11 @@ def import_all_sub_classes(dirname: str, base_class: typing.Type):
             for module_info, module_name, _ in pkgutil.iter_modules([dirname])
         ]
     )
+
+
+def replace_dynamic_route_args(*, route: str, **kwargs):
+    for k, v in kwargs.items():
+        routes = route.split(f"[{k}]")
+        route = routes[0] + v + routes[1]
+
+    return route

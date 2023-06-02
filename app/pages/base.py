@@ -8,6 +8,8 @@ class BasePage:
     description: str | None = None
     route: str | None = None
 
+    state: typing.Type[pynecone.State]
+
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)

@@ -1,7 +1,7 @@
 import pynecone
 
 from app.constants import GlobalStyle
-from app.styles import background_cover
+from app.styles import background_cover, background_white_pattern
 
 
 def fullfill_card(*components, title: str = None, **kwargs):
@@ -18,9 +18,7 @@ def fullfill_card(*components, title: str = None, **kwargs):
         and "background" not in kwargs
     ):
         kwargs.update(
-            background_image="url(/bg/white_pattern.jpg)",
-            background_blend_mode="soft-light",
-            background_color=GlobalStyle.Palette.WHITE + "90",
+            **background_white_pattern(),
             **background_cover(),
         )
 

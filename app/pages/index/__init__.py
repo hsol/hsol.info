@@ -47,6 +47,8 @@ class IndexPage(BasePage):
     title = "임한솔 (About HansolLim)"
     route = "/"
 
+    state = IndexState
+
     def get_component(self, *args, **kwargs) -> pynecone.Component:
         with pynecone.session() as session:
             profiles = session.query(Profile).all()
@@ -68,7 +70,7 @@ class IndexPage(BasePage):
             Hero(
                 profile=profile_model,
                 profile_tags=profile_tags,
-                hero_min_height=str(IndexState.hero_min_height + "vh"),
+                hero_min_height=str(self.state.hero_min_height + "vh"),
             ),
             ProfileCard(profile=profile_model),
             ExperienceCard(experiences=experiences),
@@ -79,5 +81,5 @@ class IndexPage(BasePage):
             min_width="375px",
             height="100vh",
             overflow_y="scroll",
-            on_scroll=IndexState.change_hero_height,
+            on_scroll=self.state.change_hero_height,
         )

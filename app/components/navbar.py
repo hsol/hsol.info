@@ -7,7 +7,7 @@ def _navbar_content(phantom: bool = False):
     return pynecone.box(
         pynecone.link(
             pynecone.hstack(
-                pynecone.image(src="signature.png", width="1.5em", height="1.5em"),
+                pynecone.image(src="/signature.png", width="1.5em", height="1.5em"),
                 pynecone.text(
                     "임한솔",
                     color=GlobalStyle.Palette.BIRCH,

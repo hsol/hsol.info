@@ -1,10 +1,10 @@
 """Welcome to Pynecone! This file outlines the steps to create a basic app."""
+import pynecone
+
 from app import pages
 from app.constants import GlobalStyle
 from app.pages import BasePage
 from app.states.base import BaseState
-import pynecone
-
 
 default_title = "임한솔 (About HansolLim)"
 default_description = "#매_순간_스스로_발전하는_사람, #언어_가리지_않는_유연한_개발자, #사용자를_먼저_생각하는_메이커"
