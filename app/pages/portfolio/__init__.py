@@ -1,4 +1,5 @@
 import json
+from asyncio import sleep
 from itertools import groupby
 
 import pynecone
@@ -49,11 +50,13 @@ class PortfolioListState(BaseState):
     def current_portfolio(self) -> dict:
         return self.portfolio_id_map.get(self.portfolio_id, {})
 
-    def on_portfolio_link_click(self):
-        self.parent_state.dirty_substates.add(self.get_name())
-        self.parent_state.mark_dirty()
+    async def sync_state(self):
+        for _ in range(2):
+            await sleep(0.1)
+            self.parent_state.dirty_substates.add(self.get_name())
+            self.parent_state.mark_dirty()
 
-        self.computed_vars["current_portfolio"].mark_dirty(self)
+            self.computed_vars["current_portfolio"].mark_dirty(self)
 
 
 class PortfolioListPage(BasePage):
@@ -122,8 +125,8 @@ class PortfolioListPage(BasePage):
                                                 left="0",
                                                 width="100%",
                                                 height="100%",
-                                                on_mouse_down=self.state.on_portfolio_link_click,
-                                                on_mouse_up=self.state.on_portfolio_link_click,
+                                                on_mouse_down=self.state.sync_state,
+                                                on_mouse_up=self.state.sync_state,
                                             ),
                                             width="100%",
                                             padding="8px 1em",
