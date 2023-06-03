@@ -28,7 +28,11 @@ class PortfolioListState(BaseState):
                 session.query(Portfolio).options(joinedload(Portfolio.stacks)).all()
             )
             return {
-                str(p.id): {**json.loads(p.json()), "year": p.when.year}
+                str(p.id): {
+                    **json.loads(p.json()),
+                    "year": p.when.year,
+                    "stacks": [json.loads(s.json()) for s in p.stacks],
+                }
                 for p in portfolio_qs
             }
 
@@ -52,6 +56,10 @@ class PortfolioListState(BaseState):
         return self.portfolio_id_map.get(self.portfolio_id, {})
 
     @pynecone.var
+    def current_portfolio_stacks(self) -> list[dict]:
+        return self.portfolio_id_map.get(self.portfolio_id, {}).get("stacks")
+
+    @pynecone.var
     def is_detail(self) -> bool:
         return self.portfolio_id != ""
 
@@ -62,6 +70,7 @@ class PortfolioListState(BaseState):
             self.parent_state.mark_dirty()
 
             self.computed_vars["current_portfolio"].mark_dirty(self)
+            self.computed_vars["current_portfolio_stacks"].mark_dirty(self)
 
     async def on_load(self):
         await sleep(0.3)
@@ -173,12 +182,22 @@ class PortfolioDetailPage(BasePage):
                             pynecone.box(
                                 pynecone.vstack(
                                     pynecone.heading(
-                                        self.state.current_portfolio["title"], size="xl"
+                                        self.state.current_portfolio["title"],
+                                        size="xl",
                                     ),
                                     pynecone.text(
                                         self.state.current_portfolio["sub_title"],
                                         size="1em",
                                         color=GlobalStyle.Palette.GRAY,
+                                    ),
+                                    pynecone.hstack(
+                                        pynecone.foreach(
+                                            self.state.current_portfolio_stacks,
+                                            lambda stack: pynecone.badge(
+                                                stack["title"]
+                                            ),
+                                        ),
+                                        spacing="0.5em",
                                     ),
                                     margin_bottom="2em",
                                     align_items="baseline",
