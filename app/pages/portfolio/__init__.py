@@ -3,7 +3,8 @@ from asyncio import sleep
 from itertools import groupby
 
 import pynecone
-from sqlalchemy.orm import joinedload, load_only
+import typing
+from sqlalchemy.orm import joinedload
 
 from app import components
 from app.constants import GlobalStyle
@@ -50,6 +51,10 @@ class PortfolioListState(BaseState):
     def current_portfolio(self) -> dict:
         return self.portfolio_id_map.get(self.portfolio_id, {})
 
+    @pynecone.var
+    def is_detail(self) -> bool:
+        return self.portfolio_id != ""
+
     async def sync_state(self):
         for _ in range(2):
             await sleep(0.1)
@@ -58,12 +63,19 @@ class PortfolioListState(BaseState):
 
             self.computed_vars["current_portfolio"].mark_dirty(self)
 
+    async def on_load(self):
+        await sleep(0.3)
+        await self.sync_state()
 
-class PortfolioListPage(BasePage):
+
+class PortfolioDetailPage(BasePage):
     title = "포트폴리오 (About HansolLim)"
     route = "/portfolio/[portfolio_id]"
 
     state = PortfolioListState
+
+    def get_on_load_event_handler(self) -> typing.Callable[[], None] | None:
+        return self.state.on_load
 
     def get_component(self, *args, **kwargs) -> pynecone.Component:
         return components.page_container(
@@ -115,7 +127,7 @@ class PortfolioListPage(BasePage):
                                             ),
                                             pynecone.link(
                                                 href=replace_dynamic_route_args(
-                                                    route=PortfolioListPage.route,
+                                                    route=PortfolioDetailPage.route,
                                                     portfolio_id=portfolio["id"].to(
                                                         str
                                                     ),
@@ -156,21 +168,29 @@ class PortfolioListPage(BasePage):
                         gap="2em",
                     ),
                     pynecone.vstack(
-                        pynecone.vstack(
-                            pynecone.heading(
-                                self.state.current_portfolio["title"], size="xl"
+                        pynecone.cond(
+                            self.state.is_detail,
+                            pynecone.box(
+                                pynecone.vstack(
+                                    pynecone.heading(
+                                        self.state.current_portfolio["title"], size="xl"
+                                    ),
+                                    pynecone.text(
+                                        self.state.current_portfolio["sub_title"],
+                                        size="1em",
+                                        color=GlobalStyle.Palette.GRAY,
+                                    ),
+                                    margin_bottom="2em",
+                                    align_items="baseline",
+                                ),
+                                pynecone.code(
+                                    self.state.current_portfolio["description"],
+                                    padding="1em",
+                                ),
                             ),
-                            pynecone.text(
-                                self.state.current_portfolio["sub_title"],
-                                size="1em",
-                                color=GlobalStyle.Palette.GRAY,
+                            pynecone.box(
+                                pynecone.text("왼쪽의 포트폴리오 항목들을 눌러 내용을 확인해주세요.")
                             ),
-                            margin_bottom="2em",
-                            align_items="baseline",
-                        ),
-                        pynecone.code(
-                            self.state.current_portfolio["description"],
-                            padding="1em",
                         ),
                         width="100%",
                         align_items="baseline",
@@ -194,3 +214,7 @@ class PortfolioListPage(BasePage):
             **background_darken(10),
             **background_cover(),
         )
+
+
+class PortfolioListPage(PortfolioDetailPage):
+    route = "/portfolio"

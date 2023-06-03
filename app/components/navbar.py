@@ -1,10 +1,11 @@
 import pynecone
 
 from app.constants import GlobalStyle
+from app.pages.portfolio import PortfolioListPage
 
 
 def _navbar_content(phantom: bool = False):
-    return pynecone.box(
+    return pynecone.hstack(
         pynecone.link(
             pynecone.hstack(
                 pynecone.image(src="/signature.png", width="1.5em", height="1.5em"),
@@ -12,14 +13,19 @@ def _navbar_content(phantom: bool = False):
                     "임한솔",
                     color=GlobalStyle.Palette.BIRCH,
                     font_size="1.5em",
-                    margin_top="0.08em !important",
                 ),
-                justify_contents="center",
+                justify_content="center",
+                white_space="nowrap",
             ),
             href="/",
             _hover=dict(
                 text_decoration="none",
             ),
+        ),
+        pynecone.hstack(
+            pynecone.link(pynecone.text("포트폴리오"), href=PortfolioListPage.route),
+            justify_content="end",
+            width="100%",
         ),
         position="fixed" if not phantom else "relative",
         visibility="hidden" if phantom else "visible",
