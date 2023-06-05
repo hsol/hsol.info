@@ -23,7 +23,15 @@ def _navbar_content(phantom: bool = False):
             ),
         ),
         pynecone.hstack(
-            pynecone.link(pynecone.text("포트폴리오"), href=PortfolioListPage.route),
+            pynecone.link(
+                pynecone.badge("포트폴리오", padding="0.5em 1em"),
+                href=PortfolioListPage.route,
+            ),
+            pynecone.link(
+                pynecone.badge("블로그(외부링크)", padding="0.5em 1em"),
+                href="https://hsol.tistory.com",
+                is_external=True,
+            ),
             justify_content="end",
             width="100%",
         ),

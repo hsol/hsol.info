@@ -207,9 +207,7 @@ class PortfolioDetailPage(BasePage):
                                     padding="1em",
                                 ),
                             ),
-                            pynecone.box(
-                                pynecone.text("왼쪽의 포트폴리오 항목들을 눌러 내용을 확인해주세요.")
-                            ),
+                            pynecone.box(pynecone.text("포트폴리오 항목들을 눌러 내용을 확인해주세요.")),
                         ),
                         width="100%",
                         align_items="baseline",
