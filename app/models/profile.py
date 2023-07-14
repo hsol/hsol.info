@@ -1,7 +1,7 @@
-import pynecone
+import reflex
 
 
-class Profile(pynecone.Model, table=True):
+class Profile(reflex.Model, table=True):
     name: str
     birthday: str
     email: str
@@ -10,5 +10,5 @@ class Profile(pynecone.Model, table=True):
     blog: str
 
 
-class ProfileTag(pynecone.Model, table=True):
+class ProfileTag(reflex.Model, table=True):
     text: str

@@ -1,18 +1,18 @@
 from itertools import groupby
 
-import pynecone
+import reflex
 
 from app import components
 from app.models.stack import Stack
 
 
 def stack_column(stack_groups: dict, stack_node: Stack, **kwargs):
-    return pynecone.vstack(
-        pynecone.heading(stack_node.title, size="lg", margin_bottom="1em"),
+    return reflex.vstack(
+        reflex.heading(stack_node.title, size="lg", margin_bottom="1em"),
         *(
-            pynecone.box(
-                pynecone.heading(sub_heading.title, size="md"),
-                pynecone.text(
+            reflex.box(
+                reflex.heading(sub_heading.title, size="md"),
+                reflex.text(
                     ", ".join(
                         [item.title for item in stack_groups.get(sub_heading.id, [])]
                     )
@@ -30,7 +30,7 @@ def stack_column(stack_groups: dict, stack_node: Stack, **kwargs):
     )
 
 
-def StackCard(stacks: list[Stack]) -> pynecone.Component:
+def StackCard(stacks: list[Stack]) -> reflex.Component:
     stack_groups = {
         k: list(v)
         for k, v in groupby(
@@ -44,32 +44,32 @@ def StackCard(stacks: list[Stack]) -> pynecone.Component:
 
     return components.fullfill_card(
         "보유기술",
-        pynecone.box(
+        reflex.box(
             stack_column(
                 stack_groups=stack_groups,
                 stack_node=root_nodes[0],
                 align_items="flex-end",
                 text_align="right",
             ),
-            pynecone.box(
-                pynecone.text(
+            reflex.box(
+                reflex.text(
                     "AND",
                     color="#b5b5b5",
                     as_="b",
                     font_size="0.8em",
                     display=["none", "none", "block"],
                 ),
-                pynecone.hstack(
-                    pynecone.divider(),
-                    pynecone.box(
-                        pynecone.text(
+                reflex.hstack(
+                    reflex.divider(),
+                    reflex.box(
+                        reflex.text(
                             "AND",
                             color="#b5b5b5",
                             as_="b",
                             font_size="0.8em",
                         )
                     ),
-                    pynecone.divider(),
+                    reflex.divider(),
                     display=["flex", "flex", "none"],
                     margin="1em 0",
                 ),

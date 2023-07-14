@@ -1,6 +1,6 @@
 from functools import partial
 
-import pynecone
+import reflex
 from sqlalchemy.orm import joinedload
 
 from app import components
@@ -19,7 +19,7 @@ from app.pages.index.components.stack import StackCard
 from app.states.base import BaseState
 
 hero_badge_comp = partial(
-    pynecone.box,
+    reflex.box,
     align_items="center",
     background_color=GlobalStyle.Palette.BIRCH,
     border_radius="4px",
@@ -49,11 +49,11 @@ class IndexPage(BasePage):
 
     state = IndexState
 
-    def get_component(self, *args, **kwargs) -> pynecone.Component:
-        with pynecone.session() as session:
+    def get_component(self, *args, **kwargs) -> reflex.Component:
+        with reflex.session() as session:
             profiles = session.query(Profile).all()
             if not profiles:
-                return pynecone.box()
+                return reflex.box()
 
             profile_model = profiles[0]
             profile_tags = session.query(ProfileTag).all()

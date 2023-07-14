@@ -1,4 +1,4 @@
-import pynecone
+import reflex
 
 
 class GlobalStyle:
@@ -27,5 +27,5 @@ class GlobalStyle:
         "font_family": FontFamily.DEFAULT,
         "color": Palette.FONT_COLOR,
         "box_sizing": "border-box",
-        pynecone.Heading: {"font_family": FontFamily.DEFAULT},
+        reflex.Heading: {"font_family": FontFamily.DEFAULT},
     }

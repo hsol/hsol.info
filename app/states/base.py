@@ -1,5 +1,5 @@
-import pynecone
+import reflex
 
 
-class BaseState(pynecone.State):
+class BaseState(reflex.State):
     pass

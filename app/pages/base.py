@@ -1,6 +1,6 @@
 import typing
 
-import pynecone
+import reflex
 
 
 class BasePage:
@@ -8,13 +8,13 @@ class BasePage:
     description: str | None = None
     route: str | None = None
 
-    state: typing.Type[pynecone.State]
+    state: typing.Type[reflex.State]
 
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def get_component(self, *args, **kwargs) -> pynecone.Component:
+    def get_component(self, *args, **kwargs) -> reflex.Component:
         raise NotImplementedError
 
     def get_add_page_options(self) -> dict:

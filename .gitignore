@@ -1,4 +1,7 @@
+*.py[cod]
+.env
 .idea
 .web
-.env
+__pycache__/
+hsol_info
 pynecone.db

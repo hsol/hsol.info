@@ -1,5 +1,5 @@
-"""Welcome to Pynecone! This file outlines the steps to create a basic app."""
-import pynecone
+"""Welcome to Reflex! This file outlines the steps to create a basic app."""
+import reflex
 
 from app import pages
 from app.constants import GlobalStyle
@@ -26,7 +26,7 @@ default_meta_list = [
     {"property": "og:image:height", "content": "310"},
 ]
 
-app = pynecone.App(
+app = reflex.App(
     state=BaseState,
     stylesheets=GlobalStyle.STYLE_SHEETS,
     style=GlobalStyle.STYLE,

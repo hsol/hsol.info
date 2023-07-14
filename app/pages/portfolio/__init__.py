@@ -2,7 +2,7 @@ import json
 from asyncio import sleep
 from itertools import groupby
 
-import pynecone
+import reflex
 import typing
 from sqlalchemy.orm import joinedload
 
@@ -21,9 +21,9 @@ from app.utils import replace_dynamic_route_args
 
 
 class PortfolioListState(BaseState):
-    @pynecone.var
+    @reflex.var
     def portfolio_id_map(self) -> dict[int, dict]:
-        with pynecone.session() as session:
+        with reflex.session() as session:
             portfolio_qs = (
                 session.query(Portfolio).options(joinedload(Portfolio.stacks)).all()
             )
@@ -36,7 +36,7 @@ class PortfolioListState(BaseState):
                 for p in portfolio_qs
             }
 
-    @pynecone.var
+    @reflex.var
     def portfolio_groups(self) -> list[list[dict]]:
         _groupby = [
             (year, list(group))
@@ -51,15 +51,15 @@ class PortfolioListState(BaseState):
         ]
         return [group for _, group in _groupby]
 
-    @pynecone.var
+    @reflex.var
     def current_portfolio(self) -> dict:
         return self.portfolio_id_map.get(self.portfolio_id, {})
 
-    @pynecone.var
+    @reflex.var
     def current_portfolio_stacks(self) -> list[dict]:
         return self.portfolio_id_map.get(self.portfolio_id, {}).get("stacks")
 
-    @pynecone.var
+    @reflex.var
     def is_detail(self) -> bool:
         return self.portfolio_id != ""
 
@@ -86,35 +86,35 @@ class PortfolioDetailPage(BasePage):
     def get_on_load_event_handler(self) -> typing.Callable[[], None] | None:
         return self.state.on_load
 
-    def get_component(self, *args, **kwargs) -> pynecone.Component:
+    def get_component(self, *args, **kwargs) -> reflex.Component:
         return components.page_container(
             components.navbar(overlap=False),
-            pynecone.box(
-                pynecone.heading(
+            reflex.box(
+                reflex.heading(
                     "포트폴리오",
                     size="2xl",
                     color=GlobalStyle.Palette.WHITE,
                     margin_bottom="1em",
                 ),
-                pynecone.stack(
-                    pynecone.vstack(
-                        pynecone.foreach(
+                reflex.stack(
+                    reflex.vstack(
+                        reflex.foreach(
                             self.state.portfolio_groups,
-                            lambda portfolio_group, idx: pynecone.vstack(
-                                pynecone.heading(
+                            lambda portfolio_group, idx: reflex.vstack(
+                                reflex.heading(
                                     portfolio_group[0]["year"],
                                     size="md",
                                     position="sticky",
                                     top="0",
                                     background_color=GlobalStyle.Palette.WHITE,
                                 ),
-                                pynecone.list(
-                                    pynecone.foreach(
+                                reflex.list(
+                                    reflex.foreach(
                                         portfolio_group,
-                                        lambda portfolio: pynecone.list_item(
-                                            pynecone.text(portfolio["title"]),
-                                            pynecone.box(
-                                                pynecone.icon(
+                                        lambda portfolio: reflex.list_item(
+                                            reflex.text(portfolio["title"]),
+                                            reflex.box(
+                                                reflex.icon(
                                                     tag="chevron_down",
                                                     display=[
                                                         "block",
@@ -122,7 +122,7 @@ class PortfolioDetailPage(BasePage):
                                                         "none",
                                                     ],
                                                 ),
-                                                pynecone.icon(
+                                                reflex.icon(
                                                     tag="chevron_right",
                                                     display=[
                                                         "none",
@@ -134,7 +134,8 @@ class PortfolioDetailPage(BasePage):
                                                 right="8px",
                                                 top="calc(50% - 8px)",
                                             ),
-                                            pynecone.link(
+                                            reflex.link(
+                                                reflex.Box(),
                                                 href=replace_dynamic_route_args(
                                                     route=PortfolioDetailPage.route,
                                                     portfolio_id=portfolio["id"].to(
@@ -176,38 +177,36 @@ class PortfolioDetailPage(BasePage):
                         align_items="start",
                         gap="2em",
                     ),
-                    pynecone.vstack(
-                        pynecone.cond(
+                    reflex.vstack(
+                        reflex.cond(
                             self.state.is_detail,
-                            pynecone.box(
-                                pynecone.vstack(
-                                    pynecone.heading(
+                            reflex.box(
+                                reflex.vstack(
+                                    reflex.heading(
                                         self.state.current_portfolio["title"],
                                         size="xl",
                                     ),
-                                    pynecone.text(
+                                    reflex.text(
                                         self.state.current_portfolio["sub_title"],
                                         size="1em",
                                         color=GlobalStyle.Palette.GRAY,
                                     ),
-                                    pynecone.hstack(
-                                        pynecone.foreach(
+                                    reflex.hstack(
+                                        reflex.foreach(
                                             self.state.current_portfolio_stacks,
-                                            lambda stack: pynecone.badge(
-                                                stack["title"]
-                                            ),
+                                            lambda stack: reflex.badge(stack["title"]),
                                         ),
                                         spacing="0.5em",
                                     ),
                                     margin_bottom="2em",
                                     align_items="baseline",
                                 ),
-                                pynecone.code(
+                                reflex.code(
                                     self.state.current_portfolio["description"],
                                     padding="1em",
                                 ),
                             ),
-                            pynecone.box(pynecone.text("포트폴리오 항목들을 눌러 내용을 확인해주세요.")),
+                            reflex.box(reflex.text("포트폴리오 항목들을 눌러 내용을 확인해주세요.")),
                         ),
                         width="100%",
                         align_items="baseline",

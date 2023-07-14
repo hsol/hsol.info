@@ -1,9 +1,9 @@
 from functools import partial
 
-import pynecone
+import reflex
 
 page_container = partial(
-    pynecone.box,
+    reflex.box,
     min_width="375px",
     height="100vh",
     overflow_y="scroll",

@@ -1,11 +1,11 @@
 from functools import partial
 
-import pynecone
+import reflex
 
 from app.constants import GlobalStyle
 
 white_badge = partial(
-    pynecone.box,
+    reflex.box,
     align_items="center",
     background_color=GlobalStyle.Palette.BIRCH,
     border_radius="4px",

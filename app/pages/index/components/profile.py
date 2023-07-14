@@ -1,4 +1,4 @@
-import pynecone
+import reflex
 
 from app import components
 from app.models.profile import Profile
@@ -7,8 +7,8 @@ from app.models.profile import Profile
 def _card(profile_image_path: str, items: list[tuple]):
     return components.fullfill_card(
         "프로필",
-        pynecone.box(
-            pynecone.box(
+        reflex.box(
+            reflex.box(
                 flex_basis="20em",
                 width="20em",
                 height="20em",
@@ -18,10 +18,10 @@ def _card(profile_image_path: str, items: list[tuple]):
                 margin_bottom=["32px", "32px", 0],
                 border_radius="4px",
             ),
-            pynecone.vstack(
+            reflex.vstack(
                 *(
-                    pynecone.hstack(
-                        pynecone.text(f"{item[0]}.", as_="b"),
+                    reflex.hstack(
+                        reflex.text(f"{item[0]}.", as_="b"),
                         item[1],
                         font_size=["1em", "1em", "1.2em"],
                     )
@@ -40,40 +40,40 @@ def _card(profile_image_path: str, items: list[tuple]):
     )
 
 
-def ProfileCard(profile: Profile) -> pynecone.Component:
+def ProfileCard(profile: Profile) -> reflex.Component:
     return _card(
         profile_image_path="/profile/body_profile.jpg",
         items=[
-            ("이름", pynecone.text(profile.name)),
-            ("생일", pynecone.text(profile.birthday)),
+            ("이름", reflex.text(profile.name)),
+            ("생일", reflex.text(profile.birthday)),
             (
                 "이메일",
-                pynecone.link(
-                    pynecone.text(profile.email),
+                reflex.link(
+                    reflex.text(profile.email),
                     href="mailto:" + profile.email,
                 ),
             ),
-            pynecone.box(pynecone.divider(), padding="16px 0", width="100%"),
+            reflex.box(reflex.divider(), padding="16px 0", width="100%"),
             (
                 "Github",
-                pynecone.link(
-                    pynecone.text(profile.github),
+                reflex.link(
+                    reflex.text(profile.github),
                     href=profile.github,
                     is_external=True,
                 ),
             ),
             (
                 "링크드인",
-                pynecone.link(
-                    pynecone.text(profile.linkedin),
+                reflex.link(
+                    reflex.text(profile.linkedin),
                     href=profile.linkedin,
                     is_external=True,
                 ),
             ),
             (
                 "블로그",
-                pynecone.link(
-                    pynecone.text(profile.blog),
+                reflex.link(
+                    reflex.text(profile.blog),
                     href=profile.blog,
                     is_external=True,
                 ),

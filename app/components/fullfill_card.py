@@ -1,4 +1,4 @@
-import pynecone
+import reflex
 
 from app.constants import GlobalStyle
 from app.styles import background_cover, background_white_pattern
@@ -22,17 +22,17 @@ def fullfill_card(*components, title: str = None, **kwargs):
             **background_cover(),
         )
 
-    return pynecone.box(
-        pynecone.vstack(
-            pynecone.box(
-                pynecone.heading(title, margin_bottom="8px", size="lg"),
-                pynecone.vstack(
-                    pynecone.divider(
+    return reflex.box(
+        reflex.vstack(
+            reflex.box(
+                reflex.heading(title, margin_bottom="8px", size="lg"),
+                reflex.vstack(
+                    reflex.divider(
                         border_color=GlobalStyle.Palette.SIGNATURE,
                         margin_bottom="4px",
                         border_bottom_width="3px",
                     ),
-                    pynecone.divider(
+                    reflex.divider(
                         border_color=GlobalStyle.Palette.SIGNATURE,
                         width="60%",
                         border_bottom_width="2px",

@@ -1,11 +1,11 @@
 from functools import partial
 
-import pynecone
+import reflex
 
 from app.styles import background_cover
 
 hero = partial(
-    pynecone.hstack,
+    reflex.hstack,
     max_height="100vh",
     padding="10% 0",
     justify_content="center",

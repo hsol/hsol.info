@@ -1,4 +1,4 @@
-import pynecone
+import reflex
 
 from app import components, styles
 from app.components.badge import white_badge
@@ -6,15 +6,15 @@ from app.constants import GlobalStyle
 from app.models.history import Education
 
 
-def EducationCard(educations: list[Education]) -> pynecone.Component:
+def EducationCard(educations: list[Education]) -> reflex.Component:
     educations = list(sorted(educations, key=lambda e: e.when, reverse=True))
     return components.fullfill_card(
         "교육",
-        pynecone.vstack(
+        reflex.vstack(
             *(
-                pynecone.hstack(
+                reflex.hstack(
                     white_badge(education.when.year),
-                    pynecone.text(education.title, size=".8em"),
+                    reflex.text(education.title, size=".8em"),
                     padding_bottom=".5em",
                 )
                 for education in educations

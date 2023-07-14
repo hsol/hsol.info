@@ -1,14 +1,14 @@
 import operator
 from itertools import groupby
 
-import pynecone
+import reflex
 
 from app import components, styles
 from app.constants import GlobalStyle
 from app.models.history import Experience
 
 
-def ExperienceCard(experiences: list[Experience]) -> pynecone.Component:
+def ExperienceCard(experiences: list[Experience]) -> reflex.Component:
     experience_groups = groupby(
         sorted(experiences, key=lambda ex: ex.when, reverse=True),
         key=lambda ex: ex.when.year,
@@ -16,11 +16,11 @@ def ExperienceCard(experiences: list[Experience]) -> pynecone.Component:
 
     return components.fullfill_card(
         "경험",
-        pynecone.vstack(
+        reflex.vstack(
             *[
-                pynecone.vstack(
-                    pynecone.heading(str(when), size="lg"),
-                    pynecone.vstack(*[pynecone.text(ex.title) for ex in list(exs)]),
+                reflex.vstack(
+                    reflex.heading(str(when), size="lg"),
+                    reflex.vstack(*[reflex.text(ex.title) for ex in list(exs)]),
                     padding="16px",
                 )
                 for when, exs in experience_groups

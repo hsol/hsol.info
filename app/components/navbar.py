@@ -1,15 +1,15 @@
-import pynecone
+import reflex
 
 from app.constants import GlobalStyle
 from app.pages.portfolio import PortfolioListPage
 
 
 def _navbar_content(phantom: bool = False):
-    return pynecone.hstack(
-        pynecone.link(
-            pynecone.hstack(
-                pynecone.image(src="/signature.png", width="1.5em", height="1.5em"),
-                pynecone.text(
+    return reflex.hstack(
+        reflex.link(
+            reflex.hstack(
+                reflex.image(src="/signature.png", width="1.5em", height="1.5em"),
+                reflex.text(
                     "임한솔",
                     color=GlobalStyle.Palette.BIRCH,
                     font_size="1.5em",
@@ -22,13 +22,13 @@ def _navbar_content(phantom: bool = False):
                 text_decoration="none",
             ),
         ),
-        pynecone.hstack(
-            pynecone.link(
-                pynecone.badge("포트폴리오", padding="0.5em 1em"),
+        reflex.hstack(
+            reflex.link(
+                reflex.badge("포트폴리오", padding="0.5em 1em"),
                 href=PortfolioListPage.route,
             ),
-            pynecone.link(
-                pynecone.badge("블로그(외부링크)", padding="0.5em 1em"),
+            reflex.link(
+                reflex.badge("블로그(외부링크)", padding="0.5em 1em"),
                 href="https://hsol.tistory.com",
                 is_external=True,
             ),
@@ -46,9 +46,9 @@ def _navbar_content(phantom: bool = False):
 
 
 def navbar(overlap: bool = True):
-    return pynecone.box(
+    return reflex.box(
         _navbar_content(),
-        pynecone.cond(
+        reflex.cond(
             not overlap,
             _navbar_content(phantom=True),
         ),

@@ -1,4 +1,4 @@
-import pynecone
+import reflex
 
 from app import components
 from app.constants import GlobalStyle
@@ -6,30 +6,30 @@ from app.models.history import Portfolio
 from app.pages.portfolio import PortfolioListPage
 
 
-def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
+def PortfolioCard(portfolios: list[Portfolio]) -> reflex.Component:
     portfolios = sorted(portfolios, key=lambda p: p.when, reverse=True)
 
     return components.fullfill_card(
         "포트폴리오",
-        pynecone.box(
-            pynecone.hstack(
+        reflex.box(
+            reflex.hstack(
                 *[
-                    pynecone.vstack(
-                        pynecone.heading(portfolio.title, font_size=["0.8em", "1em"]),
-                        pynecone.text(
+                    reflex.vstack(
+                        reflex.heading(portfolio.title, font_size=["0.8em", "1em"]),
+                        reflex.text(
                             portfolio.sub_title,
                             color=GlobalStyle.Palette.GRAY,
                             margin_top="0",
                             font_size=["0.6em", "0.8em"],
                         ),
-                        pynecone.hstack(
+                        reflex.hstack(
                             *[
-                                pynecone.badge(stack.title)
+                                reflex.badge(stack.title)
                                 for stack in portfolio.stacks
                             ],
                             spacing="0.5em",
                         ),
-                        pynecone.code_block(
+                        reflex.code_block(
                             portfolio.description,
                             language="markdown",
                             width="100%",
@@ -52,10 +52,10 @@ def PortfolioCard(portfolios: list[Portfolio]) -> pynecone.Component:
                 align_items="baseline",
                 padding="8px",
             ),
-            pynecone.link(
-                pynecone.tooltip(
-                    pynecone.flex(
-                        pynecone.icon(tag="arrow_forward", width="100%", height="100%"),
+            reflex.link(
+                reflex.tooltip(
+                    reflex.flex(
+                        reflex.icon(tag="arrow_forward", width="100%", height="100%"),
                         position="absolute",
                         top="calc(50% - 16px)",
                         right="8px",
