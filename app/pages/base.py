@@ -14,6 +14,15 @@ class BasePage:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    def get_additional_vanilla(self) -> str:
+        return """
+        <!-- Calendly badge widget begin -->
+        <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+        <script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript" async></script>
+        <script type="text/javascript">window.onload = function() { Calendly.initBadgeWidget({ url: 'https://calendly.com/contact-hsol', text: '커피챗 하실래요?', color: '#1abc9c', textColor: '#ffffff', branding: true }); }</script>
+        <!-- Calendly badge widget end -->
+        """
+
     def get_component(self, *args, **kwargs) -> reflex.Component:
         raise NotImplementedError
 

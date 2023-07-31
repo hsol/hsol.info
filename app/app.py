@@ -36,7 +36,10 @@ for page in pages.__all__:  # type: type[BasePage]
     page_options = instance.get_add_page_options()
 
     app.add_page(
-        instance.get_component(),
+        reflex.box(
+            instance.get_component(),
+            reflex.html(instance.get_additional_vanilla().replace('"', "'")),
+        ),
         **{
             "route": page.route,
             "title": page.title or default_title,
