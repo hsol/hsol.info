@@ -14,7 +14,7 @@ def _navbar_content(phantom: bool = False):
                     color=GlobalStyle.Palette.BIRCH,
                     font_size="1.5em",
                 ),
-                justify_content="center",
+                justify_content="flex-start",
                 white_space="nowrap",
             ),
             href="/",

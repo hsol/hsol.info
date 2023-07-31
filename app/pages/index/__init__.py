@@ -13,7 +13,7 @@ from app.pages.index.components.education import EducationCard
 from app.pages.index.components.experience import ExperienceCard
 from app.pages.index.components.footer import Footer
 from app.pages.index.components.hero import Hero
-from app.pages.index.components.portpolio import PortfolioCard
+from app.pages.index.components.portfolio import PortfolioCard
 from app.pages.index.components.profile import _card, ProfileCard
 from app.pages.index.components.stack import StackCard
 from app.states.base import BaseState

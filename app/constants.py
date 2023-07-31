@@ -22,6 +22,7 @@ class GlobalStyle:
     STYLE_SHEETS = [
         "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400&display=swap",
         "https://fonts.googleapis.com/earlyaccess/jejugothic.css",
+        "/styles/base.css",
     ]
     STYLE = {
         "font_family": FontFamily.DEFAULT,

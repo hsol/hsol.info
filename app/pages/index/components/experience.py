@@ -20,7 +20,12 @@ def ExperienceCard(experiences: list[Experience]) -> reflex.Component:
             *[
                 reflex.vstack(
                     reflex.heading(str(when), size="lg"),
-                    reflex.vstack(*[reflex.text(ex.title) for ex in list(exs)]),
+                    reflex.vstack(
+                        *[
+                            reflex.text(ex.title, text_align="center")
+                            for ex in list(exs)
+                        ]
+                    ),
                     padding="16px",
                 )
                 for when, exs in experience_groups
