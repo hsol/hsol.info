@@ -181,51 +181,21 @@ ${contextText}
 `.trim();
 
   const text = await requestAnthropic(apiKey, prompt);
-  let candidateText = text;
   let parsed: unknown;
-  let lastParseError: unknown = null;
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      logStep(`Parsing attempt ${attempt}...`);
-      parsed = parseJsonWithFallback(candidateText);
-      lastParseError = null;
-      break;
-    } catch (error) {
-      lastParseError = error;
-      const detail = error instanceof Error ? error.message : String(error);
-      logStep(`Parse attempt ${attempt} failed: ${detail}`);
-      if (attempt === 3) break;
-
-      const repairPrompt = `
-다음 텍스트를 strict JSON 객체 하나로 복구해줘.
-반드시 지킬 것:
-- 오직 JSON만 출력
-- 코드블록 금지
-- 주석 금지
-- trailing comma 금지
-- 모든 key는 큰따옴표
-- 문자열 내부 큰따옴표는 반드시 이스케이프
-
-직전 파싱 에러:
-${detail}
-
-원본 텍스트:
-${candidateText}
-`.trim();
-      candidateText = await requestAnthropic(apiKey, repairPrompt);
-    }
-  }
-
-  if (lastParseError || parsed === undefined) {
+  try {
+    logStep("Parsing attempt 1...");
+    parsed = parseJsonWithFallback(text);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    logStep(`Parse attempt 1 failed: ${detail}`);
     await writeFailureDump({
       stage: "parse-failed",
       initialResponse: text,
-      lastCandidate: candidateText,
-      error: lastParseError,
+      lastCandidate: text,
+      error,
     });
-    throw lastParseError instanceof Error
-      ? lastParseError
+    throw error instanceof Error
+      ? error
       : new Error("Failed to parse Claude output as strict JSON.");
   }
 

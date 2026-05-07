@@ -1,4 +1,6 @@
 import { list } from "@vercel/blob";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { siteDataSchema, type SiteData } from "@/content/schema";
 
 const SITE_DATA_PATH = "vault/object-views/site-data.json";
@@ -47,7 +49,7 @@ async function fetchSiteDataFromBlob(): Promise<SiteData> {
 
   const response = await fetch(blobUrl, {
     headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
+    cache: "force-cache",
   }).catch(() => null);
 
   if (!response || !response.ok) {
@@ -58,6 +60,12 @@ async function fetchSiteDataFromBlob(): Promise<SiteData> {
   return siteDataSchema.parse(json);
 }
 
+async function fetchSiteDataFromLocalVault(): Promise<SiteData> {
+  const localPath = path.join(process.cwd(), "hsol-info-blob/vault/object-views/site-data.json");
+  const raw = await readFile(localPath, "utf8");
+  return siteDataSchema.parse(JSON.parse(raw));
+}
+
 export async function getSiteData(): Promise<SiteData> {
   const now = Date.now();
   if (cached && now < cached.expiresAt) return cached.data;
@@ -65,6 +73,7 @@ export async function getSiteData(): Promise<SiteData> {
   if (inflight) return inflight;
 
   inflight = fetchSiteDataFromBlob()
+    .catch(async () => fetchSiteDataFromLocalVault())
     .then((data) => {
       cached = { data, expiresAt: Date.now() + CACHE_TTL_MS };
       return data;
