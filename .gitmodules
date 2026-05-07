@@ -1,0 +1,3 @@
+[submodule "hsol-info-blob"]
+	path = hsol-info-blob
+	url = git@github.com:hsol/hsol-info-blob.git
