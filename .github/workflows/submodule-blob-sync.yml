@@ -46,4 +46,5 @@ jobs:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           BLOB_SUBMODULE_DIR: hsol-info-blob
           BLOB_PATH_PREFIX: info
+          BLOB_ACCESS: private
         run: npm run sync:blob:push

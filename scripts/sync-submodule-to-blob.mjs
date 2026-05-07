@@ -11,6 +11,7 @@ function parseArgs() {
   const options = {
     submoduleDir: process.env.BLOB_SUBMODULE_DIR || DEFAULT_SUBMODULE_DIR,
     prefix: process.env.BLOB_PATH_PREFIX || DEFAULT_PREFIX,
+    access: process.env.BLOB_ACCESS || "private",
     dryRun: false,
   };
 
@@ -50,7 +51,7 @@ function toPosixPath(filePath) {
 }
 
 async function main() {
-  const { submoduleDir, prefix, dryRun } = parseArgs();
+  const { submoduleDir, prefix, access, dryRun } = parseArgs();
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, "");
   const rootDir = path.resolve(process.cwd(), submoduleDir);
@@ -76,7 +77,7 @@ async function main() {
 
     const data = await readFile(absolutePath);
     const result = await put(blobPath, data, {
-      access: "public",
+      access,
       addRandomSuffix: false,
       token,
     });

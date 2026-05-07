@@ -93,7 +93,11 @@ async function main() {
     expectedLocalPaths.add(path.resolve(destinationPath));
     await mkdir(path.dirname(destinationPath), { recursive: true });
 
-    const response = await fetch(blob.url);
+    const response = await fetch(blob.url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     if (!response.ok) {
       throw new Error(`Blob 다운로드 실패: ${blob.url} (${response.status})`);
     }
