@@ -8,6 +8,39 @@ const SECTION_NAMES = {
   builder: "03 · BUILDER",
   curious: "04 · CURIOUS"
 };
+const ASK_HANSOL_FALLBACK_MESSAGE =
+  "죄송해요, 답변을 못 가져왔어요. 직접 묻고 싶으시면 calendly.com/contact-hsol/coffee-chat 에서 시간을 잡아주세요.";
+const ASK_HANSOL_SUGGESTIONS = [
+  "지금 무슨 일을 하나요?",
+  "AI를 어떻게 쓰나요?",
+  "강점이 뭐예요?",
+  "코드도 짜시나요?",
+  "어떤 회사와 잘 맞나요?"];
+
+async function askHansolViaApi(query) {
+  const response = await fetch("/api/ask-hansol", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!response.ok) throw new Error(`ask-hansol failed: ${response.status}`);
+  const data = await response.json();
+  if (!data.answer) throw new Error("empty answer");
+  return data.answer;
+}
+
+function streamAnswerText(answerText, onChunk, onDone) {
+  let i = 0;
+  const tick = () => {
+    i += Math.max(1, Math.floor(answerText.length / 80));
+    const text = answerText.slice(0, i);
+    const streaming = i < answerText.length;
+    onChunk(text, streaming);
+    if (streaming) setTimeout(tick, 18);else
+    onDone();
+  };
+  tick();
+}
 
 // ============================================================
 // HOME
@@ -123,12 +156,7 @@ function ChatDock({ defaultOpen = false, inline = false }) {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
-  const suggestions = [
-  "지금 무슨 일을 하나요?",
-  "AI를 어떻게 쓰나요?",
-  "강점이 뭐예요?",
-  "코드도 짜시나요?",
-  "어떤 회사와 잘 맞나요?"];
+  const suggestions = ASK_HANSOL_SUGGESTIONS;
 
 
   useEffect(() => {
@@ -146,55 +174,24 @@ function ChatDock({ defaultOpen = false, inline = false }) {
     setLoading(true);
     setMessages((prev) => [...prev, { role: 'user', text: finalQ }, { role: 'hansol', text: '', streaming: true }]);
 
-    const matched = D.faq.find((f) => {
-      const a = f.q.toLowerCase().replace(/[?!.\s]/g, "");
-      const b = finalQ.toLowerCase().replace(/[?!.\s]/g, "");
-      return a === b || a.includes(b) || b.includes(a);
-    });
-
     let answerText;
-    if (matched) {
-      answerText = matched.a;
-    } else {
-      try {
-        const ctx = `당신은 임한솔(Hansol Lim) 본인을 대신해 포트폴리오 사이트 방문자에게 답하는 어시스턴트입니다.
-한솔의 어조는 차분하고 단정합니다. 과장하지 않고, 짧고 사실 위주로 답합니다.
-한국어로 3~5문장 이내로 답하세요. 모르는 것은 모른다고 말합니다.
-
-[프로필 요약]
-- 이름: 임한솔, 10년 차 엔지니어 출신, 서울 거주
-- 현재: 프루퍼 ㈜ 대표 (2025.04~), PPB Studios 팀장 (2025.06~)
-- 과거: 토스 인터널 제품팀 4년 10개월, 리디북스 2년, 씨엔티테크 2년 4개월
-- Antler EIR, 라이트형제 자문
-- 학력: 건국대 경영공학사, 선린인터넷고
-- 대표 보유 기술: 전략적 사고 · 고객 중심 사고 · 디자인적 사고
-- 키워드: 인터널 제품, 옴니채널, 개발자 생산성, AI Native, Claude Code, Vibe coding
-- 연락: molmoty@gmail.com · calendly.com/contact-hsol/coffee-chat
-
-[FAQ — 한솔 본인 톤]
-${D.faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n")}
-
-방문자 질문: ${finalQ}`;
-        answerText = await window.claude.complete(ctx);
-      } catch (e) {
-        answerText = "죄송해요, 답변을 못 가져왔어요. 직접 묻고 싶으시면 calendly.com/contact-hsol/coffee-chat 에서 시간을 잡아주세요.";
-      }
+    try {
+      answerText = await askHansolViaApi(finalQ);
+    } catch (e) {
+      answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
 
-    let i = 0;
-    const tick = () => {
-      i += Math.max(1, Math.floor(answerText.length / 80));
-      const text = answerText.slice(0, i);
-      const streaming = i < answerText.length;
+    streamAnswerText(
+      answerText,
+      (text, streaming) => {
       setMessages((prev) => {
         const next = [...prev];
         next[next.length - 1] = { role: 'hansol', text, streaming };
         return next;
       });
-      if (streaming) setTimeout(tick, 18);else
-      setLoading(false);
-    };
-    tick();
+      },
+      () => setLoading(false),
+    );
   }, [q, loading]);
 
   return (
@@ -255,12 +252,7 @@ function AskBox() {
   const [a, setA] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const suggestions = [
-  "지금 무슨 일을 하나요?",
-  "AI를 어떻게 쓰나요?",
-  "강점이 뭐예요?",
-  "코드도 짜시나요?",
-  "어떤 회사와 잘 맞나요?"];
+  const suggestions = ASK_HANSOL_SUGGESTIONS;
 
 
   const ask = useCallback(async (query) => {
@@ -269,49 +261,18 @@ function AskBox() {
     setLoading(true);
     setA({ q: finalQ, text: "", streaming: true });
 
-    const matched = D.faq.find((f) => {
-      const a = f.q.toLowerCase().replace(/[?!.\s]/g, "");
-      const b = finalQ.toLowerCase().replace(/[?!.\s]/g, "");
-      return a === b || a.includes(b) || b.includes(a);
-    });
-
     let answerText;
-    if (matched) {
-      answerText = matched.a;
-    } else {
-      try {
-        const ctx = `당신은 임한솔(Hansol Lim) 본인을 대신해 포트폴리오 사이트 방문자에게 답하는 어시스턴트입니다.
-한솔의 어조는 차분하고 단정합니다. 과장하지 않고, 짧고 사실 위주로 답합니다.
-한국어로 3~5문장 이내로 답하세요. 모르는 것은 모른다고 말합니다.
-
-[프로필 요약]
-- 이름: 임한솔, 10년 차 엔지니어 출신, 서울 거주
-- 현재: 프루퍼 ㈜ 대표 (2025.04~), PPB Studios 팀장 (2025.06~)
-- 과거: 토스 인터널 제품팀 4년 10개월, 리디북스 2년, 씨엔티테크 2년 4개월
-- Antler EIR, 라이트형제 자문
-- 학력: 건국대 경영공학사, 선린인터넷고
-- 대표 보유 기술: 전략적 사고 · 고객 중심 사고 · 디자인적 사고
-- 키워드: 인터널 제품, 옴니채널, 개발자 생산성, AI Native, Claude Code, Vibe coding
-- 연락: molmoty@gmail.com · calendly.com/contact-hsol/coffee-chat
-
-[FAQ — 한솔 본인 톤]
-${D.faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n")}
-
-방문자 질문: ${finalQ}`;
-        answerText = await window.claude.complete(ctx);
-      } catch (e) {
-        answerText = "죄송해요, 답변을 못 가져왔어요. 직접 묻고 싶으시면 calendly.com/contact-hsol/coffee-chat 에서 시간을 잡아주세요.";
-      }
+    try {
+      answerText = await askHansolViaApi(finalQ);
+    } catch (e) {
+      answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
 
-    let i = 0;
-    const tick = () => {
-      i += Math.max(1, Math.floor(answerText.length / 80));
-      setA({ q: finalQ, text: answerText.slice(0, i), streaming: i < answerText.length });
-      if (i < answerText.length) setTimeout(tick, 18);else
-      setLoading(false);
-    };
-    tick();
+    streamAnswerText(
+      answerText,
+      (text, streaming) => setA({ q: finalQ, text, streaming }),
+      () => setLoading(false),
+    );
   }, [q]);
 
   return (
