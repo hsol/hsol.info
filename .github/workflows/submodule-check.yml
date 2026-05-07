@@ -1,0 +1,31 @@
+name: Submodule Access Check
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify-submodule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required secret
+        run: |
+          if [ -z "${{ secrets.SUBMODULES_PAT }}" ]; then
+            echo "SUBMODULES_PAT secret is missing."
+            echo "Add it at: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+      - name: Checkout repository with private submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_PAT }}
+
+      - name: Verify submodule status
+        run: |
+          git submodule status --recursive
+          test -d hsol-info-blob
