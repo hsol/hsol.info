@@ -18,13 +18,6 @@ import {
   SecHead,
 } from "@/components/portfolio/Atoms";
 import { HSOL_DATA as D } from "@/data/site";
-import {
-  TweakColor,
-  TweakRadio,
-  TweakSection,
-  TweaksPanel,
-  useTweaks,
-} from "@/components/TweaksPanel";
 import { askHansolViaApi, streamAnswerText } from "@/lib/ask-hansol/client";
 import {
   ASK_HANSOL_FALLBACK_MESSAGE,
@@ -160,6 +153,20 @@ type ChatMsg = {
   streaming?: boolean;
 };
 
+function renderTextWithLinks(text: string): ReactNode[] {
+  const parts = text.split(/(https?:\/\/[^\s)]+(?:\)[^\s]*)?)/g);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a key={`link-${i}`} href={part} target="_blank" rel="noopener noreferrer">
+          {part}
+        </a>
+      );
+    }
+    return <span key={`text-${i}`}>{part}</span>;
+  });
+}
+
 function ChatDock({
   defaultOpen = false,
   inline = false,
@@ -240,7 +247,7 @@ function ChatDock({
           <div key={i} className={"chatdock-msg chatdock-msg--" + m.role}>
               {m.role === 'hansol' && <div className="chatdock-msg-from">— Hansol</div>}
               <div className="chatdock-msg-body">
-                <span className={m.streaming ? "cursor-blink" : ""}>{m.text}</span>
+                <span className={m.streaming ? "cursor-blink" : ""}>{renderTextWithLinks(m.text)}</span>
               </div>
             </div>
           )}
@@ -321,7 +328,7 @@ function AskBox() {
       {a &&
       <div className="ask-answer">
           <span className="meta">— Hansol responds</span>
-          <span className={a.streaming ? "cursor-blink" : ""}>{a.text}</span>
+          <span className={a.streaming ? "cursor-blink" : ""}>{renderTextWithLinks(a.text)}</span>
         </div>
       }
     </section>);
@@ -609,11 +616,9 @@ function GanttTimeline({
 
 function CuriousView({
   onBack,
-  timelineMode,
   accent,
 }: {
   onBack: () => void;
-  timelineMode: string;
   accent?: string;
 }) {
   const timeline = [
@@ -638,20 +643,8 @@ function CuriousView({
         lede="엔지니어 → 인터널 제품 메이커 → 자문가 → 창업가 → 옴니채널 리드 — 한 줄로 적으면 점프처럼 보이지만 사이사이는 이어져 있습니다. 시간순으로 천천히 따라가보셔도 좋습니다." />
       
       <div className="sec">
-        <SecHead title={timelineMode === "gantt" ? "Section drawing — 2012 to now" : "Section drawing — 2012 to now"} num="01" meta={timelineMode === "gantt" ? "parallel tracks" : "vertical cut"} />
-        {timelineMode === "gantt" ?
-        <GanttTimeline items={timeline} accent={accent} /> :
-
-        <div className="timeline">
-            {timeline.map((t, i) =>
-          <div className="tl-item" key={i}>
-                <div className="tl-year">{t.year}</div>
-                <div className="tl-title">{t.title}</div>
-                <div className="tl-desc">{t.desc}</div>
-              </div>
-          )}
-          </div>
-        }
+        <SecHead title="Section drawing — 2012 to now" num="01" meta="parallel tracks" />
+        <GanttTimeline items={timeline} accent={accent} />
       </div>
       <div className="sec">
         <SecHead title="A bit personal" num="02" meta="off-record" />
@@ -687,18 +680,14 @@ function CuriousView({
 // ============================================================
 // App router
 // ============================================================
-const TWEAK_DEFAULTS: Record<string, string> = {
-  timelineMode: "gantt",
-  accent: "#287099",
-};
+const DEFAULT_ACCENT = "#287099";
 
 export default function PortfolioApp() {
   const [persona, setPersona] = useState<PersonaKey | null>(null);
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--accent', t.accent);
-  }, [t.accent]);
+    document.documentElement.style.setProperty("--accent", DEFAULT_ACCENT);
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
@@ -734,8 +723,7 @@ export default function PortfolioApp() {
     body = (
       <CuriousView
         onBack={back}
-        timelineMode={String(t.timelineMode)}
-        accent={String(t.accent)}
+        accent={DEFAULT_ACCENT}
       />
     );
   else body = <Home onPick={pick} />;
@@ -747,22 +735,6 @@ export default function PortfolioApp() {
         <Foot />
       </div>
       <ChatDock defaultOpen={persona !== null} inline={persona !== null} />
-      <TweaksPanel>
-        <TweakSection label="Timeline" />
-        <TweakRadio
-          label="Render mode"
-          value={t.timelineMode}
-          options={["gantt", "vertical"]}
-          onChange={(v: string) => setTweak("timelineMode", v)} />
-        
-        <TweakSection label="Theme" />
-        <TweakColor
-          label="Accent"
-          value={t.accent}
-          options={["#287099", "#5e93b1", "#1a1a1a", "#c14a2b"]}
-          onChange={(v: string) => setTweak("accent", v)} />
-        
-      </TweaksPanel>
     </div>
   );
 }
