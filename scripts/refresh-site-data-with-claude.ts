@@ -1,5 +1,7 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { siteDataSchema } from "../src/content/schema";
+import { HSOL_DATA } from "../src/data/site";
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
@@ -49,7 +51,16 @@ async function main() {
     throw new Error("Missing ANTHROPIC_API_KEY");
   }
 
-  const currentSiteDataText = await readFile(SITE_DATA_PATH, "utf8");
+  let currentSiteDataText: string;
+  try {
+    currentSiteDataText = await readFile(SITE_DATA_PATH, "utf8");
+  } catch (error) {
+    const enoent = typeof error === "object" && error !== null && "code" in error
+      ? (error as { code?: string }).code === "ENOENT"
+      : false;
+    if (!enoent) throw error;
+    currentSiteDataText = `${JSON.stringify(HSOL_DATA, null, 2)}\n`;
+  }
   const contextText = await loadContextFiles();
 
   const prompt = `
@@ -100,6 +111,7 @@ ${contextText}
   if (!text) throw new Error("Empty response from Anthropic");
 
   const parsed = siteDataSchema.parse(extractJson(text));
+  await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
   await writeFile(SITE_DATA_PATH, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
   console.log(`Updated ${SITE_DATA_PATH} using ${MODEL}`);
 }
