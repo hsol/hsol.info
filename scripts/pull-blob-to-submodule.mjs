@@ -1,10 +1,11 @@
-import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { list } from "@vercel/blob";
 
 const DEFAULT_SUBMODULE_DIR = "hsol-info-blob";
 const DEFAULT_PREFIX = "info";
+const SYNC_STATE_FILE = ".blob-sync-state.json";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -26,6 +27,26 @@ function parseArgs() {
 
 function toPosixPath(filePath) {
   return filePath.split(path.sep).join("/");
+}
+
+async function pathExists(targetPath) {
+  try {
+    await access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadSyncState(statePath) {
+  try {
+    const raw = await readFile(statePath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed;
+  } catch {
+    return {};
+  }
 }
 
 async function collectFiles(rootDir, currentDir = rootDir) {
@@ -76,7 +97,10 @@ async function main() {
 
   const normalizedPrefix = `${prefix.replace(/^\/+|\/+$/g, "")}/`;
   const submoduleRoot = path.resolve(process.cwd(), submoduleDir);
+  const statePath = path.join(submoduleRoot, SYNC_STATE_FILE);
   await mkdir(submoduleRoot, { recursive: true });
+  const previousState = await loadSyncState(statePath);
+  const nextState = {};
 
   const blobs = await listAllBlobs(normalizedPrefix, token);
   if (blobs.length === 0) {
@@ -85,14 +109,27 @@ async function main() {
   }
 
   const expectedLocalPaths = new Set();
+  let downloadedCount = 0;
+  let skippedCount = 0;
   for (const blob of blobs) {
     const relativePath = blob.pathname.slice(normalizedPrefix.length);
     if (!relativePath) continue;
 
     const destinationPath = path.join(submoduleRoot, relativePath);
+    const destinationResolved = path.resolve(destinationPath);
     expectedLocalPaths.add(path.resolve(destinationPath));
-    await mkdir(path.dirname(destinationPath), { recursive: true });
+    const blobTimestamp = blob.uploadedAt
+      ? new Date(blob.uploadedAt).toISOString()
+      : "";
+    const previousTimestamp = previousState[relativePath];
+    const alreadyExists = await pathExists(destinationResolved);
+    if (blobTimestamp && previousTimestamp === blobTimestamp && alreadyExists) {
+      nextState[relativePath] = blobTimestamp;
+      skippedCount += 1;
+      continue;
+    }
 
+    await mkdir(path.dirname(destinationPath), { recursive: true });
     const response = await fetch(blob.url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -104,6 +141,8 @@ async function main() {
 
     const content = Buffer.from(await response.arrayBuffer());
     await writeFile(destinationPath, content);
+    nextState[relativePath] = blobTimestamp || previousTimestamp || "";
+    downloadedCount += 1;
     console.log(`다운로드 완료: ${toPosixPath(relativePath)}`);
   }
 
@@ -118,6 +157,9 @@ async function main() {
       }
     }
   }
+
+  await writeFile(statePath, `${JSON.stringify(nextState, null, 2)}\n`);
+  console.log(`증분 동기화 완료: 다운로드 ${downloadedCount}건, 스킵 ${skippedCount}건`);
 }
 
 main().catch((error) => {
