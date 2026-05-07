@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e2a3d"></stop>
+      <stop offset="1" stop-color="#14384f"></stop>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#3d7a9c" stroke-width="0.5" opacity="0.18"></path>
+    </pattern>
+    <pattern id="grid2" width="200" height="200" patternUnits="userSpaceOnUse">
+      <path d="M 200 0 L 0 0 0 200" fill="none" stroke="#3d7a9c" stroke-width="1" opacity="0.22"></path>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"></rect>
+  <rect width="1200" height="630" fill="url(#grid)"></rect>
+  <rect width="1200" height="630" fill="url(#grid2)"></rect>
+
+  
+  <g stroke="#5e93b1" stroke-width="1.5" fill="none">
+    <path d="M 40 40 L 80 40 M 40 40 L 40 80"></path>
+    <path d="M 1160 40 L 1120 40 M 1160 40 L 1160 80"></path>
+    <path d="M 40 590 L 80 590 M 40 590 L 40 550"></path>
+    <path d="M 1160 590 L 1120 590 M 1160 590 L 1160 550"></path>
+  </g>
+
+  
+  <g font-family="JetBrains Mono, monospace" fill="#7fb4d0" font-size="14" letter-spacing="3">
+    <text x="80" y="100">HSOL.INFO — A PORTFOLIO IN PLAN VIEW</text>
+    <text x="1120" y="100" text-anchor="end">N ↑</text>
+  </g>
+  <line x1="80" y1="118" x2="1120" y2="118" stroke="#3d7a9c" stroke-width="0.7" opacity="0.6"></line>
+
+  
+  <g font-family="&#39;LINE Seed KR&#39;,&#39;Noto Sans KR&#39;,sans-serif" fill="#f2f7fa">
+    <text x="80" y="240" font-size="68" font-weight="700">온라인의 기술과</text>
+    <text x="80" y="320" font-size="68" font-weight="700">오프라인의 운영을 잇는</text>
+    <text x="80" y="400" font-size="68" font-weight="700"><tspan fill="#ffe9a8">임한솔</tspan>입니다.</text>
+  </g>
+
+  
+  <text x="80" y="460" font-family="&#39;LINE Seed KR&#39;,&#39;Noto Sans KR&#39;,sans-serif" fill="#a9c5d6" font-size="22" font-weight="400">프루퍼 ㈜ 대표 · PPB Studios 팀장 · 10년+ 엔지니어</text>
+
+  
+  <g transform="translate(80, 510) scale(0.046)">
+    <rect width="2164" height="2164" fill="#5E93B1"></rect>
+    <path d="M819.579 523L1271.48 977.685H819.579V523Z" fill="#287099"></path>
+    <path d="M1492.82 523L1493.31 1166.79H598.437V2164H2164V1208.13L1492.82 523Z" fill="#287099"></path>
+    <path d="M598 1680L1072 2164H598.365L598 1680Z" fill="#5E93B1"></path>
+    <path d="M598.437 523H819.992V977.685H1271.37V523H1492.93V1680.38H1271.37V1166.17H819.992V1680.38H598.437V523Z" fill="white"></path>
+  </g>
+  <g font-family="JetBrains Mono, monospace" fill="#7fb4d0" font-size="13" letter-spacing="2">
+    <text x="200" y="540">PERSON</text>
+    <text x="200" y="562" fill="#f2f7fa" font-size="20" letter-spacing="1.5">임한솔 · Hansol Lim</text>
+  </g>
+
+  
+  <g transform="translate(900, 470)" stroke="#5e93b1" fill="none">
+    <rect x="0" y="0" width="220" height="100" stroke-width="2"></rect>
+    <line x1="120" y1="0" x2="120" y2="100" stroke-width="1"></line>
+    <line x1="120" y1="50" x2="220" y2="50" stroke-width="1"></line>
+    <text x="58" y="58" font-family="JetBrains Mono, monospace" font-size="11" fill="#7fb4d0" text-anchor="middle">A1 / HIRE</text>
+    <text x="170" y="30" font-family="JetBrains Mono, monospace" font-size="9" fill="#7fb4d0" text-anchor="middle">B1</text>
+    <text x="170" y="78" font-family="JetBrains Mono, monospace" font-size="9" fill="#7fb4d0" text-anchor="middle">B2</text>
+    <line x1="0" y1="115" x2="220" y2="115" stroke="#3d7a9c" stroke-width="0.5"></line>
+    <text x="110" y="130" font-family="JetBrains Mono, monospace" font-size="10" fill="#5b819a" text-anchor="middle">10 yr · since 2014</text>
+  </g>
+</svg>

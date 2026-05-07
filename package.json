@@ -1,82 +1,27 @@
 {
-  "name": "hansollim-portfolio",
-  "version": "0.0.1",
-  "description": "Portfolio of HansolLim in South Korea, Web developer",
-  "main": "index.js",
-  "engines": {
-    "npm": ">= 6.3.0"
-  },
+  "name": "hsol-github-io",
+  "version": "2.0.0",
+  "private": true,
   "scripts": {
-    "preinstall": "npm run clean",
-    "prestart": "webpack --mode development",
-    "start": "webpack-dev-server",
-    "prebuild": "rm -rf dist",
-    "build": "webpack --mode production",
-    "build-dev": "webpack --mode development",
-    "postbuild": "cd dist && rm style.*.js",
-    "deploy": "npm run build && git add ./dist && git commit -m 'Initial dist subtree commit' && ./deploy-on-master.sh dist",
-    "analyze": "webpack --mode production --analyze",
-    "clean": "rm -rf node_modules && git checkout package-lock.json",
-    "test": "mocha $(find ./src/Test -name '*.spec.js') --recursive --require babel-core/register --exit"
+    "dev": "next dev -p 9999",
+    "build": "next build",
+    "start": "next start -p 9999",
+    "lint": "next lint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hsol/hsol.github.io.git"
-  },
-  "keywords": [
-    "portfolio"
-  ],
-  "author": "HansolLim",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/hsol/hsol.github.io/issues"
-  },
-  "homepage": "https://github.com/hsol/hsol.github.io#readme",
   "dependencies": {
-    "aos": "^2.3.4",
-    "bulma": "^0.7.1",
-    "bulma-extensions": "^2.2.2",
-    "moment": "^2.22.2",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2",
-    "react-sticky-fill": "^0.8.4"
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "babel-core": "^6.26.3",
-    "babel-loader": "^7.1.5",
-    "babel-plugin-syntax-decorators": "^6.13.0",
-    "babel-plugin-syntax-jsx": "^6.18.0",
-    "babel-polyfill": "^6.26.0",
-    "babel-preset-env": "^1.7.0",
-    "babel-preset-react": "^6.24.1",
-    "babel-register": "^6.26.0",
-    "chai": "^4.1.2",
-    "chai-http": "^4.0.0",
-    "chromedriver": "^2.41.0",
-    "concurrently": "^3.6.1",
-    "copy-webpack-plugin": "latest",
-    "css-loader": "^1.0.0",
-    "express": "^4.16.3",
-    "extract-text-webpack-plugin": "^4.0.0-beta.0",
-    "file-loader": "^1.1.11",
-    "friendly-errors-webpack-plugin": "^1.7.0",
-    "glob": "latest",
-    "html-webpack-exclude-assets-plugin": "0.0.7",
-    "html-webpack-plugin": "^3.2.0",
-    "jquery": "^3.3.1",
-    "mocha": "^5.2.0",
-    "node-notifier": "^5.2.1",
-    "node-sass": "^4.9.3",
-    "normalize.css": "^8.0.0",
-    "react-hot-loader": "^4.3.4",
-    "sass-loader": "^7.1.0",
-    "style-loader": "^0.22.1",
-    "typed.js": "^2.0.9",
-    "url-loader": "^1.1.0",
-    "webpack": "^4.16.5",
-    "webpack-bundle-analyzer": "^2.13.1",
-    "webpack-cli": "^3.1.0",
-    "webpack-dev-server": "^3.1.5",
-    "webpack-merge": "^4.1.4"
+    "autoprefixer": "^10.4.20",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.16.0",
+    "eslint-config-next": "^15.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.7.2"
   }
 }
