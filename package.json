@@ -6,18 +6,21 @@
     "dev": "next dev -p 9999",
     "build": "next build",
     "start": "next start -p 9999",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sync:blob:push": "node scripts/sync-submodule-to-blob.mjs",
+    "sync:blob:pull": "node scripts/pull-blob-to-submodule.mjs"
   },
   "dependencies": {
+    "@vercel/blob": "^2.3.3",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.20",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
     "postcss": "^8.4.49",
