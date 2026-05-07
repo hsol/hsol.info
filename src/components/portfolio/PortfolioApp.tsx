@@ -16,8 +16,10 @@ import {
   Plate,
   PlanDiagram,
   SecHead,
+  SiteDataProvider,
+  useSiteData,
 } from "@/components/portfolio/Atoms";
-import { HSOL_DATA as D } from "@/data/site";
+import type { SiteData } from "@/content/schema";
 import { askHansolViaApi, streamAnswerText } from "@/lib/ask-hansol/client";
 import {
   ASK_HANSOL_FALLBACK_MESSAGE,
@@ -33,10 +35,24 @@ const COORDS: Record<string, string> = {
 
 type PersonaKey = "hire" | "collab" | "builder" | "curious";
 
+function renderTitleLines(lines: string[]): ReactNode {
+  return (
+    <>
+      {lines.map((line, idx) => (
+        <span key={`${line}-${idx}`}>
+          {line}
+          {idx < lines.length - 1 ? <br /> : null}
+        </span>
+      ))}
+    </>
+  );
+}
+
 // ============================================================
 // HOME
 // ============================================================
 function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
+  const D = useSiteData();
   const [hovered, setHovered] = useState<PersonaKey | null>(null);
   const [autoIdx, setAutoIdx] = useState(0);
   const lastInteractRef = useRef(0);
@@ -50,7 +66,7 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
       setAutoIdx((i) => (i + 1) % keys.length);
     }, 1600);
     return () => clearInterval(tick);
-  }, [hovered]);
+  }, [hovered, D.personas]);
   const activeKey: PersonaKey = hovered ?? (D.personas[autoIdx].key as PersonaKey);
   return (
     <div className="view" onMouseMove={bumpInteract} onClick={bumpInteract} onKeyDown={bumpInteract}>
@@ -61,23 +77,25 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
           <div>
             <div className="hero-eyebrow">
               <span className="axis"></span>
-              hsol.info — a portfolio in plan view
+              {D.portfolioCopy.home.heroEyebrow}
             </div>
             <h1 className="hero-title">
-              <span className="blk">온라인의 기술과</span>
-              <span className="blk">오프라인의 운영을 잇는</span>
-              <span className="blk"><span className="hi">임한솔</span>입니다.</span>
+              {D.portfolioCopy.home.heroTitleLines.map((line, idx) => (
+                <span className="blk" key={`${line}-${idx}`}>
+                  {idx === D.portfolioCopy.home.heroTitleLines.length - 1 ? <span className="hi">{line}</span> : line}
+                </span>
+              ))}
             </h1>
             <p className="hero-sub">
-              10년이상 경력의 엔지니어이자 스타트업을 창업한 메이커. 씨엔티테크 → 리디북스 → 토스 인터널 제품팀을 거쳐, 지금은 
-              <span className="em"> 프루퍼 ㈜ 대표이자 PPB Studios 팀장</span>으로 일하고 있습니다. 
-              아래에서 가장 가까운 항목을 골라주세요. 그에 맞춰 이야기를 정리해 드릴게요.
+              {D.portfolioCopy.home.heroSubLead}
+              <span className="em"> {D.portfolioCopy.home.heroSubEmphasis}</span>{" "}
+              {D.portfolioCopy.home.heroSubTail}
             </p>
           </div>
           <div className="hero-meta">
-            <span><b>SINCE</b> 2014</span>
-            <span><b>NOW</b> Proofer · PPB</span>
-            <span><b>BASE</b> 서울</span>
+            <span><b>{D.portfolioCopy.home.heroMetaSinceLabel}</b> {D.portfolioCopy.home.heroMetaSinceValue}</span>
+            <span><b>{D.portfolioCopy.home.heroMetaNowLabel}</b> {D.portfolioCopy.home.heroMetaNowValue}</span>
+            <span><b>{D.portfolioCopy.home.heroMetaBaseLabel}</b> {D.portfolioCopy.home.heroMetaBaseValue}</span>
           </div>
         </div>
         <PlanDiagram
@@ -89,8 +107,8 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
 
       <section className="doors">
         <div className="doors-head">
-          <h2 className="doors-h">어떤 이유로 오셨어요?</h2>
-          <div className="doors-meta">Why are you here today</div>
+          <h2 className="doors-h">{D.portfolioCopy.home.doorsTitle}</h2>
+          <div className="doors-meta">{D.portfolioCopy.home.doorsMeta}</div>
         </div>
         <div className="doors-list">
           {D.personas.map((p) =>
@@ -122,21 +140,18 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
         <div className="coffee-card">
           <div className="coffee-quote">“</div>
           <div className="coffee-body">
-            <div className="coffee-eyebrow">— Coffee chat</div>
-            <h3 className="coffee-h">시간 괜찮으시면 30분만 같이 이야기해요.</h3>
-            <p className="coffee-p">
-              여기까지 읽어주셨다면, 그것만으로도 감사합니다.
-              더 궁금한 얘기가 있다면 직접 만나서 나누고 싶어요.
-            </p>
+            <div className="coffee-eyebrow">{D.portfolioCopy.home.coffeeEyebrow}</div>
+            <h3 className="coffee-h">{D.portfolioCopy.home.coffeeTitle}</h3>
+            <p className="coffee-p">{D.portfolioCopy.home.coffeeBody}</p>
             <div className="coffee-cta">
               <a className="coffee-btn" href={D.identity.calendly} target="_blank" rel="noopener">
-                30분 커피챗 예약하기 <span className="arr">→</span>
+                {D.portfolioCopy.home.coffeeButtonLabel} <span className="arr">→</span>
               </a>
               <a className="coffee-link" href={"mailto:" + D.identity.email}>{D.identity.email}</a>
             </div>
           </div>
           <div className="coffee-photo">
-            <img src="/hansol.png" alt="임한솔" width={280} height={280} />
+            <img src="/hansol.png" alt={D.identity.name} width={280} height={280} />
           </div>
         </div>
       </section>
@@ -174,6 +189,7 @@ function ChatDock({
   defaultOpen?: boolean;
   inline?: boolean;
 }) {
+  const D = useSiteData();
   const [open, setOpen] = useState(defaultOpen);
   const [q, setQ] = useState("");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -226,16 +242,16 @@ function ChatDock({
       <aside className={"chatdock" + (open ? " is-open" : "") + (inline ? " is-inline" : "")}>
         <header className="chatdock-head">
           <div>
-            <div className="chatdock-title">ASK HANSOL</div>
-            <div className="chatdock-sub">한솔에게 직접 물어보세요</div>
+            <div className="chatdock-title">{D.portfolioCopy.ask.dockTitle}</div>
+            <div className="chatdock-sub">{D.portfolioCopy.ask.dockSub}</div>
           </div>
           <button className="chatdock-x" onClick={() => setOpen(false)} aria-label="Close">×</button>
         </header>
         <div className="chatdock-scroll" ref={scrollRef}>
           {messages.length === 0 &&
           <div className="chatdock-empty">
-              <div className="chatdock-empty-line">— Hansol</div>
-              <p>안녕하세요. 이력서에 적기 어려운 것들도 물어보셔도 좋아요. 프로필 데이터를 바탕으로 답합니다.</p>
+              <div className="chatdock-empty-line">{D.portfolioCopy.ask.dockEmptyLine}</div>
+              <p>{D.portfolioCopy.ask.dockEmptyIntro}</p>
               <div className="chatdock-suggest">
                 {suggestions.map((s, i) =>
               <button key={i} className="chatdock-chip" onClick={() => ask(s)}>{s}</button>
@@ -255,7 +271,7 @@ function ChatDock({
         <form className="chatdock-form" onSubmit={(e) => {e.preventDefault();ask();}}>
           <input
             className="chatdock-input"
-            placeholder="질문을 입력하세요"
+            placeholder={D.portfolioCopy.ask.dockInputPlaceholder}
             value={q}
             onChange={(e) => setQ(e.target.value)} />
           
@@ -272,6 +288,7 @@ function ChatDock({
 // AskBox
 // ============================================================
 function AskBox() {
+  const D = useSiteData();
   const [q, setQ] = useState("");
   const [a, setA] = useState<{
     q: string;
@@ -306,18 +323,18 @@ function AskBox() {
   return (
     <section className="ask">
       <div className="ask-head">
-        <span>§ 02 · ASK</span>
-        <span>위 항목 외의 질문은 — 직접 물어보세요</span>
+        <span>{D.portfolioCopy.ask.askHeaderLeft}</span>
+        <span>{D.portfolioCopy.ask.askHeaderRight}</span>
       </div>
       <form className="ask-row" onSubmit={(e) => {e.preventDefault();ask();}}>
         <input
           className="ask-input"
-          placeholder="한솔에게 직접 물어보세요"
+          placeholder={D.portfolioCopy.ask.askInputPlaceholder}
           value={q}
           onChange={(e) => setQ(e.target.value)} />
         
         <button className="ask-submit" type="submit" disabled={loading}>
-          {loading ? "..." : "Send"}
+          {loading ? "..." : D.portfolioCopy.ask.askSendLabel}
         </button>
       </form>
       <div className="ask-suggestions">
@@ -327,7 +344,7 @@ function AskBox() {
       </div>
       {a &&
       <div className="ask-answer">
-          <span className="meta">— Hansol responds</span>
+          <span className="meta">{D.portfolioCopy.ask.askMetaLabel}</span>
           <span className={a.streaming ? "cursor-blink" : ""}>{renderTextWithLinks(a.text)}</span>
         </div>
       }
@@ -366,6 +383,7 @@ function ViewHead({
 
 // ---------- 01 HIRE ----------
 function HireView({ onBack }: { onBack: () => void }) {
+  const D = useSiteData();
   const tier1 = D.career.filter((c) => c.tier === 1);
   return (
     <div className="view">
@@ -373,8 +391,8 @@ function HireView({ onBack }: { onBack: () => void }) {
       <ViewHead
         room="01 · HIRE"
         coord="A1"
-        title={<>10년 차 엔지니어,<br />제품·운영·창업을 거친 사람.</>}
-        lede="엔지니어로 시작해 토스 인터널 제품 4년 10개월, 두 번의 창업, 옴니채널 플랫폼 리드까지 — “기능을 잘 만드는 사람”보다 “무엇을 만들지 정하고 끝까지 가져가는 사람”으로 자랐습니다." />
+        title={renderTitleLines(D.viewHeaders.hire.titleLines)}
+        lede={D.viewHeaders.hire.lede} />
       
       <div className="sec">
         <SecHead title="Strengths" num="01" meta="3 pillars" />
@@ -387,15 +405,15 @@ function HireView({ onBack }: { onBack: () => void }) {
       <div className="sec">
         <SecHead title="Facts" num="03" meta="basic" />
         <div className="facts">
-          <div className="fact"><div className="fact-label">Years</div><div className="fact-value">10년+ (since 2014)</div></div>
-          <div className="fact"><div className="fact-label">Base</div><div className="fact-value">{D.identity.location}</div></div>
-          <div className="fact"><div className="fact-label">Education</div><div className="fact-value">{D.education[0].school} · {D.education[0].degree}</div></div>
-          <div className="fact"><div className="fact-label">Languages</div><div className="fact-value">{D.languages.map((l) => `${l.name}(${l.level.split(' ')[0]})`).join(' · ')}</div></div>
+          <div className="fact"><div className="fact-label">{D.portfolioCopy.hire.factsYearsLabel}</div><div className="fact-value">{D.portfolioCopy.hire.factsYearsValue}</div></div>
+          <div className="fact"><div className="fact-label">{D.portfolioCopy.hire.factsBaseLabel}</div><div className="fact-value">{D.identity.location}</div></div>
+          <div className="fact"><div className="fact-label">{D.portfolioCopy.hire.factsEducationLabel}</div><div className="fact-value">{D.education[0].school} · {D.education[0].degree}</div></div>
+          <div className="fact"><div className="fact-label">{D.portfolioCopy.hire.factsLanguagesLabel}</div><div className="fact-value">{D.languages.map((l) => `${l.name}(${l.level.split(' ')[0]})`).join(' · ')}</div></div>
         </div>
       </div>
       <CoffeeCTA
-        title="이력서 한 장으로는 다 담기지 않는 이야기가 있습니다."
-        sub="30분 커피챗으로, 어떤 자리에 어떤 기여가 가능할지 직접 이야기 나눠요." />
+        title={D.portfolioCopy.hire.coffee.title}
+        sub={D.portfolioCopy.hire.coffee.sub} />
       
     </div>);
 
@@ -403,14 +421,15 @@ function HireView({ onBack }: { onBack: () => void }) {
 
 // ---------- 02 COLLAB ----------
 function CollabView({ onBack }: { onBack: () => void }) {
+  const D = useSiteData();
   return (
     <div className="view">
       <Back onBack={onBack} />
       <ViewHead
         room="02 · COLLAB"
         coord="B1"
-        title={<>기술과 운영 사이,<br />다리를 놓는 일을 합니다.</>}
-        lede="지금 두 곳에서 — 프루퍼(대표), PPB Studios(팀장) 으로 동시에 움직이고 있습니다. 공통점은 모두 “흩어진 부서·채널·역할을 하나의 시스템으로 묶는 일”이라는 점입니다." />
+        title={renderTitleLines(D.viewHeaders.collab.titleLines)}
+        lede={D.viewHeaders.collab.lede} />
       
       <div className="sec">
         <SecHead title="What I'm building now" num="01" meta="active" />
@@ -419,24 +438,14 @@ function CollabView({ onBack }: { onBack: () => void }) {
       <div className="sec">
         <SecHead title="How I work" num="02" meta="approach" />
         <div className="pillars">
-          <div className="pillar">
-            <div className="pillar-no">METHOD · 01</div>
-            <div className="pillar-name">문제부터 다시 그린다</div>
-            <div className="pillar-en">Reframe before build</div>
-            <div className="pillar-blurb">의뢰가 들어와도 “그게 정말 그 문제냐“부터 묻습니다. 토스 인터널도, PPB의 옴니채널도 의뢰받은 명세 그대로가 아니라 한 단계 위에서 다시 정의한 결과였습니다.</div>
-          </div>
-          <div className="pillar">
-            <div className="pillar-no">METHOD · 02</div>
-            <div className="pillar-name">가설을 가장 작게 잘라낸다</div>
-            <div className="pillar-en">Smallest viable test</div>
-            <div className="pillar-blurb">한 번에 큰 시스템을 만들지 않습니다. 가장 작고 가장 빨리 검증 가능한 형태로 잘라낸 뒤, 진짜 사용 데이터를 보고 다음 한 걸음을 정합니다.</div>
-          </div>
-          <div className="pillar">
-            <div className="pillar-no">METHOD · 03</div>
-            <div className="pillar-name">AI를 도구가 아닌 문화로</div>
-            <div className="pillar-en">AI as culture</div>
-            <div className="pillar-blurb">PPB에서는 Claude Code + Linear 기반 바이브 코딩 프로토콜을 설계해 도입했습니다. 도메인별 반복 업무의 AI 전환을 코칭하며, 팀이 AI Native하게 일하게 만드는 일을 합니다.</div>
-          </div>
+          {D.portfolioCopy.collab.methods.map((method) => (
+            <div className="pillar" key={method.no}>
+              <div className="pillar-no">{method.no}</div>
+              <div className="pillar-name">{method.name}</div>
+              <div className="pillar-en">{method.en}</div>
+              <div className="pillar-blurb">{method.blurb}</div>
+            </div>
+          ))}
         </div>
       </div>
       <div className="sec">
@@ -444,8 +453,8 @@ function CollabView({ onBack }: { onBack: () => void }) {
         <CareerList items={D.career.filter((c) => (c.tags || []).includes("자문") || c.org === "Antler")} />
       </div>
       <CoffeeCTA
-        title="협업의 형태는 자유입니다."
-        sub="자문 · 공동 창업 · 기술 파트너십 · 단발성 컨설팅 — 무엇이든 30분 통화부터 시작해요." />
+        title={D.portfolioCopy.collab.coffee.title}
+        sub={D.portfolioCopy.collab.coffee.sub} />
       
     </div>);
 
@@ -453,22 +462,26 @@ function CollabView({ onBack }: { onBack: () => void }) {
 
 // ---------- 03 BUILDER ----------
 function BuilderView({ onBack }: { onBack: () => void }) {
+  const D = useSiteData();
   return (
     <div className="view">
       <Back onBack={onBack} />
       <ViewHead
         room="03 · BUILDER"
         coord="B2"
-        title={<>코드도 짜고,<br />무엇을 만들지도 정합니다.</>}
-        lede="2014년 외주개발사 풀스택부터, 리디·토스 인터널 제품, 그리고 지금은 AI Native 워크플로우와 개발자 생산성 — 10년 동안 “제품을 만든다는 것”의 정의를 계속 갱신해 왔습니다." />
+        title={renderTitleLines(D.viewHeaders.builder.titleLines)}
+        lede={D.viewHeaders.builder.lede} />
       
       <div className="sec">
         <SecHead title="Stack & domain" num="01" meta="practical" />
         <div className="facts">
-          <div className="fact"><div className="fact-label">언어 / 런타임</div><div className="fact-value">TypeScript · Python · Java · PHP · ASP.NET (legacy)</div></div>
-          <div className="fact"><div className="fact-label">관심 도메인</div><div className="fact-value">Internal tools · Developer productivity · Omni-channel · AX</div></div>
-          <div className="fact"><div className="fact-label">AI workflow</div><div className="fact-value">Claude Code · Linear · Vibe coding protocol</div></div>
-          <div className="fact"><div className="fact-label">자격</div><div className="fact-value">{D.certifications.join(' · ')}</div></div>
+          {D.portfolioCopy.builder.facts.map((fact) => (
+            <div className="fact" key={fact.label}>
+              <div className="fact-label">{fact.label}</div>
+              <div className="fact-value">{fact.value}</div>
+            </div>
+          ))}
+          <div className="fact"><div className="fact-label">{D.portfolioCopy.builder.certificationLabel}</div><div className="fact-value">{D.certifications.join(' · ')}</div></div>
         </div>
       </div>
       <div className="sec">
@@ -486,23 +499,19 @@ function BuilderView({ onBack }: { onBack: () => void }) {
               <div className="pillar-blurb">{p.desc}</div>
             </div>
           )}
-          <div className="pillar">
-            <div className="pillar-no">PIECE · 02</div>
-            <div className="pillar-name">Measurable Developer</div>
-            <div className="pillar-en">Newsletter</div>
-            <div className="pillar-blurb">개발자 생산성을 측정 가능한 형태로 다루는 뉴스레터. 프루퍼 CTO 시절부터 발행해 왔습니다.</div>
-          </div>
-          <div className="pillar">
-            <div className="pillar-no">PIECE · 03</div>
-            <div className="pillar-name">Claude Code + Linear 프로토콜</div>
-            <div className="pillar-en">Internal playbook</div>
-            <div className="pillar-blurb">PPB에 도입한 바이브 코딩 프로토콜 — 요구사항 분석부터 태스크 관리·구현까지의 워크플로우를 재정의합니다.</div>
-          </div>
+          {D.portfolioCopy.builder.extraWritings.map((piece) => (
+            <div className="pillar" key={piece.no}>
+              <div className="pillar-no">{piece.no}</div>
+              <div className="pillar-name">{piece.name}</div>
+              <div className="pillar-en">{piece.en}</div>
+              <div className="pillar-blurb">{piece.blurb}</div>
+            </div>
+          ))}
         </div>
       </div>
       <CoffeeCTA
-        title="비슷한 문제를 풀고 있다면, 이야기해봐요."
-        sub="개발자 생산성, 인터널 툴, AI 도입, 옴니채널 — 한쪽이 일방적으로 가르치는 자리가 아니라 서로의 지도를 나누는 자리로." />
+        title={D.portfolioCopy.builder.coffee.title}
+        sub={D.portfolioCopy.builder.coffee.sub} />
       
     </div>);
 
@@ -621,16 +630,8 @@ function CuriousView({
   onBack: () => void;
   accent?: string;
 }) {
-  const timeline = [
-  { year: "2012 — 2014", title: "선린인터넷고등학교 정보통신과", desc: "한국 IT업계의 인재 양성소로 알려진 특성화고. 일반 인문계와 달리 고등학교 시절부터 실무에 가까운 프로그래밍·시스템·네트워크를 다뤘습니다. 어릴 적부터 취미로 해 온 코딩을 본격적인 진로로 가져간 시기. 웹디자인기능사·정보처리기능사를 땄습니다." },
-  { year: "2014 — 2016", title: "씨엔티테크", desc: "프랜차이즈 도메인의 풀스택 외주 개발자로 사회생활 시작. ASP.NET, JSP, PHP — 가리지 않고 썼습니다." },
-  { year: "2016 — 2018", title: "리디북스", desc: "B2B 도구 — CMS와 작가/매니저 플랫폼을 만들며 “내부 사용자“라는 관점을 처음 익혔습니다." },
-  { year: "2018 — 2023", title: "토스 인터널 제품팀, 4년 10개월", desc: "토스인터널, 티티(time-tracker), 3 month review, 비바뉴스 — 동료들이 매일 쓰는 제품을 만드는 일이 가장 즐거웠습니다." },
-  { year: "2018 — 2022", title: "건국대학교 경영공학사", desc: "Advanced Industry Fusion 전공. 일하면서 학교를 다녔습니다." },
-  { year: "2023.10 — 2023.12", title: "Antler EIR", desc: "글로벌 초기 VC 프로그램. 창업의 형태에 대해 본격적으로 고민한 시기." },
-  { year: "2024.01 — 2024.11", title: "프루퍼 CTO — 첫 창업", desc: "개발자 생산성을 측정 가능한 형태로 다루는 일. 'Measurable Developer'와 '프루퍼 인사이트'를 만들었습니다." },
-  { year: "2025.04 — 현재", title: "프루퍼 대표(CEO) 전환", desc: "프루퍼 ㈜를 운영하며, 회사의 방향을 DX → AX 전환을 돕는 쪽으로 다시 그렸습니다. 지금도 운영 중입니다." },
-  { year: "2025.06 — 현재", title: "PPB Studios 팀장 겸직", desc: "프루퍼 운영과 병행하여, 물류 — 가맹 — MD — 브랜드를 잇는 옴니채널 플랫폼 리드를 맡고 있습니다. AI Native 팀 문화를 함께 구축 중." }];
+  const D = useSiteData();
+  const timeline = D.portfolioCopy.curious.timeline;
 
 
   return (
@@ -639,8 +640,8 @@ function CuriousView({
       <ViewHead
         room="04 · CURIOUS"
         coord="A2"
-        title={<>한 사람의 10년치<br />궤적을 펼쳐놓으면.</>}
-        lede="엔지니어 → 인터널 제품 메이커 → 자문가 → 창업가 → 옴니채널 리드 — 한 줄로 적으면 점프처럼 보이지만 사이사이는 이어져 있습니다. 시간순으로 천천히 따라가보셔도 좋습니다." />
+        title={renderTitleLines(D.viewHeaders.curious.titleLines)}
+        lede={D.viewHeaders.curious.lede} />
       
       <div className="sec">
         <SecHead title="Section drawing — 2012 to now" num="01" meta="parallel tracks" />
@@ -649,29 +650,19 @@ function CuriousView({
       <div className="sec">
         <SecHead title="A bit personal" num="02" meta="off-record" />
         <div className="pillars">
-          <div className="pillar">
-            <div className="pillar-no">NOTE · 01</div>
-            <div className="pillar-name">메이커와 엔지니어 사이</div>
-            <div className="pillar-en">Maker × Engineer</div>
-            <div className="pillar-blurb">“메이커와 엔지니어 — 개발자가 됐습니다. 그 다음은요?“라는 글을 썼습니다. 코드 그 자체보다, 코드로 만들어진 것이 누군가의 하루를 어떻게 바꾸는지가 더 흥미로워요.</div>
-          </div>
-          <div className="pillar">
-            <div className="pillar-no">NOTE · 02</div>
-            <div className="pillar-name">선린 → 토스 → 창업</div>
-            <div className="pillar-en">A non-linear path</div>
-            <div className="pillar-blurb">실업계 고등학교에서 시작해 외주개발사 → 사용자 제품 회사 → 사내 제품팀 → 자문 → VC 프로그램 → 창업으로 이어진 길은 처음부터 계획된 게 아니었습니다. 매 시점 가장 흥미로운 다음 한 걸음을 골랐을 뿐입니다.</div>
-          </div>
-          <div className="pillar">
-            <div className="pillar-no">NOTE · 03</div>
-            <div className="pillar-name">기술과 운영의 접점</div>
-            <div className="pillar-en">Where tech meets ops</div>
-            <div className="pillar-blurb">관심사는 점점 “코드로 무엇을 짓는가“에서 “코드와 운영이 만나는 지점에서 무엇이 작동하는가“로 옮겨가고 있습니다. 옴니채널, 개발자 생산성, AX — 모두 그 접점의 다른 이름입니다.</div>
-          </div>
+          {D.portfolioCopy.curious.notes.map((note) => (
+            <div className="pillar" key={note.no}>
+              <div className="pillar-no">{note.no}</div>
+              <div className="pillar-name">{note.name}</div>
+              <div className="pillar-en">{note.en}</div>
+              <div className="pillar-blurb">{note.blurb}</div>
+            </div>
+          ))}
         </div>
       </div>
       <CoffeeCTA
-        title="시간 괜찮으시면 30분만 같이 이야기해요."
-        sub="여기까지 읽어주셨다면, 그것만으로도 감사합니다. 더 궁금한 얘기가 있다면 직접 만나서 나누고 싶어요." />
+        title={D.portfolioCopy.curious.coffee.title}
+        sub={D.portfolioCopy.curious.coffee.sub} />
       
     </div>);
 
@@ -682,7 +673,8 @@ function CuriousView({
 // ============================================================
 const DEFAULT_ACCENT = "#287099";
 
-export default function PortfolioApp() {
+function PortfolioAppBody() {
+  const D = useSiteData();
   const [persona, setPersona] = useState<PersonaKey | null>(null);
 
   useEffect(() => {
@@ -736,5 +728,13 @@ export default function PortfolioApp() {
       </div>
       <ChatDock defaultOpen={persona !== null} inline={persona !== null} />
     </div>
+  );
+}
+
+export default function PortfolioApp({ siteData }: { siteData: SiteData }) {
+  return (
+    <SiteDataProvider data={siteData}>
+      <PortfolioAppBody />
+    </SiteDataProvider>
   );
 }

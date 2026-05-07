@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { list } from "@vercel/blob";
-import { HSOL_DATA as D } from "@/data/site";
+import { getSiteData } from "@/lib/content/site-data";
+import type { SiteData } from "@/content/schema";
 import { ASK_HANSOL_FALLBACK_MESSAGE } from "@/lib/ask-hansol/shared";
 
 function normalize(text: string): string {
@@ -19,6 +20,7 @@ function keywordTokens(text: string): string[] {
 }
 
 type BlobEntry = { pathname: string; url: string };
+type FaqEntry = SiteData["faq"][number];
 type RetrievalSkill = {
   id: string;
   keywords: string[];
@@ -54,10 +56,10 @@ const RETRIEVAL_SKILLS: RetrievalSkill[] = [
   },
 ];
 
-function findFaqAnswer(query: string): string | null {
+function findFaqAnswer(query: string, faq: FaqEntry[]): string | null {
   const needle = normalize(query);
   const needleTokens = keywordTokens(query);
-  const matched = D.faq.find((item) => {
+  const matched = faq.find((item) => {
     const candidate = normalize(item.q);
     if (
       candidate === needle ||
@@ -198,14 +200,14 @@ async function runBlobLookupTool(input: unknown): Promise<string> {
   return context;
 }
 
-function buildPrompt(query: string): string {
+function buildPrompt(query: string, faq: FaqEntry[]): string {
   return `당신은 임한솔(Hansol Lim) 본인을 대신해 포트폴리오 사이트 방문자에게 답하는 어시스턴트입니다.
 한국어로 3~5문장 이내로 답하세요. 모르는 것은 모른다고 말합니다.
 답변 기준은 항상 "AI-클론-운영-매뉴얼"을 베이스로 하며, 다른 정보와 충돌하면 운영 매뉴얼 기준을 우선합니다.
 확신이 부족하면 답변 전에 반드시 blob_lookup 도구를 호출해 필요한 문서를 조회한 뒤 답하세요.
 
 [FAQ — 한솔 본인 톤]
-${D.faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n")}
+${faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n")}
 
 방문자 질문: ${query}`;
 }
@@ -297,18 +299,19 @@ async function askAnthropic(prompt: string): Promise<string | null> {
 
 export async function POST(req: Request) {
   try {
+    const siteData = await getSiteData();
     const body = (await req.json()) as { query?: unknown };
     const query = typeof body.query === "string" ? body.query.trim() : "";
     if (!query) {
       return NextResponse.json({ error: "query is required" }, { status: 400 });
     }
 
-    const faqAnswer = findFaqAnswer(query);
+    const faqAnswer = findFaqAnswer(query, siteData.faq);
     if (faqAnswer) {
       return NextResponse.json({ answer: faqAnswer });
     }
 
-    const prompt = buildPrompt(query);
+    const prompt = buildPrompt(query, siteData.faq);
     const llmAnswer = await askAnthropic(prompt);
     return NextResponse.json({ answer: llmAnswer ?? ASK_HANSOL_FALLBACK_MESSAGE });
   } catch {

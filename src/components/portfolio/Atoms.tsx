@@ -1,13 +1,35 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { HSOL_DATA } from "@/data/site";
-import type { SiteData } from "@/data/site";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
+import type { SiteData } from "@/content/schema";
 
 type CareerItem = SiteData["career"][number];
+const SiteDataContext = createContext<SiteData | null>(null);
+
+export function SiteDataProvider({
+  data,
+  children,
+}: {
+  data: SiteData;
+  children: ReactNode;
+}) {
+  return <SiteDataContext.Provider value={data}>{children}</SiteDataContext.Provider>;
+}
+
+export function useSiteData(): SiteData {
+  const value = useContext(SiteDataContext);
+  if (!value) throw new Error("SiteDataProvider is missing.");
+  return value;
+}
 
 export function Plate() {
-  const d = HSOL_DATA.identity;
+  const d = useSiteData().identity;
   return (
     <div className="plate">
       <div className="plate-cell plate-id">
@@ -246,7 +268,7 @@ export function PlanDiagram({
 }
 
 export function Foot() {
-  const d = HSOL_DATA.identity;
+  const d = useSiteData().identity;
   return (
     <footer className="foot">
       <div>
@@ -290,7 +312,7 @@ export function SecHead({
 }
 
 export function CoffeeCTA({ title, sub }: { title?: string; sub?: string }) {
-  const d = HSOL_DATA.identity;
+  const d = useSiteData().identity;
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -382,9 +404,10 @@ export function CareerList({ items }: { items: readonly CareerItem[] | CareerIte
 }
 
 export function Pillars() {
+  const data = useSiteData();
   return (
     <div className="pillars">
-      {HSOL_DATA.pillars.map((p, i) => (
+      {data.pillars.map((p, i) => (
         <div className="pillar" key={p.key}>
           <div className="pillar-no">PILLAR · 0{i + 1}</div>
           <div className="pillar-name">{p.labelKo}</div>

@@ -2,6 +2,7 @@
 node_modules/
 .next/
 out/
+generated/
 *.log
 .DS_Store
 .env*.local
