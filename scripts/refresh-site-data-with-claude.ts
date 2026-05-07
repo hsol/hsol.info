@@ -11,6 +11,8 @@ const SITE_DATA_PATH =
 const MAX_CHARS_PER_FILE = Number(
   process.env.CLAUDE_CONTEXT_MAX_CHARS_PER_FILE ?? 9000,
 );
+const FAILURE_LOG_DIR =
+  process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
 
 const CONTEXT_FILES = [
   `${VAULT_ROOT}/README.md`,
@@ -21,13 +23,73 @@ const CONTEXT_FILES = [
   `${VAULT_ROOT}/objects/concepts/임한솔-persona.md`,
 ];
 
+function logStep(message: string) {
+  const now = new Date().toISOString();
+  console.log(`[refresh-site-data][${now}] ${message}`);
+}
+
 function extractJson(text: string): unknown {
-  const fenced = text.match(/```json\s*([\s\S]*?)```/i);
-  const raw = fenced?.[1] ?? text;
-  return JSON.parse(raw.trim());
+  const trimmed = text.trim();
+
+  // 1) Prefer fenced code blocks first (```json ... ``` or ``` ... ```)
+  const fenced =
+    trimmed.match(/`{3,}\s*json\s*([\s\S]*?)`{3,}/i) ??
+    trimmed.match(/`{3,}\s*([\s\S]*?)`{3,}/);
+  if (fenced?.[1]) {
+    return JSON.parse(fenced[1].trim());
+  }
+
+  // 2) Fallback: extract from first "{" to last "}" if assistant added prose.
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && firstBrace < lastBrace) {
+    return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+  }
+
+  throw new Error("Claude response does not contain a parsable JSON object.");
+}
+
+function parseJsonWithFallback(text: string): unknown {
+  const normalized = text
+    .replace(/\u201c|\u201d/g, '"')
+    .replace(/\u2018|\u2019/g, "'")
+    .replace(/\u00a0/g, " ");
+  return extractJson(normalized);
+}
+
+async function writeFailureDump(args: {
+  stage: string;
+  initialResponse: string;
+  lastCandidate: string;
+  error: unknown;
+}): Promise<void> {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const baseName = `${timestamp}-${args.stage}`;
+  const dir = FAILURE_LOG_DIR;
+  const errorMessage =
+    args.error instanceof Error ? args.error.stack ?? args.error.message : String(args.error);
+
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    path.join(dir, `${baseName}-initial.txt`),
+    `${args.initialResponse}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(dir, `${baseName}-last-candidate.txt`),
+    `${args.lastCandidate}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(dir, `${baseName}-error.txt`),
+    `${errorMessage}\n`,
+    "utf8",
+  );
+  logStep(`Failure dump written: ${path.join(dir, `${baseName}-*.txt`)}`);
 }
 
 async function loadContextFiles(): Promise<string> {
+  logStep(`Loading context files (${CONTEXT_FILES.length})...`);
   const chunks = await Promise.all(
     CONTEXT_FILES.map(async (filePath) => {
       try {
@@ -45,41 +107,8 @@ async function loadContextFiles(): Promise<string> {
   return chunks.join("\n\n");
 }
 
-async function main() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing ANTHROPIC_API_KEY");
-  }
-
-  let currentSiteDataText: string;
-  try {
-    currentSiteDataText = await readFile(SITE_DATA_PATH, "utf8");
-  } catch (error) {
-    const enoent = typeof error === "object" && error !== null && "code" in error
-      ? (error as { code?: string }).code === "ENOENT"
-      : false;
-    if (!enoent) throw error;
-    currentSiteDataText = `${JSON.stringify(HSOL_DATA, null, 2)}\n`;
-  }
-  const contextText = await loadContextFiles();
-
-  const prompt = `
-너는 vault 내용을 읽고 site-data.json을 갱신하는 데이터 편집기다.
-
-규칙:
-1) 출력은 오직 JSON 하나만 반환한다. 코드블록 설명 금지.
-2) JSON 구조는 기존 site-data.json 스키마를 그대로 유지한다.
-3) 템플릿 고정값(room, coord 같은 템플릿 메타)은 건드리지 않는다.
-4) 한국어 문구 톤은 반드시 object-views/작문-가이드를 우선 기준으로 맞춘다.
-5) 증거가 없는 정보는 추측하지 말고 현재 값을 유지한다.
-
-현재 site-data.json:
-${currentSiteDataText}
-
-참조 vault 컨텍스트:
-${contextText}
-`.trim();
-
+async function requestAnthropic(apiKey: string, prompt: string): Promise<string> {
+  logStep(`Requesting Anthropic (${MODEL})...`);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -107,13 +136,105 @@ ${contextText}
     .map((item) => item.text)
     .join("\n")
     .trim();
-
   if (!text) throw new Error("Empty response from Anthropic");
+  logStep("Anthropic response received.");
+  return text;
+}
 
-  const parsed = siteDataSchema.parse(extractJson(text));
+async function main() {
+  logStep("Refresh started.");
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing ANTHROPIC_API_KEY");
+  }
+
+  let currentSiteDataText: string;
+  try {
+    logStep(`Reading current site-data: ${SITE_DATA_PATH}`);
+    currentSiteDataText = await readFile(SITE_DATA_PATH, "utf8");
+  } catch (error) {
+    const enoent = typeof error === "object" && error !== null && "code" in error
+      ? (error as { code?: string }).code === "ENOENT"
+      : false;
+    if (!enoent) throw error;
+    logStep("site-data.json not found, falling back to src/data/site.ts baseline.");
+    currentSiteDataText = `${JSON.stringify(HSOL_DATA, null, 2)}\n`;
+  }
+  const contextText = await loadContextFiles();
+  logStep("Context loaded.");
+
+  const prompt = `
+너는 vault 내용을 읽고 site-data.json을 갱신하는 데이터 편집기다.
+
+규칙:
+1) 출력은 오직 JSON 하나만 반환한다. 코드블록 설명 금지.
+2) JSON 구조는 기존 site-data.json 스키마를 그대로 유지한다.
+3) 템플릿 고정값(room, coord 같은 템플릿 메타)은 건드리지 않는다.
+4) 한국어 문구 톤은 반드시 object-views/작문-가이드를 우선 기준으로 맞춘다.
+5) 증거가 없는 정보는 추측하지 말고 현재 값을 유지한다.
+
+현재 site-data.json:
+${currentSiteDataText}
+
+참조 vault 컨텍스트:
+${contextText}
+`.trim();
+
+  const text = await requestAnthropic(apiKey, prompt);
+  let candidateText = text;
+  let parsed: unknown;
+  let lastParseError: unknown = null;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      logStep(`Parsing attempt ${attempt}...`);
+      parsed = parseJsonWithFallback(candidateText);
+      lastParseError = null;
+      break;
+    } catch (error) {
+      lastParseError = error;
+      const detail = error instanceof Error ? error.message : String(error);
+      logStep(`Parse attempt ${attempt} failed: ${detail}`);
+      if (attempt === 3) break;
+
+      const repairPrompt = `
+다음 텍스트를 strict JSON 객체 하나로 복구해줘.
+반드시 지킬 것:
+- 오직 JSON만 출력
+- 코드블록 금지
+- 주석 금지
+- trailing comma 금지
+- 모든 key는 큰따옴표
+- 문자열 내부 큰따옴표는 반드시 이스케이프
+
+직전 파싱 에러:
+${detail}
+
+원본 텍스트:
+${candidateText}
+`.trim();
+      candidateText = await requestAnthropic(apiKey, repairPrompt);
+    }
+  }
+
+  if (lastParseError || parsed === undefined) {
+    await writeFailureDump({
+      stage: "parse-failed",
+      initialResponse: text,
+      lastCandidate: candidateText,
+      error: lastParseError,
+    });
+    throw lastParseError instanceof Error
+      ? lastParseError
+      : new Error("Failed to parse Claude output as strict JSON.");
+  }
+
+  logStep("Validating output with siteDataSchema.");
+  const validated = siteDataSchema.parse(parsed);
+  logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
   await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
-  await writeFile(SITE_DATA_PATH, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
-  console.log(`Updated ${SITE_DATA_PATH} using ${MODEL}`);
+  await writeFile(SITE_DATA_PATH, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
+  logStep(`Updated ${SITE_DATA_PATH} using ${MODEL}`);
 }
 
 main().catch((error) => {

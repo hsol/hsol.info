@@ -6,6 +6,7 @@ import { list } from "@vercel/blob";
 const DEFAULT_SUBMODULE_DIR = "hsol-info-blob";
 const DEFAULT_PREFIX = "info";
 const SYNC_STATE_FILE = ".blob-sync-state.json";
+const IGNORED_FILENAMES = new Set([".DS_Store", ".DS-Store"]);
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -55,6 +56,7 @@ async function collectFiles(rootDir, currentDir = rootDir) {
 
   for (const entry of entries) {
     if (entry.name === ".git") continue;
+    if (IGNORED_FILENAMES.has(entry.name)) continue;
     const fullPath = path.join(currentDir, entry.name);
     if (entry.isDirectory()) {
       const nested = await collectFiles(rootDir, fullPath);
@@ -68,6 +70,12 @@ async function collectFiles(rootDir, currentDir = rootDir) {
   }
 
   return files;
+}
+
+function shouldIgnoreRelativePath(relativePath) {
+  const normalized = relativePath.replace(/\\/g, "/");
+  const filename = normalized.split("/").pop() ?? "";
+  return IGNORED_FILENAMES.has(filename);
 }
 
 async function listAllBlobs(prefix, token) {
@@ -114,6 +122,10 @@ async function main() {
   for (const blob of blobs) {
     const relativePath = blob.pathname.slice(normalizedPrefix.length);
     if (!relativePath) continue;
+    if (shouldIgnoreRelativePath(relativePath)) {
+      console.log(`무시됨(시스템 파일): ${toPosixPath(relativePath)}`);
+      continue;
+    }
 
     const destinationPath = path.join(submoduleRoot, relativePath);
     const destinationResolved = path.resolve(destinationPath);
