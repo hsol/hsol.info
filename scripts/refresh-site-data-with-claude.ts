@@ -22,6 +22,7 @@ const MAX_TOKENS = (() => {
 })();
 const FAILURE_LOG_DIR =
   process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
+const EMIT_TOOL_NAME = "emit_site_data";
 
 const CONTEXT_FILES = [
   `${VAULT_ROOT}/README.md`,
@@ -116,10 +117,14 @@ async function loadContextFiles(): Promise<string> {
   return chunks.join("\n\n");
 }
 
-async function requestAnthropic(
+type AnthropicContent =
+  | { type?: "text"; text?: string }
+  | { type?: "tool_use"; name?: string; input?: unknown };
+
+async function requestAnthropicStructured(
   apiKey: string,
   prompt: string,
-): Promise<{ text: string; stopReason: string | undefined }> {
+): Promise<{ text: string; toolInput: unknown | null; stopReason: string | undefined }> {
   logStep(`Requesting Anthropic (${MODEL}, max_tokens=${MAX_TOKENS})...`);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -132,6 +137,44 @@ async function requestAnthropic(
       model: MODEL,
       max_tokens: MAX_TOKENS,
       messages: [{ role: "user", content: prompt }],
+      tools: [
+        {
+          name: EMIT_TOOL_NAME,
+          description:
+            "Return ONLY final site-data JSON object. Never include markdown/prose.",
+          input_schema: {
+            type: "object",
+            additionalProperties: true,
+            properties: {
+              identity: { type: "object" },
+              pillars: { type: "array" },
+              personas: { type: "array" },
+              viewHeaders: { type: "object" },
+              portfolioCopy: { type: "object" },
+              career: { type: "array" },
+              education: { type: "array" },
+              certifications: { type: "array" },
+              languages: { type: "array" },
+              publications: { type: "array" },
+              faq: { type: "array" },
+            },
+            required: [
+              "identity",
+              "pillars",
+              "personas",
+              "viewHeaders",
+              "portfolioCopy",
+              "career",
+              "education",
+              "certifications",
+              "languages",
+              "publications",
+              "faq",
+            ],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: EMIT_TOOL_NAME },
     }),
   });
 
@@ -141,16 +184,20 @@ async function requestAnthropic(
   }
 
   const data = (await response.json()) as {
-    content?: Array<{ type?: string; text?: string }>;
+    content?: AnthropicContent[];
     stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
+  const blocks = data.content ?? [];
   const text = data.content
     ?.filter((item) => item.type === "text" && item.text)
     .map((item) => item.text)
     .join("\n")
-    .trim();
-  if (!text) throw new Error("Empty response from Anthropic");
+    .trim() ?? "";
+  const toolInput =
+    blocks.find((item) => item.type === "tool_use" && item.name === EMIT_TOOL_NAME)?.input ??
+    null;
+
   const usage = data.usage;
   if (usage?.input_tokens != null && usage?.output_tokens != null) {
     logStep(
@@ -159,7 +206,10 @@ async function requestAnthropic(
   } else {
     logStep(`Anthropic response received (stop_reason=${data.stop_reason ?? "?"}).`);
   }
-  return { text, stopReason: data.stop_reason };
+  if (!toolInput && !text) {
+    throw new Error("Empty response from Anthropic");
+  }
+  return { text, toolInput, stopReason: data.stop_reason };
 }
 
 async function main() {
@@ -184,11 +234,11 @@ async function main() {
   const contextText = await loadContextFiles();
   logStep("Context loaded.");
 
-  const prompt = `
+  const basePrompt = `
 너는 vault 내용을 읽고 site-data.json을 갱신하는 데이터 편집기다.
 
 규칙:
-1) 출력은 오직 JSON 하나만 반환한다. 코드블록 설명 금지.
+1) 반드시 ${EMIT_TOOL_NAME} tool_use로만 결과를 반환한다. 일반 텍스트 답변 금지.
 2) JSON 구조는 기존 site-data.json 스키마를 그대로 유지한다.
 3) 템플릿 고정값(room, coord 같은 템플릿 메타)은 건드리지 않는다.
 4) 한국어 문구 톤은 반드시 object-views/작문-가이드를 우선 기준으로 맞춘다.
@@ -201,45 +251,67 @@ ${currentSiteDataText}
 ${contextText}
 `.trim();
 
-  const { text, stopReason } = await requestAnthropic(apiKey, prompt);
-  if (stopReason === "max_tokens") {
-    const err = new Error(
-      `Anthropic output was truncated (stop_reason=max_tokens, max_tokens=${MAX_TOKENS}). Set ANTHROPIC_MAX_TOKENS higher if your model allows it, or shorten the prompt / use a smaller baseline JSON.`,
-    );
-    logStep(err.message);
-    await writeFailureDump({
-      stage: "truncated-max-tokens",
-      initialResponse: text,
-      lastCandidate: text,
-      error: err,
-    });
-    throw err;
+  let initialResponse = "";
+  let lastCandidate = "";
+  let validationHint = "";
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const prompt = validationHint
+      ? `${basePrompt}\n\n이전 시도 검증 오류:\n${validationHint}\n오류를 반영해 다시 생성하라.`
+      : basePrompt;
+
+    const { text, toolInput, stopReason } = await requestAnthropicStructured(apiKey, prompt);
+    if (!initialResponse) initialResponse = text || JSON.stringify(toolInput, null, 2);
+    if (stopReason === "max_tokens") {
+      const err = new Error(
+        `Anthropic output was truncated (stop_reason=max_tokens, max_tokens=${MAX_TOKENS}).`,
+      );
+      await writeFailureDump({
+        stage: "truncated-max-tokens",
+        initialResponse,
+        lastCandidate: text || JSON.stringify(toolInput, null, 2),
+        error: err,
+      });
+      throw err;
+    }
+
+    let parsed: unknown;
+    if (toolInput != null) {
+      parsed = toolInput;
+      lastCandidate = JSON.stringify(toolInput, null, 2);
+    } else {
+      lastCandidate = text;
+      parsed = parseJsonWithFallback(text);
+    }
+
+    const validated = siteDataSchema.safeParse(parsed);
+    if (validated.success) {
+      logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
+      await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
+      await writeFile(
+        SITE_DATA_PATH,
+        `${JSON.stringify(validated.data, null, 2)}\n`,
+        "utf8",
+      );
+      logStep(`Updated ${SITE_DATA_PATH} using ${MODEL} (attempt ${attempt})`);
+      return;
+    }
+
+    validationHint = validated.error.issues
+      .slice(0, 12)
+      .map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`)
+      .join("\n");
+    logStep(`Schema validation failed on attempt ${attempt}: ${validationHint}`);
   }
 
-  let parsed: unknown;
-  try {
-    logStep("Parsing attempt 1...");
-    parsed = parseJsonWithFallback(text);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    logStep(`Parse attempt 1 failed: ${detail}`);
-    await writeFailureDump({
-      stage: "parse-failed",
-      initialResponse: text,
-      lastCandidate: text,
-      error,
-    });
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to parse Claude output as strict JSON.");
-  }
-
-  logStep("Validating output with siteDataSchema.");
-  const validated = siteDataSchema.parse(parsed);
-  logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
-  await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
-  await writeFile(SITE_DATA_PATH, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
-  logStep(`Updated ${SITE_DATA_PATH} using ${MODEL}`);
+  const err = new Error("Failed to produce schema-valid site-data after 3 attempts.");
+  await writeFailureDump({
+    stage: "schema-failed-regenerate",
+    initialResponse: initialResponse || "[EMPTY]",
+    lastCandidate: lastCandidate || "[EMPTY]",
+    error: err,
+  });
+  throw err;
 }
 
 main().catch((error) => {
