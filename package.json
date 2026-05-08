@@ -13,6 +13,7 @@
     "sync:blob:pull": "node scripts/pull-blob-to-submodule.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.3.3",
     "next": "^15.1.0",
     "react": "^19.0.0",

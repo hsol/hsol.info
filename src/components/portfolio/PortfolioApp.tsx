@@ -21,7 +21,12 @@ import {
   useSiteData,
 } from "@/components/portfolio/Atoms";
 import type { SiteData } from "@/content/schema";
-import { askHansolViaApi, streamAnswerText } from "@/lib/ask-hansol/client";
+import {
+  askHansolViaApi,
+  fetchAskHansolHistory,
+  streamAnswerText,
+} from "@/lib/ask-hansol/client";
+import { getOrCreateAskHansolSessionId } from "@/lib/ask-hansol/browser-session";
 import {
   ASK_HANSOL_FALLBACK_MESSAGE,
   ASK_HANSOL_SUGGESTIONS,
@@ -164,6 +169,7 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
 // ChatDock — persistent floating sidebar across all views
 // ============================================================
 type ChatMsg = {
+  key: string;
   role: "user" | "hansol";
   text: string;
   streaming?: boolean;
@@ -195,10 +201,28 @@ function ChatDock({
   const [q, setQ] = useState("");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState("");
+  const [historyReady, setHistoryReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const suggestions = ASK_HANSOL_SUGGESTIONS;
 
+  useEffect(() => {
+    const sid = getOrCreateAskHansolSessionId();
+    setSessionId(sid);
+    void fetchAskHansolHistory(sid)
+      .then((rows) => {
+        if (rows.length === 0) return;
+        setMessages(
+          rows.map((row) => ({
+            key: `db-${row.id}`,
+            role: row.role === "assistant" ? "hansol" : "user",
+            text: row.content,
+          })),
+        );
+      })
+      .finally(() => setHistoryReady(true));
+  }, []);
 
   useEffect(() => {
     setOpen(defaultOpen);
@@ -210,14 +234,21 @@ function ChatDock({
 
   const ask = useCallback(async (query?: string) => {
     const finalQ = (query ?? q).trim();
-    if (!finalQ || loading) return;
+    if (!finalQ || loading || !historyReady) return;
+    const sid = sessionId || getOrCreateAskHansolSessionId();
+    if (!sessionId && sid) setSessionId(sid);
     setQ("");
     setLoading(true);
-    setMessages((prev) => [...prev, { role: 'user', text: finalQ }, { role: 'hansol', text: '', streaming: true }]);
+    const botKey = `local-h-${crypto.randomUUID()}`;
+    setMessages((prev) => [
+      ...prev,
+      { key: `local-u-${crypto.randomUUID()}`, role: "user", text: finalQ },
+      { key: botKey, role: "hansol", text: "", streaming: true },
+    ]);
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ);
+      answerText = await askHansolViaApi(finalQ, sid);
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
@@ -225,15 +256,16 @@ function ChatDock({
     streamAnswerText(
       answerText,
       (text, streaming) => {
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = { role: 'hansol', text, streaming };
-        return next;
-      });
+        setMessages((prev) => {
+          const next = [...prev];
+          const idx = next.findIndex((m) => m.key === botKey);
+          if (idx >= 0) next[idx] = { ...next[idx], text, streaming };
+          return next;
+        });
       },
       () => setLoading(false),
     );
-  }, [q, loading]);
+  }, [q, loading, sessionId, historyReady]);
 
   return (
     <>
@@ -260,8 +292,8 @@ function ChatDock({
               </div>
             </div>
           }
-          {messages.map((m, i) =>
-          <div key={i} className={"chatdock-msg chatdock-msg--" + m.role}>
+          {messages.map((m) =>
+          <div key={m.key} className={"chatdock-msg chatdock-msg--" + m.role}>
               {m.role === 'hansol' && <div className="chatdock-msg-from">— Hansol</div>}
               <div className="chatdock-msg-body">
                 <span className={m.streaming ? "cursor-blink" : ""}>{renderTextWithLinks(m.text)}</span>
@@ -276,7 +308,7 @@ function ChatDock({
             value={q}
             onChange={(e) => setQ(e.target.value)} />
           
-          <button className="chatdock-send" type="submit" disabled={loading || !q.trim()}>
+          <button className="chatdock-send" type="submit" disabled={loading || !q.trim() || !historyReady}>
             {loading ? "…" : "↑"}
           </button>
         </form>
@@ -309,7 +341,7 @@ function AskBox() {
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ);
+      answerText = await askHansolViaApi(finalQ, getOrCreateAskHansolSessionId());
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }

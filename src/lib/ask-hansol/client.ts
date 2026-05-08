@@ -1,10 +1,29 @@
 type AskHansolResponse = { answer?: string };
 
-export async function askHansolViaApi(query: string): Promise<string> {
+export type AskHansolHistoryMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
+export async function fetchAskHansolHistory(
+  sessionId: string,
+): Promise<AskHansolHistoryMessage[]> {
+  if (!sessionId) return [];
+  const response = await fetch(
+    "/api/ask-hansol?sessionId=" + encodeURIComponent(sessionId),
+  );
+  if (!response.ok) return [];
+  const data = (await response.json()) as { messages?: AskHansolHistoryMessage[] };
+  return Array.isArray(data.messages) ? data.messages : [];
+}
+
+export async function askHansolViaApi(query: string, sessionId: string): Promise<string> {
   const response = await fetch("/api/ask-hansol", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, sessionId: sessionId || undefined }),
   });
   if (!response.ok) {
     throw new Error(`ask-hansol failed: ${response.status}`);
