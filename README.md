@@ -1,4 +1,4 @@
-# hsol.github.io
+# hsol.info
 
 Next.js(App Router) + TypeScript + Tailwind CSS로 패키징된 포트폴리오입니다.
 

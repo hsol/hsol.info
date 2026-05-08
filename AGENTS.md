@@ -4,7 +4,7 @@
 
 ## Learned Workspace Facts
 
-- 이 저장소의 Vercel 배포 대상 프로젝트는 팀 `hsol`의 `hsol-github-io`이다(`vercel link --scope hsol --project hsol-github-io`로 맞출 수 있다).
+- 이 저장소의 Vercel 배포 대상 프로젝트는 팀 `hsol`의 `hsol-info`이다(`vercel link --scope hsol --project hsol-info`로 맞출 수 있다).
 - `vercel env pull`은 기본이 development 환경이라, Production·Preview에만 있는 변수는 `.env.local`에 포함되지 않을 수 있다.
 - Next.js 정적보내기(`output: "export"`, 산출물 `out/`)와 함께 쓸 때는 `vercel.json`에 `outputDirectory`를 중복으로 넣지 않는 편이 안전하다.
 - 정적 export 빌드에서는 `dynamic = "force-dynamic"` 같은 강제 동적 페이지를 쓰면 export가 실패한다. `getSiteData()`는 Blob → `hsol-info-blob/vault/object-views/site-data.json` → 커밋된 `src/data/site.ts`의 `HSOL_DATA` 순으로 폴백한다.
