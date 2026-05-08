@@ -709,6 +709,7 @@ const DEFAULT_ACCENT = "#287099";
 function PortfolioAppBody() {
   const D = useSiteData();
   const [persona, setPersona] = useState<PersonaKey | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", DEFAULT_ACCENT);
@@ -729,6 +730,14 @@ function PortfolioAppBody() {
     onHash();
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const apply = () => setIsMobileViewport(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
   }, []);
 
   const pick = (key: PersonaKey) => {
@@ -759,7 +768,10 @@ function PortfolioAppBody() {
         {body}
         <Foot />
       </div>
-      <ChatDock defaultOpen={persona !== null} inline={persona !== null} />
+      <ChatDock
+        defaultOpen={persona !== null && !isMobileViewport}
+        inline={persona !== null}
+      />
     </div>
   );
 }
