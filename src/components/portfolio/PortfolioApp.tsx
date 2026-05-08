@@ -23,6 +23,7 @@ import {
 import type { SiteData } from "@/content/schema";
 import {
   askHansolViaApi,
+  type AskHansolPageContext,
   fetchAskHansolHistory,
   streamAnswerText,
 } from "@/lib/ask-hansol/client";
@@ -192,9 +193,11 @@ function renderTextWithLinks(text: string): ReactNode[] {
 function ChatDock({
   defaultOpen = false,
   inline = false,
+  pageContext,
 }: {
   defaultOpen?: boolean;
   inline?: boolean;
+  pageContext?: AskHansolPageContext;
 }) {
   const D = useSiteData();
   const [open, setOpen] = useState(defaultOpen);
@@ -248,7 +251,7 @@ function ChatDock({
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ, sid);
+      answerText = await askHansolViaApi(finalQ, sid, pageContext);
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
@@ -265,7 +268,7 @@ function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [q, loading, sessionId, historyReady]);
+  }, [q, loading, sessionId, historyReady, pageContext]);
 
   return (
     <>
@@ -320,7 +323,7 @@ function ChatDock({
 // ============================================================
 // AskBox
 // ============================================================
-function AskBox() {
+function AskBox({ pageContext }: { pageContext?: AskHansolPageContext }) {
   const D = useSiteData();
   const [q, setQ] = useState("");
   const [a, setA] = useState<{
@@ -341,7 +344,11 @@ function AskBox() {
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ, getOrCreateAskHansolSessionId());
+      answerText = await askHansolViaApi(
+        finalQ,
+        getOrCreateAskHansolSessionId(),
+        pageContext,
+      );
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
@@ -351,7 +358,7 @@ function AskBox() {
       (text, streaming) => setA({ q: finalQ, text, streaming }),
       () => setLoading(false),
     );
-  }, [q]);
+  }, [q, pageContext]);
 
   return (
     <section className="ask">
@@ -748,6 +755,11 @@ function PortfolioAppBody() {
     window.location.hash = "";
     setPersona(null);
   };
+  const pageContext: AskHansolPageContext = {
+    view: persona ?? "home",
+    section: persona === null ? "home" : "detail",
+    hash: persona ?? "home",
+  };
 
   let body;
   if (persona === "hire") body = <HireView onBack={back} />;
@@ -771,6 +783,7 @@ function PortfolioAppBody() {
       <ChatDock
         defaultOpen={persona !== null && !isMobileViewport}
         inline={persona !== null}
+        pageContext={pageContext}
       />
     </div>
   );

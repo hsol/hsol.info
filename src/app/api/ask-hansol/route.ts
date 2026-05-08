@@ -38,6 +38,12 @@ function keywordTokens(text: string): string[] {
 
 type BlobEntry = { pathname: string; url: string };
 type FaqEntry = SiteData["faq"][number];
+type AskHansolPageView = "home" | "hire" | "collab" | "builder" | "curious";
+type AskHansolPageContext = {
+  view: AskHansolPageView;
+  section?: string;
+  hash?: string;
+};
 type RetrievalSkill = {
   id: string;
   keywords: string[];
@@ -276,15 +282,52 @@ function shouldSkipFaqForContext(
   return false;
 }
 
-function buildSystemPrompt(faq: FaqEntry[], memorySummary: string | null): string {
+function parsePageContext(input: unknown): AskHansolPageContext | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as { view?: unknown; section?: unknown; hash?: unknown };
+  const views: AskHansolPageView[] = ["home", "hire", "collab", "builder", "curious"];
+  if (typeof raw.view !== "string" || !views.includes(raw.view as AskHansolPageView)) {
+    return null;
+  }
+  return {
+    view: raw.view as AskHansolPageView,
+    section: typeof raw.section === "string" ? raw.section.slice(0, 48) : undefined,
+    hash: typeof raw.hash === "string" ? raw.hash.slice(0, 48) : undefined,
+  };
+}
+
+function formatPageContext(context: AskHansolPageContext | null): string {
+  if (!context) return "unknown";
+  const viewLabels: Record<AskHansolPageView, string> = {
+    home: "홈",
+    hire: "상세: Hire",
+    collab: "상세: Collab",
+    builder: "상세: Builder",
+    curious: "상세: Curious",
+  };
+  const bits = [
+    `view=${viewLabels[context.view]}`,
+    context.section ? `section=${context.section}` : null,
+    context.hash ? `hash=${context.hash}` : null,
+  ].filter(Boolean);
+  return bits.join(", ");
+}
+
+function buildSystemPrompt(
+  faq: FaqEntry[],
+  memorySummary: string | null,
+  pageContext: AskHansolPageContext | null,
+): string {
   const mem = memorySummary?.trim()
     ? `[오래된 대화 요약 — 이 브라우저 세션 메모리]\n${memorySummary.trim()}\n\n`
     : "";
+  const pageCtx = `[현재 방문 화면 컨텍스트]\n${formatPageContext(pageContext)}\n\n`;
 
-  return `${mem}당신은 임한솔(Hansol Lim) 본인을 대신해 포트폴리오 사이트 방문자에게 답하는 어시스턴트입니다.
+  return `${mem}${pageCtx}당신은 임한솔(Hansol Lim) 본인을 대신해 포트폴리오 사이트 방문자에게 답하는 어시스턴트입니다.
 한국어로 3~5문장 이내로 답하세요. 모르는 것은 모른다고 말합니다.
 답변 기준은 항상 "AI-클론-운영-매뉴얼"을 베이스로 하며, 다른 정보와 충돌하면 운영 매뉴얼 기준을 우선합니다.
 확신이 부족하면 답변 전에 반드시 blob_lookup 도구를 호출해 필요한 문서를 조회한 뒤 답하세요.
+사용자가 보고 있는 화면 문맥을 먼저 고려하세요. 예: 상세(Hire/Collab/Builder/Curious) 화면이면 해당 관점의 강점/사례/설명 순서를 우선하고, 홈이면 전체 소개 관점으로 답하세요.
 
 세션 메모리(위 요약)와 messages의 최근 대화를 함께 참고하되, **가장 마지막 user 메시지**에 직접 답하세요. 이미 말한 내용은 한 줄로만 짚고 중복 설명은 줄이세요.
 
@@ -465,12 +508,17 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const siteData = await getSiteData();
-    const body = (await req.json()) as { query?: unknown; sessionId?: unknown };
+    const body = (await req.json()) as {
+      query?: unknown;
+      sessionId?: unknown;
+      pageContext?: unknown;
+    };
     const query = typeof body.query === "string" ? body.query.trim() : "";
     const sessionId =
       typeof body.sessionId === "string" && isValidAskHansolSessionId(body.sessionId)
         ? body.sessionId
         : null;
+    const pageContext = parsePageContext(body.pageContext);
 
     if (!query) {
       return NextResponse.json({ error: "query is required" }, { status: 400 });
@@ -501,7 +549,7 @@ export async function POST(req: Request) {
     }
 
     const { priorForClaude, latestUserText } = splitPriorAndLatestUser(priorTurnsRaw, query);
-    const systemPrompt = buildSystemPrompt(siteData.faq, memorySummary);
+    const systemPrompt = buildSystemPrompt(siteData.faq, memorySummary, pageContext);
     const llmAnswer = await askAnthropicChat(systemPrompt, priorForClaude, latestUserText);
     const answer = llmAnswer ?? ASK_HANSOL_FALLBACK_MESSAGE;
     if (sessionId) {
