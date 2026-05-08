@@ -57,6 +57,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
           ANTHROPIC_MAX_TOKENS: "64000"
+          GIT_DIFF_BASE_SHA: ${{ github.event.before }}
+          GIT_DIFF_HEAD_SHA: ${{ github.sha }}
         run: npm run content:refresh:claude
 
       - name: Upload content refresh failure dumps

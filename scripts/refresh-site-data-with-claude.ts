@@ -1,7 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { siteDataSchema } from "../src/content/schema";
-import { HSOL_DATA } from "../src/data/site";
+
+const execFileAsync = promisify(execFile);
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
@@ -23,9 +26,8 @@ const MAX_TOKENS = (() => {
 const FAILURE_LOG_DIR =
   process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
 const EMIT_TOOL_NAME = "emit_site_data";
-
-const CONTEXT_FILES = [
-  `${VAULT_ROOT}/README.md`,
+const VAULT_README_PATH = `${VAULT_ROOT}/README.md`;
+const BASE_CONTEXT_FILES = [
   `${VAULT_ROOT}/object-views/작문-가이드.md`,
   `${VAULT_ROOT}/object-views/포트폴리오-요약.md`,
   `${VAULT_ROOT}/object-views/타임라인.md`,
@@ -126,10 +128,103 @@ async function writeFailureDump(args: {
   logStep(`Failure dump written: ${path.join(dir, `${baseName}-*.txt`)}`);
 }
 
-async function loadContextFiles(): Promise<string> {
-  logStep(`Loading context files (${CONTEXT_FILES.length})...`);
+async function loadContextFiles({
+  highPriorityFiles,
+  regularFiles,
+}: {
+  highPriorityFiles: string[];
+  regularFiles: string[];
+}): Promise<string> {
+  const dedupHigh = [...new Set(highPriorityFiles)];
+  const dedupRegular = [...new Set(regularFiles)].filter((f) => !dedupHigh.includes(f));
+  logStep(
+    `Loading context files (priority=${dedupHigh.length}, regular=${dedupRegular.length})...`,
+  );
+
+  const loadOne = async (filePath: string, isPriority: boolean) => {
+    try {
+      const content = await readFile(filePath, "utf8");
+      const limit = isPriority ? MAX_CHARS_PER_FILE * 2 : MAX_CHARS_PER_FILE;
+      const sliced =
+        content.length > limit ? `${content.slice(0, limit)}\n\n[TRUNCATED]` : content;
+      const tag = isPriority ? "HIGH_PRIORITY_CONTEXT" : "CONTEXT";
+      return `## ${filePath} [${tag}]\n${sliced}`;
+    } catch {
+      return `## ${filePath}\n[FILE_NOT_FOUND]`;
+    }
+  };
+
+  const chunks = await Promise.all([
+    ...dedupHigh.map((filePath) => loadOne(filePath, true)),
+    ...dedupRegular.map((filePath) => loadOne(filePath, false)),
+  ]);
+  return chunks.join("\n\n");
+}
+
+function toPosixPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+function toVaultContextPath(relativeVaultPath: string): string {
+  const normalized = relativeVaultPath.replace(/^\/+/, "");
+  return path.posix.join(VAULT_ROOT, normalized);
+}
+
+async function listChangedVaultFilesFromGit(): Promise<string[]> {
+  const baseSha = process.env.GIT_DIFF_BASE_SHA;
+  const headSha = process.env.GIT_DIFF_HEAD_SHA;
+  if (!baseSha || !headSha || /^0+$/.test(baseSha)) return [];
+
+  const { stdout } = await execFileAsync(
+    "git",
+    ["diff", "--name-only", baseSha, headSha, "--", "hsol-info-blob/vault"],
+    { cwd: process.cwd() },
+  );
+
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((filePath) => toPosixPath(filePath))
+    .filter((filePath) => filePath.startsWith("hsol-info-blob/vault/"))
+    .map((filePath) => filePath.slice("hsol-info-blob/vault/".length));
+}
+
+async function detectChangedVaultFiles(): Promise<string[]> {
+  const fromEnv = process.env.VAULT_CHANGED_FILES;
+  if (fromEnv && fromEnv.trim()) {
+    return fromEnv
+      .split(/\r?\n|,/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  try {
+    return await listChangedVaultFilesFromGit();
+  } catch {
+    return [];
+  }
+}
+
+async function getExistingSiteDataText(): Promise<{ text: string; exists: boolean }> {
+  try {
+    logStep(`Reading current site-data: ${SITE_DATA_PATH}`);
+    const text = await readFile(SITE_DATA_PATH, "utf8");
+    return { text, exists: true };
+  } catch (error) {
+    const enoent =
+      typeof error === "object" && error !== null && "code" in error
+        ? (error as { code?: string }).code === "ENOENT"
+        : false;
+    if (!enoent) throw error;
+    return { text: "", exists: false };
+  }
+}
+
+async function loadContextFilesLegacy(): Promise<string> {
+  logStep(`Loading context files (${BASE_CONTEXT_FILES.length})...`);
   const chunks = await Promise.all(
-    CONTEXT_FILES.map(async (filePath) => {
+    BASE_CONTEXT_FILES.map(async (filePath) => {
       try {
         const content = await readFile(filePath, "utf8");
         const sliced =
@@ -148,6 +243,16 @@ async function loadContextFiles(): Promise<string> {
 type AnthropicContent =
   | { type?: "text"; text?: string }
   | { type?: "tool_use"; name?: string; input?: unknown };
+
+function isTextBlock(item: AnthropicContent): item is Extract<AnthropicContent, { type?: "text" }> {
+  return item.type === "text";
+}
+
+function isEmitToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_TOOL_NAME;
+}
 
 async function requestAnthropicStructured(
   apiKey: string,
@@ -217,14 +322,12 @@ async function requestAnthropicStructured(
     usage?: { input_tokens?: number; output_tokens?: number };
   };
   const blocks = data.content ?? [];
-  const text = data.content
-    ?.filter((item) => item.type === "text" && item.text)
-    .map((item) => item.text)
+  const text = blocks
+    .filter(isTextBlock)
+    .map((item) => item.text ?? "")
     .join("\n")
-    .trim() ?? "";
-  const toolInput =
-    blocks.find((item) => item.type === "tool_use" && item.name === EMIT_TOOL_NAME)?.input ??
-    null;
+    .trim();
+  const toolInput = blocks.find(isEmitToolUseBlock)?.input ?? null;
 
   const usage = data.usage;
   if (usage?.input_tokens != null && usage?.output_tokens != null) {
@@ -247,19 +350,32 @@ async function main() {
     throw new Error("Missing ANTHROPIC_API_KEY");
   }
 
-  let currentSiteDataText: string;
-  try {
-    logStep(`Reading current site-data: ${SITE_DATA_PATH}`);
-    currentSiteDataText = await readFile(SITE_DATA_PATH, "utf8");
-  } catch (error) {
-    const enoent = typeof error === "object" && error !== null && "code" in error
-      ? (error as { code?: string }).code === "ENOENT"
-      : false;
-    if (!enoent) throw error;
-    logStep("site-data.json not found, falling back to src/data/site.ts baseline.");
-    currentSiteDataText = `${JSON.stringify(HSOL_DATA, null, 2)}\n`;
+  const { text: currentSiteDataText, exists: hasExistingSiteData } = await getExistingSiteDataText();
+  const changedVaultFiles = await detectChangedVaultFiles();
+  if (hasExistingSiteData && changedVaultFiles.length === 0) {
+    logStep("No vault file changes detected for this deployment. Keep existing site-data as-is.");
+    return;
   }
-  const contextText = await loadContextFiles();
+
+  if (!hasExistingSiteData) {
+    logStep("site-data.json not found. Rebuilding from vault README baseline.");
+  } else {
+    logStep(`Detected changed vault files: ${changedVaultFiles.length}`);
+  }
+
+  const contextText = !hasExistingSiteData
+    ? await loadContextFiles({
+        highPriorityFiles: [VAULT_README_PATH],
+        regularFiles: BASE_CONTEXT_FILES,
+      })
+    : changedVaultFiles.length > 0
+      ? await loadContextFiles({
+          highPriorityFiles: changedVaultFiles.map((relativePath) =>
+            toVaultContextPath(relativePath),
+          ),
+          regularFiles: [VAULT_README_PATH, ...BASE_CONTEXT_FILES],
+        })
+      : await loadContextFilesLegacy();
   logStep("Context loaded.");
 
   const basePrompt = `
@@ -271,9 +387,10 @@ async function main() {
 3) 템플릿 고정값(room, coord 같은 템플릿 메타)은 건드리지 않는다.
 4) 한국어 문구 톤은 반드시 object-views/작문-가이드를 우선 기준으로 맞춘다.
 5) 증거가 없는 정보는 추측하지 말고 현재 값을 유지한다.
+6) [HIGH_PRIORITY_CONTEXT]로 표시된 파일은 최신 변경으로 간주하고 반영 우선순위를 가장 높게 둔다.
 
 현재 site-data.json:
-${currentSiteDataText}
+${currentSiteDataText || "[MISSING]"}
 
 참조 vault 컨텍스트:
 ${contextText}
