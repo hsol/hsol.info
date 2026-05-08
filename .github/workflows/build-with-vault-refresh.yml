@@ -41,7 +41,7 @@ jobs:
         with:
           path: |
             hsol-info-blob/vault
-            hsol-info-blob/.blob-sync-state.json
+            hsol-info-blob/vault/.blob-sync-state.json
           key: vault-sync-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             vault-sync-${{ runner.os }}-
@@ -49,7 +49,7 @@ jobs:
       - name: Refresh vault from Blob
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-          BLOB_PATH_PREFIX: info
+          BLOB_PATH_PREFIX: info/vault
         run: npm run sync:blob:pull -- --clean
 
       - name: Refresh site-data with Claude
