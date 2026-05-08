@@ -67,6 +67,34 @@ function parseJsonWithFallback(text: string): unknown {
   return extractJson(normalized);
 }
 
+function tryParseJsonString(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeNestedJsonLikeStrings(input: unknown): unknown {
+  if (Array.isArray(input)) {
+    return input.map((item) => normalizeNestedJsonLikeStrings(item));
+  }
+  if (typeof input === "string") {
+    const parsed = tryParseJsonString(input);
+    if (parsed === input) return input;
+    return normalizeNestedJsonLikeStrings(parsed);
+  }
+  if (input && typeof input === "object") {
+    return Object.fromEntries(
+      Object.entries(input).map(([key, value]) => [key, normalizeNestedJsonLikeStrings(value)]),
+    );
+  }
+  return input;
+}
+
 async function writeFailureDump(args: {
   stage: string;
   initialResponse: string;
@@ -284,7 +312,8 @@ ${contextText}
       parsed = parseJsonWithFallback(text);
     }
 
-    const validated = siteDataSchema.safeParse(parsed);
+    const normalizedParsed = normalizeNestedJsonLikeStrings(parsed);
+    const validated = siteDataSchema.safeParse(normalizedParsed);
     if (validated.success) {
       logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
       await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
