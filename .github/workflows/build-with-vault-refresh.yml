@@ -56,6 +56,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
+          ANTHROPIC_MAX_TOKENS: "64000"
         run: npm run content:refresh:claude
 
       - name: Upload content refresh failure dumps

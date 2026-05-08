@@ -11,6 +11,15 @@ const SITE_DATA_PATH =
 const MAX_CHARS_PER_FILE = Number(
   process.env.CLAUDE_CONTEXT_MAX_CHARS_PER_FILE ?? 9000,
 );
+const MAX_TOKENS = (() => {
+  const raw = process.env.ANTHROPIC_MAX_TOKENS;
+  if (raw === undefined || raw === "") return 64_000;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) {
+    throw new Error("ANTHROPIC_MAX_TOKENS must be a positive number");
+  }
+  return Math.floor(n);
+})();
 const FAILURE_LOG_DIR =
   process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
 
@@ -107,8 +116,11 @@ async function loadContextFiles(): Promise<string> {
   return chunks.join("\n\n");
 }
 
-async function requestAnthropic(apiKey: string, prompt: string): Promise<string> {
-  logStep(`Requesting Anthropic (${MODEL})...`);
+async function requestAnthropic(
+  apiKey: string,
+  prompt: string,
+): Promise<{ text: string; stopReason: string | undefined }> {
+  logStep(`Requesting Anthropic (${MODEL}, max_tokens=${MAX_TOKENS})...`);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -118,7 +130,7 @@ async function requestAnthropic(apiKey: string, prompt: string): Promise<string>
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 8000,
+      max_tokens: MAX_TOKENS,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -130,6 +142,8 @@ async function requestAnthropic(apiKey: string, prompt: string): Promise<string>
 
   const data = (await response.json()) as {
     content?: Array<{ type?: string; text?: string }>;
+    stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
   };
   const text = data.content
     ?.filter((item) => item.type === "text" && item.text)
@@ -137,8 +151,15 @@ async function requestAnthropic(apiKey: string, prompt: string): Promise<string>
     .join("\n")
     .trim();
   if (!text) throw new Error("Empty response from Anthropic");
-  logStep("Anthropic response received.");
-  return text;
+  const usage = data.usage;
+  if (usage?.input_tokens != null && usage?.output_tokens != null) {
+    logStep(
+      `Anthropic response received (stop_reason=${data.stop_reason ?? "?"}; usage in/out=${usage.input_tokens}/${usage.output_tokens}).`,
+    );
+  } else {
+    logStep(`Anthropic response received (stop_reason=${data.stop_reason ?? "?"}).`);
+  }
+  return { text, stopReason: data.stop_reason };
 }
 
 async function main() {
@@ -180,7 +201,21 @@ ${currentSiteDataText}
 ${contextText}
 `.trim();
 
-  const text = await requestAnthropic(apiKey, prompt);
+  const { text, stopReason } = await requestAnthropic(apiKey, prompt);
+  if (stopReason === "max_tokens") {
+    const err = new Error(
+      `Anthropic output was truncated (stop_reason=max_tokens, max_tokens=${MAX_TOKENS}). Set ANTHROPIC_MAX_TOKENS higher if your model allows it, or shorten the prompt / use a smaller baseline JSON.`,
+    );
+    logStep(err.message);
+    await writeFailureDump({
+      stage: "truncated-max-tokens",
+      initialResponse: text,
+      lastCandidate: text,
+      error: err,
+    });
+    throw err;
+  }
+
   let parsed: unknown;
   try {
     logStep("Parsing attempt 1...");
