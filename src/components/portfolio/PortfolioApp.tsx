@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   useCallback,
   useEffect,
@@ -151,7 +152,7 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
             </div>
           </div>
           <div className="coffee-photo">
-            <img src="/hansol.png" alt={D.identity.name} width={280} height={280} />
+            <Image src="/hansol.png" alt={D.identity.name} width={280} height={280} />
           </div>
         </div>
       </section>

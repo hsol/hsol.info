@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   createContext,
   useContext,
@@ -33,7 +34,7 @@ export function Plate() {
   return (
     <div className="plate">
       <div className="plate-cell plate-id">
-        <img src="/signature.svg" alt="" className="plate-sig" width={36} height={36} />
+        <Image src="/signature.svg" alt="" className="plate-sig" width={36} height={36} />
         <div>
           <div className="plate-key">Person</div>
           <div className="plate-val">임한솔 · Hansol Lim</div>

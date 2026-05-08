@@ -1,6 +1,7 @@
 import { list } from "@vercel/blob";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { HSOL_DATA } from "@/data/site";
 import { siteDataSchema, type SiteData } from "@/content/schema";
 
 const SITE_DATA_PATH = "vault/object-views/site-data.json";
@@ -66,6 +67,11 @@ async function fetchSiteDataFromLocalVault(): Promise<SiteData> {
   return siteDataSchema.parse(JSON.parse(raw));
 }
 
+/** Committed baseline (`src/data/site.ts`) — used when Blob + local vault are unavailable (e.g. Vercel CI without submodule). */
+function fetchSiteDataFromBundled(): SiteData {
+  return HSOL_DATA;
+}
+
 export async function getSiteData(): Promise<SiteData> {
   const now = Date.now();
   if (cached && now < cached.expiresAt) return cached.data;
@@ -74,6 +80,7 @@ export async function getSiteData(): Promise<SiteData> {
 
   inflight = fetchSiteDataFromBlob()
     .catch(async () => fetchSiteDataFromLocalVault())
+    .catch(async () => fetchSiteDataFromBundled())
     .then((data) => {
       cached = { data, expiresAt: Date.now() + CACHE_TTL_MS };
       return data;
