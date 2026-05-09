@@ -488,6 +488,12 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   color: var(--bp-soft);
   margin-bottom: 10px;
 }
+.ask-answer a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
 .cursor-blink::after {
   content: "▍";
   display: inline-block;

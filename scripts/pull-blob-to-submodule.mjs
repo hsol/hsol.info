@@ -3,8 +3,8 @@ import path from "node:path";
 import process from "node:process";
 import { list } from "@vercel/blob";
 
-const DEFAULT_SUBMODULE_DIR = "hsol-info-blob";
-const DEFAULT_PREFIX = "info";
+const DEFAULT_SUBMODULE_DIR = "hsol-info-blob/vault";
+const DEFAULT_PREFIX = "info/vault";
 const SYNC_STATE_FILE = ".blob-sync-state.json";
 const IGNORED_FILENAMES = new Set([".DS_Store", ".DS-Store"]);
 

@@ -4,6 +4,7 @@ import Image from "next/image";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -21,8 +22,10 @@ import {
   useSiteData,
 } from "@/components/portfolio/Atoms";
 import type { SiteData } from "@/content/schema";
+import { splitTextForAskHansolLinks } from "@/lib/ask-hansol/answer-linkify";
 import {
   askHansolViaApi,
+  type AskHansolPageContext,
   fetchAskHansolHistory,
   streamAnswerText,
 } from "@/lib/ask-hansol/client";
@@ -40,6 +43,56 @@ const COORDS: Record<string, string> = {
 };
 
 type PersonaKey = "hire" | "collab" | "builder" | "curious";
+
+/** `.shell` 안의 `[data-ask-section]` 중 뷰포트와 겹침이 가장 큰 블록 id를 Ask API `pageContext.detail`로 넘깁니다. */
+function useReportAskVisibleSection(
+  shellRef: React.RefObject<HTMLDivElement | null>,
+  viewKey: string,
+  onPick: (detail: string | undefined) => void,
+) {
+  useEffect(() => {
+    const root = shellRef.current;
+    if (!root) return;
+
+    const nodes = root.querySelectorAll<HTMLElement>("[data-ask-section]");
+    if (nodes.length === 0) {
+      onPick(undefined);
+      return;
+    }
+
+    const ratios = new Map<Element, number>();
+    const apply = () => {
+      let bestEl: Element | null = null;
+      let best = -1;
+      for (const el of nodes) {
+        const v = ratios.get(el) ?? 0;
+        if (v > best) {
+          best = v;
+          bestEl = el;
+        }
+      }
+      const label = bestEl?.getAttribute("data-ask-section")?.trim();
+      onPick(label || undefined);
+    };
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          ratios.set(e.target, e.intersectionRatio);
+        }
+        apply();
+      },
+      { root: null, threshold: [0, 0.05, 0.15, 0.35, 0.55, 0.75, 1] },
+    );
+    nodes.forEach((n) => io.observe(n));
+    apply();
+
+    return () => {
+      io.disconnect();
+      ratios.clear();
+    };
+  }, [shellRef, viewKey, onPick]);
+}
 
 function renderTitleLines(lines: string[]): ReactNode {
   return (
@@ -78,7 +131,7 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
     <div className="view" onMouseMove={bumpInteract} onClick={bumpInteract} onKeyDown={bumpInteract}>
       <Plate />
 
-      <section className="hero">
+      <section className="hero" data-ask-section="home/hero">
         <div className="hero-left">
           <div>
             <div className="hero-eyebrow">
@@ -111,7 +164,7 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
         />
       </section>
 
-      <section className="doors">
+      <section className="doors" data-ask-section="home/doors">
         <div className="doors-head">
           <h2 className="doors-h">{D.portfolioCopy.home.doorsTitle}</h2>
           <div className="doors-meta">{D.portfolioCopy.home.doorsMeta}</div>
@@ -142,7 +195,7 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
         </div>
       </section>
 
-      <section className="coffee">
+      <section className="coffee" data-ask-section="home/coffee">
         <div className="coffee-card">
           <div className="coffee-quote">“</div>
           <div className="coffee-body">
@@ -176,25 +229,27 @@ type ChatMsg = {
 };
 
 function renderTextWithLinks(text: string): ReactNode[] {
-  const parts = text.split(/(https?:\/\/[^\s)]+(?:\)[^\s]*)?)/g);
-  return parts.map((part, i) => {
-    if (/^https?:\/\//.test(part)) {
-      return (
-        <a key={`link-${i}`} href={part} target="_blank" rel="noopener noreferrer">
-          {part}
+  return splitTextForAskHansolLinks(text)
+    .filter((p) => p.value.length > 0)
+    .map((part, i) =>
+      part.kind === "link" ? (
+        <a key={`lnk-${i}`} href={part.value} target="_blank" rel="noopener noreferrer">
+          {part.value}
         </a>
-      );
-    }
-    return <span key={`text-${i}`}>{part}</span>;
-  });
+      ) : (
+        <span key={`txt-${i}`}>{part.value}</span>
+      ),
+    );
 }
 
 function ChatDock({
   defaultOpen = false,
   inline = false,
+  pageContext,
 }: {
   defaultOpen?: boolean;
   inline?: boolean;
+  pageContext?: AskHansolPageContext;
 }) {
   const D = useSiteData();
   const [open, setOpen] = useState(defaultOpen);
@@ -248,7 +303,7 @@ function ChatDock({
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ, sid);
+      answerText = await askHansolViaApi(finalQ, sid, pageContext);
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
@@ -265,7 +320,7 @@ function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [q, loading, sessionId, historyReady]);
+  }, [q, loading, sessionId, historyReady, pageContext]);
 
   return (
     <>
@@ -320,7 +375,7 @@ function ChatDock({
 // ============================================================
 // AskBox
 // ============================================================
-function AskBox() {
+function AskBox({ pageContext }: { pageContext?: AskHansolPageContext }) {
   const D = useSiteData();
   const [q, setQ] = useState("");
   const [a, setA] = useState<{
@@ -341,7 +396,11 @@ function AskBox() {
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ, getOrCreateAskHansolSessionId());
+      answerText = await askHansolViaApi(
+        finalQ,
+        getOrCreateAskHansolSessionId(),
+        pageContext,
+      );
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
@@ -351,7 +410,7 @@ function AskBox() {
       (text, streaming) => setA({ q: finalQ, text, streaming }),
       () => setLoading(false),
     );
-  }, [q]);
+  }, [q, pageContext]);
 
   return (
     <section className="ask">
@@ -427,15 +486,15 @@ function HireView({ onBack }: { onBack: () => void }) {
         title={renderTitleLines(D.viewHeaders.hire.titleLines)}
         lede={D.viewHeaders.hire.lede} />
       
-      <div className="sec">
+      <div className="sec" data-ask-section="hire/strengths">
         <SecHead title="Strengths" num="01" meta="3 pillars" />
         <Pillars />
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="hire/experience">
         <SecHead title="Selected experience" num="02" meta={`${tier1.length} roles`} />
         <CareerList items={tier1} />
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="hire/facts">
         <SecHead title="Facts" num="03" meta="basic" />
         <div className="facts">
           <div className="fact"><div className="fact-label">{D.portfolioCopy.hire.factsYearsLabel}</div><div className="fact-value">{D.portfolioCopy.hire.factsYearsValue}</div></div>
@@ -464,11 +523,11 @@ function CollabView({ onBack }: { onBack: () => void }) {
         title={renderTitleLines(D.viewHeaders.collab.titleLines)}
         lede={D.viewHeaders.collab.lede} />
       
-      <div className="sec">
+      <div className="sec" data-ask-section="collab/building">
         <SecHead title="What I'm building now" num="01" meta="active" />
         <CareerList items={D.career.filter((c) => c.period.includes("현재"))} />
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="collab/methods">
         <SecHead title="How I work" num="02" meta="approach" />
         <div className="pillars">
           {D.portfolioCopy.collab.methods.map((method) => (
@@ -481,7 +540,7 @@ function CollabView({ onBack }: { onBack: () => void }) {
           ))}
         </div>
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="collab/advisory">
         <SecHead title="Past advisory" num="03" meta="reference" />
         <CareerList items={D.career.filter((c) => (c.tags || []).includes("자문") || c.org === "Antler")} />
       </div>
@@ -505,7 +564,7 @@ function BuilderView({ onBack }: { onBack: () => void }) {
         title={renderTitleLines(D.viewHeaders.builder.titleLines)}
         lede={D.viewHeaders.builder.lede} />
       
-      <div className="sec">
+      <div className="sec" data-ask-section="builder/stack">
         <SecHead title="Stack & domain" num="01" meta="practical" />
         <div className="facts">
           {D.portfolioCopy.builder.facts.map((fact) => (
@@ -517,11 +576,11 @@ function BuilderView({ onBack }: { onBack: () => void }) {
           <div className="fact"><div className="fact-label">{D.portfolioCopy.builder.certificationLabel}</div><div className="fact-value">{D.certifications.join(' · ')}</div></div>
         </div>
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="builder/career">
         <SecHead title="Career as engineer" num="02" meta="full timeline" />
         <CareerList items={D.career} />
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="builder/writing">
         <SecHead title="Writing" num="03" meta="publications" />
         <div className="pillars">
           {D.publications.map((p, i) =>
@@ -676,11 +735,11 @@ function CuriousView({
         title={renderTitleLines(D.viewHeaders.curious.titleLines)}
         lede={D.viewHeaders.curious.lede} />
       
-      <div className="sec">
+      <div className="sec" data-ask-section="curious/timeline">
         <SecHead title="Section drawing — 2012 to now" num="01" meta="parallel tracks" />
         <GanttTimeline items={timeline} accent={accent} />
       </div>
-      <div className="sec">
+      <div className="sec" data-ask-section="curious/personal">
         <SecHead title="A bit personal" num="02" meta="off-record" />
         <div className="pillars">
           {D.portfolioCopy.curious.notes.map((note) => (
@@ -707,8 +766,10 @@ function CuriousView({
 const DEFAULT_ACCENT = "#287099";
 
 function PortfolioAppBody() {
-  const D = useSiteData();
   const [persona, setPersona] = useState<PersonaKey | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [askVisibleSection, setAskVisibleSection] = useState<string | undefined>();
+  const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", DEFAULT_ACCENT);
@@ -731,6 +792,14 @@ function PortfolioAppBody() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const apply = () => setIsMobileViewport(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
   const pick = (key: PersonaKey) => {
     window.location.hash = key;
     setPersona(key);
@@ -739,6 +808,19 @@ function PortfolioAppBody() {
     window.location.hash = "";
     setPersona(null);
   };
+
+  const viewKey = persona ?? "home";
+  useReportAskVisibleSection(shellRef, viewKey, setAskVisibleSection);
+
+  const pageContext: AskHansolPageContext = useMemo(
+    () => ({
+      view: persona ?? "home",
+      section: persona === null ? "home" : "detail",
+      hash: persona ?? "home",
+      detail: askVisibleSection,
+    }),
+    [persona, askVisibleSection],
+  );
 
   let body;
   if (persona === "hire") body = <HireView onBack={back} />;
@@ -755,11 +837,15 @@ function PortfolioAppBody() {
 
   return (
     <div className={"app-layout" + (persona !== null ? " has-dock" : "")}>
-      <div className="shell">
+      <div className="shell" ref={shellRef}>
         {body}
         <Foot />
       </div>
-      <ChatDock defaultOpen={persona !== null} inline={persona !== null} />
+      <ChatDock
+        defaultOpen={persona !== null && !isMobileViewport}
+        inline={persona !== null}
+        pageContext={pageContext}
+      />
     </div>
   );
 }

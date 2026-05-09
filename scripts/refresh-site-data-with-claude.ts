@@ -1,7 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { siteDataSchema } from "../src/content/schema";
 import { HSOL_DATA } from "../src/data/site";
+
+const execFileAsync = promisify(execFile);
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
@@ -23,9 +27,22 @@ const MAX_TOKENS = (() => {
 const FAILURE_LOG_DIR =
   process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
 const EMIT_TOOL_NAME = "emit_site_data";
-
-const CONTEXT_FILES = [
-  `${VAULT_ROOT}/README.md`,
+const SITE_DATA_TEMPLATE = JSON.stringify(HSOL_DATA, null, 2);
+const REQUIRED_TOP_LEVEL_KEYS = [
+  "identity",
+  "pillars",
+  "personas",
+  "viewHeaders",
+  "portfolioCopy",
+  "career",
+  "education",
+  "certifications",
+  "languages",
+  "publications",
+  "faq",
+] as const;
+const VAULT_README_PATH = `${VAULT_ROOT}/README.md`;
+const BASE_CONTEXT_FILES = [
   `${VAULT_ROOT}/object-views/작문-가이드.md`,
   `${VAULT_ROOT}/object-views/포트폴리오-요약.md`,
   `${VAULT_ROOT}/object-views/타임라인.md`,
@@ -95,6 +112,215 @@ function normalizeNestedJsonLikeStrings(input: unknown): unknown {
   return input;
 }
 
+function coerceSiteDataCandidate(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const obj = input as Record<string, unknown>;
+  const hasTopLevelShape = REQUIRED_TOP_LEVEL_KEYS.some((key) => key in obj);
+  if (hasTopLevelShape) return input;
+
+  // Sometimes tool input is wrapped (e.g. { data: {...} } or { siteData: {...} }).
+  const wrapperKeys = ["siteData", "site_data", "data", "payload", "result", "output"];
+  for (const key of wrapperKeys) {
+    const nested = obj[key];
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+      const nestedObj = nested as Record<string, unknown>;
+      if (REQUIRED_TOP_LEVEL_KEYS.some((k) => k in nestedObj)) return nested;
+    }
+  }
+  return input;
+}
+
+function toRecord(input: unknown): Record<string, unknown> | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  return input as Record<string, unknown>;
+}
+
+function pickString(...values: Array<unknown>): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function toStringArray(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+}
+
+function dateRangeLabel(start: unknown, end: unknown): string {
+  const s = typeof start === "string" && start.trim() ? start.trim() : "";
+  const e = typeof end === "string" && end.trim() ? end.trim() : "현재";
+  if (!s && !e) return "기간 미상";
+  if (!s) return e;
+  return `${s} - ${e}`;
+}
+
+function normalizeAlternateSiteDataShape(input: unknown): unknown {
+  const src = toRecord(input);
+  if (!src) return input;
+
+  const out = structuredClone(HSOL_DATA);
+
+  const identity = toRecord(src.identity);
+  if (identity) {
+    out.identity.name = pickString(identity.name, identity.nameKo, out.identity.name) ?? out.identity.name;
+    out.identity.nameEn =
+      pickString(identity.nameEn, out.identity.nameEn) ?? out.identity.nameEn;
+    out.identity.handle =
+      pickString(identity.handle, toStringArray(identity.aliases)[0], out.identity.handle) ??
+      out.identity.handle;
+    out.identity.tagline = pickString(identity.tagline, out.identity.tagline) ?? out.identity.tagline;
+    out.identity.taglineSub =
+      pickString(identity.taglineSub, identity.description, out.identity.taglineSub) ??
+      out.identity.taglineSub;
+    out.identity.location =
+      pickString(identity.location, out.identity.location) ?? out.identity.location;
+    out.identity.email = pickString(identity.email, out.identity.email) ?? out.identity.email;
+    out.identity.linkedin =
+      pickString(identity.linkedin, out.identity.linkedin) ?? out.identity.linkedin;
+    out.identity.portfolio =
+      pickString(identity.portfolio, identity.homepage, out.identity.portfolio) ??
+      out.identity.portfolio;
+    out.identity.company = pickString(identity.company, out.identity.company) ?? out.identity.company;
+    out.identity.calendly =
+      pickString(identity.calendly, out.identity.calendly) ?? out.identity.calendly;
+    out.identity.gravatar =
+      pickString(identity.gravatar, out.identity.gravatar) ?? out.identity.gravatar;
+  }
+
+  if (Array.isArray(src.pillars) && src.pillars.length > 0) {
+    out.pillars = src.pillars
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => ({
+        key: pickString(item.key, out.pillars[idx]?.key, `pillar-${idx + 1}`) ?? `pillar-${idx + 1}`,
+        label: pickString(item.label, item.titleEn, item.titleKo, out.pillars[idx]?.label) ?? "Pillar",
+        labelKo:
+          pickString(item.labelKo, item.titleKo, item.titleEn, out.pillars[idx]?.labelKo) ?? "기둥",
+        blurb: pickString(item.blurb, item.descKo, out.pillars[idx]?.blurb) ?? "",
+      }))
+      .filter((item) => Boolean(item.blurb));
+  }
+
+  if (Array.isArray(src.personas) && src.personas.length > 0) {
+    out.personas = src.personas
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => ({
+        key: pickString(item.key, out.personas[idx]?.key, `persona-${idx + 1}`) ?? `persona-${idx + 1}`,
+        mark: pickString(item.mark, out.personas[idx]?.mark, String(idx + 1).padStart(2, "0")) ??
+          String(idx + 1).padStart(2, "0"),
+        title: pickString(item.title, item.titleKo, out.personas[idx]?.title) ?? "Persona",
+        titleEn: pickString(item.titleEn, item.titleKo, out.personas[idx]?.titleEn) ?? "Persona",
+        hint: pickString(item.hint, out.personas[idx]?.hint) ?? "",
+      }))
+      .filter((item) => Boolean(item.hint));
+  }
+
+  const portfolioCopy = toRecord(src.portfolioCopy);
+  if (portfolioCopy) {
+    out.portfolioCopy.home.heroEyebrow =
+      pickString(portfolioCopy.heroPrimary, out.portfolioCopy.home.heroEyebrow) ??
+      out.portfolioCopy.home.heroEyebrow;
+    const heroSecondary =
+      pickString(portfolioCopy.heroSecondary, out.portfolioCopy.home.heroSubEmphasis) ??
+      out.portfolioCopy.home.heroSubEmphasis;
+    out.portfolioCopy.home.heroSubEmphasis = heroSecondary;
+    out.portfolioCopy.home.heroSubLead =
+      pickString(portfolioCopy.heroBody, out.portfolioCopy.home.heroSubLead) ??
+      out.portfolioCopy.home.heroSubLead;
+    out.portfolioCopy.home.coffeeButtonLabel =
+      pickString(portfolioCopy.ctaMain, out.portfolioCopy.home.coffeeButtonLabel) ??
+      out.portfolioCopy.home.coffeeButtonLabel;
+  }
+
+  if (Array.isArray(src.career) && src.career.length > 0) {
+    out.career = src.career
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => {
+        const role = pickString(item.role, out.career[idx]?.role) ?? "Role";
+        const org = pickString(item.org, out.career[idx]?.org, "Unknown Org") ?? "Unknown Org";
+        const desc = pickString(item.descKo, out.career[idx]?.points?.[0], role) ?? role;
+        return {
+          org,
+          orgEn: pickString(item.orgEn, org, out.career[idx]?.orgEn) ?? org,
+          role,
+          period: pickString(
+            item.period,
+            dateRangeLabel(item.startDate, item.endDate),
+            out.career[idx]?.period,
+          ) ?? "기간 미상",
+          tags: toStringArray(item.tags).length > 0
+            ? toStringArray(item.tags)
+            : [pickString(item.type, "경력") ?? "경력"],
+          points: [desc],
+          tier:
+            typeof out.career[idx]?.tier === "number"
+              ? out.career[idx].tier
+              : idx < 2
+                ? 1
+                : 2,
+        };
+      });
+  }
+
+  if (Array.isArray(src.education) && src.education.length > 0) {
+    out.education = src.education
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => ({
+        school: pickString(item.school, item.org, out.education[idx]?.school, "Unknown School") ?? "Unknown School",
+        degree: pickString(item.degree, item.major, out.education[idx]?.degree, "학위") ?? "학위",
+        period: pickString(item.period, dateRangeLabel(item.startDate, item.endDate), out.education[idx]?.period) ??
+          "기간 미상",
+      }));
+  }
+
+  if (Array.isArray(src.certifications) && src.certifications.length > 0) {
+    const certs = src.certifications
+      .map((item) =>
+        typeof item === "string" ? item : pickString(toRecord(item)?.name, toRecord(item)?.issuer))
+      .filter((item): item is string => Boolean(item));
+    if (certs.length > 0) out.certifications = certs;
+  }
+
+  if (Array.isArray(src.languages) && src.languages.length > 0) {
+    const langs = src.languages
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => ({
+        name: pickString(item.name, out.languages[idx]?.name, "Korean") ?? "Korean",
+        level: pickString(item.level, out.languages[idx]?.level, "중급") ?? "중급",
+      }));
+    if (langs.length > 0) out.languages = langs;
+  }
+
+  if (Array.isArray(src.publications) && src.publications.length > 0) {
+    out.publications = src.publications
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => ({
+        title: pickString(item.title, out.publications[idx]?.title, "Untitled") ?? "Untitled",
+        desc: pickString(item.desc, item.descKo, out.publications[idx]?.desc, "설명 없음") ?? "설명 없음",
+      }));
+  }
+
+  if (Array.isArray(src.faq) && src.faq.length > 0) {
+    out.faq = src.faq
+      .map((item) => toRecord(item))
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .map((item, idx) => ({
+        q: pickString(item.q, out.faq[idx]?.q, "질문") ?? "질문",
+        a: pickString(item.a, out.faq[idx]?.a, "답변 준비 중입니다.") ?? "답변 준비 중입니다.",
+      }));
+  }
+
+  return out;
+}
+
 async function writeFailureDump(args: {
   stage: string;
   initialResponse: string;
@@ -126,10 +352,103 @@ async function writeFailureDump(args: {
   logStep(`Failure dump written: ${path.join(dir, `${baseName}-*.txt`)}`);
 }
 
-async function loadContextFiles(): Promise<string> {
-  logStep(`Loading context files (${CONTEXT_FILES.length})...`);
+async function loadContextFiles({
+  highPriorityFiles,
+  regularFiles,
+}: {
+  highPriorityFiles: string[];
+  regularFiles: string[];
+}): Promise<string> {
+  const dedupHigh = [...new Set(highPriorityFiles)];
+  const dedupRegular = [...new Set(regularFiles)].filter((f) => !dedupHigh.includes(f));
+  logStep(
+    `Loading context files (priority=${dedupHigh.length}, regular=${dedupRegular.length})...`,
+  );
+
+  const loadOne = async (filePath: string, isPriority: boolean) => {
+    try {
+      const content = await readFile(filePath, "utf8");
+      const limit = isPriority ? MAX_CHARS_PER_FILE * 2 : MAX_CHARS_PER_FILE;
+      const sliced =
+        content.length > limit ? `${content.slice(0, limit)}\n\n[TRUNCATED]` : content;
+      const tag = isPriority ? "HIGH_PRIORITY_CONTEXT" : "CONTEXT";
+      return `## ${filePath} [${tag}]\n${sliced}`;
+    } catch {
+      return `## ${filePath}\n[FILE_NOT_FOUND]`;
+    }
+  };
+
+  const chunks = await Promise.all([
+    ...dedupHigh.map((filePath) => loadOne(filePath, true)),
+    ...dedupRegular.map((filePath) => loadOne(filePath, false)),
+  ]);
+  return chunks.join("\n\n");
+}
+
+function toPosixPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+function toVaultContextPath(relativeVaultPath: string): string {
+  const normalized = relativeVaultPath.replace(/^\/+/, "");
+  return path.posix.join(VAULT_ROOT, normalized);
+}
+
+async function listChangedVaultFilesFromGit(): Promise<string[]> {
+  const baseSha = process.env.GIT_DIFF_BASE_SHA;
+  const headSha = process.env.GIT_DIFF_HEAD_SHA;
+  if (!baseSha || !headSha || /^0+$/.test(baseSha)) return [];
+
+  const { stdout } = await execFileAsync(
+    "git",
+    ["diff", "--name-only", baseSha, headSha, "--", "hsol-info-blob/vault"],
+    { cwd: process.cwd() },
+  );
+
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((filePath) => toPosixPath(filePath))
+    .filter((filePath) => filePath.startsWith("hsol-info-blob/vault/"))
+    .map((filePath) => filePath.slice("hsol-info-blob/vault/".length));
+}
+
+async function detectChangedVaultFiles(): Promise<string[]> {
+  const fromEnv = process.env.VAULT_CHANGED_FILES;
+  if (fromEnv && fromEnv.trim()) {
+    return fromEnv
+      .split(/\r?\n|,/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  try {
+    return await listChangedVaultFilesFromGit();
+  } catch {
+    return [];
+  }
+}
+
+async function getExistingSiteDataText(): Promise<{ text: string; exists: boolean }> {
+  try {
+    logStep(`Reading current site-data: ${SITE_DATA_PATH}`);
+    const text = await readFile(SITE_DATA_PATH, "utf8");
+    return { text, exists: true };
+  } catch (error) {
+    const enoent =
+      typeof error === "object" && error !== null && "code" in error
+        ? (error as { code?: string }).code === "ENOENT"
+        : false;
+    if (!enoent) throw error;
+    return { text: "", exists: false };
+  }
+}
+
+async function loadContextFilesLegacy(): Promise<string> {
+  logStep(`Loading context files (${BASE_CONTEXT_FILES.length})...`);
   const chunks = await Promise.all(
-    CONTEXT_FILES.map(async (filePath) => {
+    BASE_CONTEXT_FILES.map(async (filePath) => {
       try {
         const content = await readFile(filePath, "utf8");
         const sliced =
@@ -148,6 +467,16 @@ async function loadContextFiles(): Promise<string> {
 type AnthropicContent =
   | { type?: "text"; text?: string }
   | { type?: "tool_use"; name?: string; input?: unknown };
+
+function isTextBlock(item: AnthropicContent): item is Extract<AnthropicContent, { type?: "text" }> {
+  return item.type === "text";
+}
+
+function isEmitToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_TOOL_NAME;
+}
 
 async function requestAnthropicStructured(
   apiKey: string,
@@ -217,14 +546,12 @@ async function requestAnthropicStructured(
     usage?: { input_tokens?: number; output_tokens?: number };
   };
   const blocks = data.content ?? [];
-  const text = data.content
-    ?.filter((item) => item.type === "text" && item.text)
-    .map((item) => item.text)
+  const text = blocks
+    .filter(isTextBlock)
+    .map((item) => item.text ?? "")
     .join("\n")
-    .trim() ?? "";
-  const toolInput =
-    blocks.find((item) => item.type === "tool_use" && item.name === EMIT_TOOL_NAME)?.input ??
-    null;
+    .trim();
+  const toolInput = blocks.find(isEmitToolUseBlock)?.input ?? null;
 
   const usage = data.usage;
   if (usage?.input_tokens != null && usage?.output_tokens != null) {
@@ -247,19 +574,32 @@ async function main() {
     throw new Error("Missing ANTHROPIC_API_KEY");
   }
 
-  let currentSiteDataText: string;
-  try {
-    logStep(`Reading current site-data: ${SITE_DATA_PATH}`);
-    currentSiteDataText = await readFile(SITE_DATA_PATH, "utf8");
-  } catch (error) {
-    const enoent = typeof error === "object" && error !== null && "code" in error
-      ? (error as { code?: string }).code === "ENOENT"
-      : false;
-    if (!enoent) throw error;
-    logStep("site-data.json not found, falling back to src/data/site.ts baseline.");
-    currentSiteDataText = `${JSON.stringify(HSOL_DATA, null, 2)}\n`;
+  const { text: currentSiteDataText, exists: hasExistingSiteData } = await getExistingSiteDataText();
+  const changedVaultFiles = await detectChangedVaultFiles();
+  if (hasExistingSiteData && changedVaultFiles.length === 0) {
+    logStep("No vault file changes detected for this deployment. Keep existing site-data as-is.");
+    return;
   }
-  const contextText = await loadContextFiles();
+
+  if (!hasExistingSiteData) {
+    logStep("site-data.json not found. Rebuilding from vault README baseline.");
+  } else {
+    logStep(`Detected changed vault files: ${changedVaultFiles.length}`);
+  }
+
+  const contextText = !hasExistingSiteData
+    ? await loadContextFiles({
+        highPriorityFiles: [VAULT_README_PATH],
+        regularFiles: BASE_CONTEXT_FILES,
+      })
+    : changedVaultFiles.length > 0
+      ? await loadContextFiles({
+          highPriorityFiles: changedVaultFiles.map((relativePath) =>
+            toVaultContextPath(relativePath),
+          ),
+          regularFiles: [VAULT_README_PATH, ...BASE_CONTEXT_FILES],
+        })
+      : await loadContextFilesLegacy();
   logStep("Context loaded.");
 
   const basePrompt = `
@@ -271,9 +611,15 @@ async function main() {
 3) 템플릿 고정값(room, coord 같은 템플릿 메타)은 건드리지 않는다.
 4) 한국어 문구 톤은 반드시 object-views/작문-가이드를 우선 기준으로 맞춘다.
 5) 증거가 없는 정보는 추측하지 말고 현재 값을 유지한다.
+6) [HIGH_PRIORITY_CONTEXT]로 표시된 파일은 최신 변경으로 간주하고 반영 우선순위를 가장 높게 둔다.
+7) 필드 키는 절대 번역/변형하지 말고 템플릿 키를 1:1 유지한다. (예: identity.name, pillars[].key)
+8) 루트 객체를 다른 키로 감싸지 말고, 최상위에 identity/pillars/.../faq를 직접 둔다.
+
+키 구조 템플릿(키 이름 고정 참고용):
+${SITE_DATA_TEMPLATE}
 
 현재 site-data.json:
-${currentSiteDataText}
+${currentSiteDataText || "[MISSING]"}
 
 참조 vault 컨텍스트:
 ${contextText}
@@ -313,7 +659,15 @@ ${contextText}
     }
 
     const normalizedParsed = normalizeNestedJsonLikeStrings(parsed);
-    const validated = siteDataSchema.safeParse(normalizedParsed);
+    const coercedParsed = coerceSiteDataCandidate(normalizedParsed);
+    let validated = siteDataSchema.safeParse(coercedParsed);
+    if (!validated.success) {
+      const normalizedAlt = normalizeAlternateSiteDataShape(coercedParsed);
+      validated = siteDataSchema.safeParse(normalizedAlt);
+      if (validated.success) {
+        logStep("Recovered candidate by normalizing alternate JSON shape to siteData schema.");
+      }
+    }
     if (validated.success) {
       logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
       await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
