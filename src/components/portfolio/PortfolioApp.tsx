@@ -254,6 +254,20 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
           ))}
         </div>
         <MermaidDiagram chart={D.portfolioCopy.home.builtMermaid} />
+        <div className="home-built-perspectives">
+          <div className="home-built-perspectives-head">
+            <h3 className="home-built-perspectives-title">{D.portfolioCopy.home.builtPerspectiveTitle}</h3>
+            <div className="home-built-perspectives-meta">{D.portfolioCopy.home.builtPerspectiveMeta}</div>
+          </div>
+          <div className="home-built-perspectives-grid">
+            {D.portfolioCopy.home.builtPerspectives.map((item) => (
+              <article className="home-built-perspective" key={item.title}>
+                <h4 className="home-built-perspective-title">{item.title}</h4>
+                <p className="home-built-perspective-summary">{item.summary}</p>
+              </article>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="coffee" data-ask-section="home/coffee">

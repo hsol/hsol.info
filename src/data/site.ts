@@ -145,6 +145,26 @@ export const HSOL_DATA = siteDataSchema.parse({
           "label": "SSR + Ask Hansol"
         }
       ],
+      "builtPerspectiveTitle": "홈페이지를 바라보는 관점",
+      "builtPerspectiveMeta": "Perspectives from introduction backdata",
+      "builtPerspectives": [
+        {
+          "title": "구직자 관점 — 갱신할 일이 없게 만드는 포트폴리오",
+          "summary": "source of truth를 knowledge base 한 곳으로 두고, CI가 사이트 데이터와 자기소개 표현을 자동 재생성해 갱신 비용을 최소화합니다."
+        },
+        {
+          "title": "채용 담당자 관점 — 미팅 전에 의문을 해소하는 인터페이스",
+          "summary": "4개 페르소나 뷰와 Ask Hansol이 질문 맥락을 받아 비동기 인터뷰처럼 작동해, 후보자 이해를 미팅 전에 빠르게 돕습니다."
+        },
+        {
+          "title": "AI/LLM 엔지니어 관점 — 개인형 RAG 레퍼런스 구현",
+          "summary": "retrieval 라우팅, 메모리 롤업, 다단 폴백을 결합해 한 사람을 모델링하는 production-grade personal RAG 패턴을 구현합니다."
+        },
+        {
+          "title": "자가 운영 사이트 관점 — 스스로 갱신되는 운영 체계",
+          "summary": "마크다운 업데이트 이후 빌드·검증·배포가 자동으로 이어지는 self-refreshing 파이프라인으로 사이트 노화를 방지합니다."
+        }
+      ],
       "coffeeEyebrow": "— Coffee chat",
       "coffeeTitle": "시간 괜찮으시면 30분만 같이 이야기해요.",
       "coffeeBody": "여기까지 읽어주셨다면, 그것만으로도 감사합니다. 더 궁금한 얘기가 있다면 직접 만나서 나누고 싶어요.",

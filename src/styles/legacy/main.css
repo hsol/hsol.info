@@ -443,6 +443,54 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   font-family: var(--mono);
   font-size: 11px;
 }
+.home-built-perspectives {
+  margin-top: 22px;
+  padding-top: 10px;
+}
+.home-built-perspectives-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.home-built-perspectives-title {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.home-built-perspectives-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.home-built-perspectives-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.home-built-perspective {
+  border: 1px solid var(--bp-line);
+  background: rgba(8, 24, 36, 0.36);
+  padding: 12px 14px;
+}
+.home-built-perspective-title {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--bp-glow);
+}
+.home-built-perspective-summary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-mute);
+}
 .home-built-grid {
   margin-top: 18px;
   display: grid;
@@ -471,6 +519,9 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 }
 @media (max-width: 860px) {
   .home-built-grid { grid-template-columns: 1fr; }
+  .home-built-perspectives-head { display: block; }
+  .home-built-perspectives-meta { margin-top: 6px; }
+  .home-built-perspectives-grid { grid-template-columns: 1fr; }
 }
 
 .persona {

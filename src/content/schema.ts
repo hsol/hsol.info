@@ -98,6 +98,11 @@ const HomeBuiltFlowStepSchema = z.object({
   label: z.string().min(1),
 });
 
+const HomeBuiltPerspectiveSchema = z.object({
+  title: z.string().min(1),
+  summary: z.string().min(1),
+});
+
 export const siteDataSchema = z.object({
   identity: IdentitySchema,
   pillars: z.array(PillarSchema).min(1),
@@ -123,6 +128,9 @@ export const siteDataSchema = z.object({
       builtCards: z.array(HomeBuiltCardSchema).min(2),
       builtMermaid: z.string().min(1),
       builtFlow: z.array(HomeBuiltFlowStepSchema).min(3),
+      builtPerspectiveTitle: z.string().min(1),
+      builtPerspectiveMeta: z.string().min(1),
+      builtPerspectives: z.array(HomeBuiltPerspectiveSchema).min(4),
       coffeeEyebrow: z.string().min(1),
       coffeeTitle: z.string().min(1),
       coffeeBody: z.string().min(1),
