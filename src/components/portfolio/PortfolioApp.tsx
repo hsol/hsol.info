@@ -115,28 +115,32 @@ function MermaidDiagram({ chart }: { chart: string }) {
     // react-x-mermaid/mermaid 파서 안정화를 위해 라벨 내부 \n 이스케이프는 공백으로 평탄화
     return s.replace(/\\n/g, " ").replace(/\r\n/g, "\n");
   }, [chart]);
-  const { ref, error } = useMermaid(chartText, {
-    theme: "base",
-    securityLevel: "strict",
-    startOnLoad: false,
-    suppressErrorRendering: true,
-    fontFamily: "JetBrains Mono, LINE Seed KR, sans-serif",
-    themeVariables: {
-      background: "#14384f",
-      primaryColor: "#0e2a3d",
-      primaryBorderColor: "#3d7a9c",
-      primaryTextColor: "#f2f7fa",
-      lineColor: "#7fb4d0",
-      secondaryColor: "#123247",
-      tertiaryColor: "#183f58",
-      edgeLabelBackground: "#14384f",
-    },
-    flowchart: {
-      htmlLabels: false,
-      curve: "linear",
-      useMaxWidth: true,
-    },
-  });
+  const mermaidConfig = useMemo(
+    () => ({
+      theme: "base" as const,
+      securityLevel: "strict" as const,
+      startOnLoad: false,
+      suppressErrorRendering: true,
+      fontFamily: "JetBrains Mono, LINE Seed KR, sans-serif",
+      themeVariables: {
+        background: "#14384f",
+        primaryColor: "#0e2a3d",
+        primaryBorderColor: "#3d7a9c",
+        primaryTextColor: "#f2f7fa",
+        lineColor: "#7fb4d0",
+        secondaryColor: "#123247",
+        tertiaryColor: "#183f58",
+        edgeLabelBackground: "#14384f",
+      },
+      flowchart: {
+        htmlLabels: false,
+        curve: "linear" as const,
+        useMaxWidth: true,
+      },
+    }),
+    [],
+  );
+  const { ref, error } = useMermaid(chartText, mermaidConfig);
 
   return (
     <div className="home-built-mermaid-wrap" aria-label="How this site works diagram">
