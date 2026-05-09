@@ -16,10 +16,6 @@ jobs:
             echo "SUBMODULES_PAT secret is missing."
             exit 1
           fi
-          if [ -z "${{ secrets.BLOB_READ_WRITE_TOKEN }}" ]; then
-            echo "BLOB_READ_WRITE_TOKEN secret is missing."
-            exit 1
-          fi
 
       - name: Checkout repository with private submodules
         uses: actions/checkout@v4
@@ -36,22 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Restore vault sync cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            hsol-info-blob/vault
-            hsol-info-blob/vault/.blob-sync-state.json
-          key: vault-sync-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            vault-sync-${{ runner.os }}-
-
-      - name: Refresh vault from Blob
-        env:
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-          BLOB_PATH_PREFIX: info/vault
-        run: npm run sync:blob:pull -- --clean
-
       - name: Refresh site-data with Claude
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -61,13 +41,29 @@ jobs:
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
         run: npm run content:refresh:claude
 
-      - name: Push refreshed vault to Blob
+      - name: Commit and push site-data to hsol-info-blob submodule
         env:
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-          BLOB_PATH_PREFIX: info/vault
-          GIT_DIFF_BASE_SHA: ${{ github.event.before }}
-          GIT_DIFF_HEAD_SHA: ${{ github.sha }}
-        run: npm run sync:blob:push
+          TOKEN: ${{ secrets.SUBMODULES_PAT }}
+          # Push target on hsol-info-blob (parent pins submodule SHA; we commit on that commit then update this branch)
+          SUBMODULE_BRANCH: main
+        run: |
+          set -euo pipefail
+          SITE_FILE="vault/object-views/site-data.json"
+          cd hsol-info-blob
+          if git diff --quiet HEAD -- "$SITE_FILE" 2>/dev/null; then
+            echo "No changes under $SITE_FILE; skip submodule push."
+            exit 0
+          fi
+          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/hsol/hsol-info-blob.git"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add "$SITE_FILE"
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore: refresh site-data from hsol.info (${{ github.sha }})"
+          git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"
 
       - name: Upload content refresh failure dumps
         if: failure()
