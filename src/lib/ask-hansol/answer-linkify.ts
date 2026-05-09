@@ -196,17 +196,16 @@ function expandBareMarkdownAngle(text: string): string {
   return s;
 }
 
-/** API 응답 후처리: 마크다운·백틱을 평문으로 풀고, 괄호 링크 `<url>`은 URL만 남김 */
+/** API 응답 후처리: 마크다운 서식은 유지하고, 링크만 클릭 가능 형태로 정규화 */
 export function normalizeAskAnswerPlainText(text: string): string {
   let s = expandBareMarkdownAngle(text);
   s = s
-    .replace(/<(https?:\/\/[^>\s]+)>/gi, "$1")
-    .replace(/<(www\.[^>\s]+)>/gi, "https://$1")
-    .replace(/<(mailto:[^>\s]+)>/gi, "$1")
-    .replace(/\[([^\]]+)\]\((www\.[^)\s]+)\)/gi, "$1 (https://$2)")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1 ($2)")
-    .replace(/\[([^\]]+)\]\((mailto:[^)\s]+)\)/gi, "$1 ($2)")
-    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
+    // Autolink 문법의 <www...>를 <https://www...>로 보정
+    .replace(/<(www\.[^>\s]+)>/gi, "<https://$1>")
+    // 마크다운 링크의 www.는 명시적 스킴으로 보정
+    .replace(/\[([^\]]+)\]\((www\.[^)\s]+)\)/gi, "[$1](https://$2)")
+    // 모델이 넣는 이스케이프(\*\*, \_, \`)는 렌더 전 복원
+    .replace(/\\([*_`~[\]()])/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   return s;

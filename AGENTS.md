@@ -2,6 +2,9 @@
 
 - Vercel CLI의 자동 링크(`vercel link --yes` 등)가 대시보드에서 쓰는 프로젝트와 다르면, 지정한 팀·프로젝트로 다시 맞추길 기대한다.
 - 포트폴리오 상세에서 Ask Hansol(ChatDock)은 데스크톱에서는 기본으로 열리되, 모바일 뷰포트(약 `max-width: 768px`)에서는 기본으로 닫힌 상태를 기대한다.
+- Ask Hansol 답변에는 "vault에서 확인", "Blob에서", "운영 매뉴얼상…"처럼 내부 출처·저장소 이름·조회 과정을 드러내는 표현을 넣지 않길 기대한다.
+- 가족·배우자·결혼 여부 등은 vault에 적혀 있으면 Ask 답변에 말해도 되고, 운영 매뉴얼의 "외부 비공개" 문구만으로 vault에 있는 사실을 숨기거나 거절하는 답은 원하지 않는다.
+- ChatDock이 열릴 때는 플로팅 ASK 버튼을 숨기고(투명 영역의 × FAB로 바꾸지 않음), 닫기는 헤더의 ×만 쓰길 기대한다.
 
 ## Learned Workspace Facts
 
@@ -12,4 +15,6 @@
 - GitHub Actions 워크플로 `build-with-vault-refresh.yml`은 체크아웃된 서브모듈 `hsol-info-blob/vault`를 그대로 쓴다. `content:refresh:claude`로 `vault/object-views/site-data.json`을 갱신한 뒤, CI는 Vercel Blob에 직접 올리지 않고 부모에 핀된 서브모듈 커밋 위에 커밋한 뒤 `git push origin HEAD:refs/heads/main`(브랜치명은 워크플로 `SUBMODULE_BRANCH`)으로 `hsol-info-blob` 원격만 갱신한다. Blob 동기화는 `hsol-info-blob` 저장소 쪽 파이프라인에서 처리한다. `GIT_DIFF_BASE_SHA`/`GIT_DIFF_HEAD_SHA`는 refresh 스킵 판단 등에 쓴다. `content:refresh:claude` 실패 시 `generated/content-refresh-failures/`를 아티팩트로 올린다.
 - `scripts/refresh-site-data-with-claude.ts`는 `ANTHROPIC_MAX_TOKENS`(기본 64000)로 출력 상한을 두며, 응답이 `stop_reason=max_tokens`로 잘리면 파싱하지 않고 실패·덤프한다. 실패 본문은 기본적으로 `generated/content-refresh-failures/`에 쓴다. `tool_use` 페이로드에서 문자열로 감긴 JSON·루트 래핑(`data`/`siteData` 등)·모델이 자주 내는 대체 키 형태는 정규화·매핑 후 스키마 검증을 다시 시도한다.
 - `scripts/pull-blob-to-submodule.mjs`는 `hsol-info-blob/vault` 동기화 시 `.DS_Store`(및 `.DS-Store` 파일명)를 내려받지 않고 로컬 수집에서도 제외한다.
-- Ask Hansol API(`src/app/api/ask-hansol/route.ts`)는 Blob 조회 시 `vault/README.md`와 `vault/object-views/AI-클론-운영-매뉴얼.md`를 기본 컨텍스트에 넣고, 토큰은 `ASK_HANSOL_BLOB_TOKEN`, `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_TOKEN` 순으로 쓴다. Claude는 필요할 때 `blob_lookup` 도구로 Blob 문서를 추가 조회한다.
+- Ask Hansol API(`src/app/api/ask-hansol/route.ts`)는 시스템 프롬프트에 `vault/README.md`(vault 탐색·읽기 절차용 지침이며 답변 사실을 채우는 발췌 문서가 아님)와 `vault/object-views/AI-클론-운영-매뉴얼.md`를 넣고, Blob 토큰은 `ASK_HANSOL_BLOB_TOKEN`, `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_TOKEN` 순으로 쓴다. Claude는 `blob_lookup`으로 본문 근거 문서를 추가 조회한다.
+- Ask Hansol API가 서버 함수로 실제 배포되는 환경에서는 세션 히스토리 GET이 DB를 읽으므로 `export const dynamic = "force-dynamic"`으로 두고, 클라이언트 히스토리·질문 `fetch`에는 `cache: "no-store"`를 쓴다(`force-static`이면 GET이 빌드·CDN에 고정되어 대화 목록이 비어 보일 수 있다). 순수 정적 export만 쓰는 빌드와는 타깃이 다를 수 있다.
+- Ask Hansol 답변 URL 처리는 `src/lib/ask-hansol/answer-linkify.ts`에서 마크다운·괄호 등을 평문으로 정리한 뒤 클라이언트에서 분리 렌더하며, `https`/`http`뿐 아니라 `www.` 접두·스킴 없는 호스트 형태·`mailto:` 등도 링크로 인식한다.

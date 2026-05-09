@@ -5,19 +5,19 @@
 
 @font-face {
   font-family: "LINE Seed KR";
-  src: url("https://cdn.jsdelivr.net/gh/line/seed-sans-kr/font/static/woff2/LINESeedKR-Th.woff2") format("woff2");
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.0/LINESeedKR-Th.woff2") format("woff2");
   font-weight: 100;
   font-display: swap;
 }
 @font-face {
   font-family: "LINE Seed KR";
-  src: url("https://cdn.jsdelivr.net/gh/line/seed-sans-kr/font/static/woff2/LINESeedKR-Rg.woff2") format("woff2");
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.0/LINESeedKR-Rg.woff2") format("woff2");
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: "LINE Seed KR";
-  src: url("https://cdn.jsdelivr.net/gh/line/seed-sans-kr/font/static/woff2/LINESeedKR-Bd.woff2") format("woff2");
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.0/LINESeedKR-Bd.woff2") format("woff2");
   font-weight: 700;
   font-display: swap;
 }
@@ -337,6 +337,193 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   color: var(--ink-faint);
 }
 
+/* ===== home — how this site was made ===== */
+.home-built {
+  margin: 48px 0 8px;
+}
+.home-built-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--bp-line);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  gap: 20px;
+}
+.home-built-h {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.home-built-meta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.home-built-body {
+  margin: 0;
+  max-width: 52rem;
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink-mute);
+}
+.home-built-mermaid-wrap {
+  margin-top: 18px;
+  border: 1px dashed var(--bp-line);
+  background: rgba(20, 56, 79, 0.18);
+  padding: 12px 14px;
+}
+.home-built-mermaid-head {
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+}
+.home-built-mermaid {
+  overflow-x: auto;
+}
+.home-built-mermaid svg {
+  min-width: 560px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.home-built-mermaid .mermaid-renderer {
+  border: 1px solid var(--bp-line);
+  background: rgba(8, 24, 36, 0.7);
+  border-radius: 0;
+  padding: 8px;
+}
+.home-built-mermaid .mermaid-actions { display: none; }
+.home-built-mermaid .mermaid-diagram {
+  padding-top: 0;
+  min-height: 0;
+}
+.home-built-mermaid .mermaid-diagram svg {
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.18));
+}
+.home-built-mermaid .mermaid svg .node rect,
+.home-built-mermaid .mermaid svg .node polygon,
+.home-built-mermaid .mermaid svg .node path,
+.home-built-mermaid .mermaid svg .node circle {
+  fill: rgba(20, 56, 79, 0.92) !important;
+  stroke: #5e93b1 !important;
+  stroke-width: 1.2px !important;
+}
+.home-built-mermaid .mermaid svg .node .label,
+.home-built-mermaid .mermaid svg .node text {
+  fill: #f2f7fa !important;
+  color: #f2f7fa !important;
+  font-family: var(--mono) !important;
+  letter-spacing: 0.02em;
+}
+.home-built-mermaid .mermaid svg .edgePath .path {
+  stroke: #7fb4d0 !important;
+  stroke-width: 1.1px !important;
+}
+.home-built-mermaid .mermaid svg .arrowheadPath {
+  fill: #7fb4d0 !important;
+}
+.home-built-mermaid-fallback {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--bp-line);
+  background: rgba(127, 180, 208, 0.06);
+  color: var(--ink-mute);
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.home-built-perspectives {
+  margin-top: 22px;
+  padding-top: 10px;
+}
+.home-built-perspectives-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.home-built-perspectives-title {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.home-built-perspectives-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.home-built-perspectives-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.home-built-perspective {
+  border: 1px solid var(--bp-line);
+  background: rgba(8, 24, 36, 0.36);
+  padding: 12px 14px;
+}
+.home-built-perspective-title {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--bp-glow);
+}
+.home-built-perspective-summary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-mute);
+}
+.home-built-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.home-built-card {
+  border: 1px solid var(--bp-line);
+  background: rgba(20, 56, 79, 0.32);
+  padding: 14px 16px;
+}
+.home-built-card-title {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bp-glow);
+}
+.home-built-card-body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-mute);
+}
+@media (max-width: 860px) {
+  .home-built-grid { grid-template-columns: 1fr; }
+  .home-built-perspectives-head { display: block; }
+  .home-built-perspectives-meta { margin-top: 6px; }
+  .home-built-perspectives-grid { grid-template-columns: 1fr; }
+}
+
 .persona {
   width: 100%;
   display: grid;
@@ -493,6 +680,19 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   text-decoration: underline;
   text-underline-offset: 2px;
   word-break: break-all;
+}
+.md-body > *:first-child { margin-top: 0; }
+.md-body > *:last-child { margin-bottom: 0; }
+.md-body p { margin: 0.3em 0; }
+.md-body ul,
+.md-body ol {
+  margin: 0.35em 0;
+  padding-left: 1.2em;
+}
+.md-body li { margin: 0.15em 0; }
+.md-body code {
+  font-family: var(--mono);
+  font-size: 0.92em;
 }
 .cursor-blink::after {
   content: "▍";

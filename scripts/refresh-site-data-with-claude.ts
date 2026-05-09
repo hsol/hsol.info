@@ -42,10 +42,12 @@ const REQUIRED_TOP_LEVEL_KEYS = [
   "faq",
 ] as const;
 const VAULT_README_PATH = `${VAULT_ROOT}/README.md`;
+const HOME_BUILT_SOURCE_PATH = `${VAULT_ROOT}/objects/projects/hsol-info.md`;
 const BASE_CONTEXT_FILES = [
   `${VAULT_ROOT}/object-views/작문-가이드.md`,
   `${VAULT_ROOT}/object-views/포트폴리오-요약.md`,
   `${VAULT_ROOT}/object-views/타임라인.md`,
+  HOME_BUILT_SOURCE_PATH,
   `${VAULT_ROOT}/objects/people/임한솔.md`,
   `${VAULT_ROOT}/objects/concepts/임한솔-persona.md`,
 ];
@@ -614,6 +616,14 @@ async function main() {
 6) [HIGH_PRIORITY_CONTEXT]로 표시된 파일은 최신 변경으로 간주하고 반영 우선순위를 가장 높게 둔다.
 7) 필드 키는 절대 번역/변형하지 말고 템플릿 키를 1:1 유지한다. (예: identity.name, pillars[].key)
 8) 루트 객체를 다른 키로 감싸지 말고, 최상위에 identity/pillars/.../faq를 직접 둔다.
+9) portfolioCopy.home.builtTitle / builtMeta / builtBody / builtCards / builtMermaid / builtFlow / builtPerspectiveTitle / builtPerspectiveMeta / builtPerspectives 는 반드시 ${HOME_BUILT_SOURCE_PATH}와 hsol-info-소개-백데이터 ObjectView를 1차 근거로 작성한다.
+10) built* 필드에는 구현·운영 방식(아키텍처/데이터 흐름/운영 스택)만 요약하고, 문서에 없는 새로운 주장/수치를 만들지 않는다.
+11) builtCards 는 최소 3개 이상으로 구성하고, 제목 중복 없이 "목표/흐름/신뢰성/경험 설계" 관점을 우선 반영한다.
+12) builtFlow 는 최소 3개 이상의 단계(label)로 작성하고, 데이터 흐름 순서를 한 줄 다이어그램처럼 읽히게 구성한다.
+13) builtMermaid 는 mermaid 'flowchart LR' 문법의 문자열로 작성하고, 단계 노드 4개 이상과 연결 화살표를 포함한다.
+14) builtMermaid 는 파서 안정성을 위해 statement 구분을 ';'로 명시하고, 라벨에는 괄호·특수문자 대신 단순 텍스트를 사용한다.
+15) builtMermaid 라벨 텍스트에는 "\\n" 이스케이프를 넣지 않는다. (줄바꿈 대신 공백을 사용)
+16) builtPerspectives 는 hsol-info-소개-백데이터의 8개 관점 중 서로 다른 4개를 골라 title/summary로 압축한다.
 
 키 구조 템플릿(키 이름 고정 참고용):
 ${SITE_DATA_TEMPLATE}

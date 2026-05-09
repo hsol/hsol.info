@@ -53,6 +53,31 @@ export async function askHansolViaApi(
   return data.answer;
 }
 
+export async function askHansolSelectionViaApi(
+  selectedText: string,
+  sessionId: string,
+  pageContext?: AskHansolPageContext,
+): Promise<string> {
+  const response = await fetch("/api/ask-hansol-selection", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      selectedText,
+      sessionId: sessionId || undefined,
+      pageContext: pageContext ?? undefined,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`ask-hansol-selection failed: ${response.status}`);
+  }
+  const data = (await response.json()) as AskHansolResponse;
+  if (!data.answer) {
+    throw new Error("empty answer");
+  }
+  return data.answer;
+}
+
 export function streamAnswerText(
   answerText: string,
   onChunk: (text: string, streaming: boolean) => void,

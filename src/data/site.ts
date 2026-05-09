@@ -109,6 +109,62 @@ export const HSOL_DATA = siteDataSchema.parse({
       "heroSubTail": "으로 일하고 있습니다. 아래에서 가장 가까운 항목을 골라주세요. 그에 맞춰 이야기를 정리해 드릴게요.",
       "doorsTitle": "어떤 이유로 오셨어요?",
       "doorsMeta": "Why are you here today",
+      "builtTitle": "이 홈페이지는 이렇게 만들었어요.",
+      "builtMeta": "How this site was made",
+      "builtBody": "Next.js(App Router)와 TypeScript로 만들었고 Vercel에 배포해 두었어요. 프로필·카피는 vault에서 관리하는 데이터를 생성·갱신해 반영합니다. 아래 Ask Hansol은 같은 문서 맥락을 참고해 답하도록 묶여 있어요.",
+      "builtCards": [
+        {
+          "title": "목표",
+          "body": "마크다운 한 파일을 추가하면 이력서·포트폴리오·자기소개·챗봇 답변까지 같이 갱신되는 개인 표현 인프라를 만드는 것이 목표입니다."
+        },
+        {
+          "title": "데이터 흐름",
+          "body": "knowledge base를 단일 소스로 두고, CI에서 LLM이 정규화한 뒤 zod 검증과 빌드 타임 스냅샷을 거쳐 SSR 화면과 Ask Hansol까지 같은 사실을 공유합니다."
+        },
+        {
+          "title": "신뢰성 패턴",
+          "body": "원격 캐시 → 로컬 → 빌드 스냅샷의 다단 폴백, 토큰 폴백, 캐시 TTL, 실패 아티팩트 보존으로 운영 안정성을 확보합니다."
+        },
+        {
+          "title": "경험 설계",
+          "body": "홈의 4개 페르소나(Hire/Collab/Builder/Curious)는 동일한 사실을 다른 우선순위로 보여주고, Ask Hansol은 화면 컨텍스트를 참고해 답변 흐름을 맞춥니다."
+        }
+      ],
+      "builtMermaid": "flowchart LR; KB[Knowledge Base] --> NORM[LLM Normalization]; NORM --> ZOD[Zod Validation]; ZOD --> SNAP[Site Data Snapshot]; SNAP --> SSR[SSR Portfolio Views]; SNAP --> ASK[Ask Hansol Chat];",
+      "builtFlow": [
+        {
+          "label": "Knowledge Base"
+        },
+        {
+          "label": "LLM Normalization (CI)"
+        },
+        {
+          "label": "Zod Validation"
+        },
+        {
+          "label": "SSR + Ask Hansol"
+        }
+      ],
+      "builtPerspectiveTitle": "홈페이지를 바라보는 관점",
+      "builtPerspectiveMeta": "Perspectives from introduction backdata",
+      "builtPerspectives": [
+        {
+          "title": "구직자 관점 — 갱신할 일이 없게 만드는 포트폴리오",
+          "summary": "source of truth를 knowledge base 한 곳으로 두고, CI가 사이트 데이터와 자기소개 표현을 자동 재생성해 갱신 비용을 최소화합니다."
+        },
+        {
+          "title": "채용 담당자 관점 — 미팅 전에 의문을 해소하는 인터페이스",
+          "summary": "4개 페르소나 뷰와 Ask Hansol이 질문 맥락을 받아 비동기 인터뷰처럼 작동해, 후보자 이해를 미팅 전에 빠르게 돕습니다."
+        },
+        {
+          "title": "AI/LLM 엔지니어 관점 — 개인형 RAG 레퍼런스 구현",
+          "summary": "retrieval 라우팅, 메모리 롤업, 다단 폴백을 결합해 한 사람을 모델링하는 production-grade personal RAG 패턴을 구현합니다."
+        },
+        {
+          "title": "자가 운영 사이트 관점 — 스스로 갱신되는 운영 체계",
+          "summary": "마크다운 업데이트 이후 빌드·검증·배포가 자동으로 이어지는 self-refreshing 파이프라인으로 사이트 노화를 방지합니다."
+        }
+      ],
       "coffeeEyebrow": "— Coffee chat",
       "coffeeTitle": "시간 괜찮으시면 30분만 같이 이야기해요.",
       "coffeeBody": "여기까지 읽어주셨다면, 그것만으로도 감사합니다. 더 궁금한 얘기가 있다면 직접 만나서 나누고 싶어요.",
