@@ -109,7 +109,7 @@ export const HSOL_DATA = siteDataSchema.parse({
       "heroSubTail": "으로 일하고 있습니다. 아래에서 가장 가까운 항목을 골라주세요. 그에 맞춰 이야기를 정리해 드릴게요.",
       "doorsTitle": "어떤 이유로 오셨어요?",
       "doorsMeta": "Why are you here today",
-      "builtTitle": "이 홈페이지는 어떻게 만든거에요?",
+      "builtTitle": "이 홈페이지는 이렇게 만들었어요.",
       "builtMeta": "How this site was made",
       "builtBody": "Next.js(App Router)와 TypeScript로 만들었고 Vercel에 배포해 두었어요. 프로필·카피는 vault에서 관리하는 데이터를 생성·갱신해 반영합니다. 아래 Ask Hansol은 같은 문서 맥락을 참고해 답하도록 묶여 있어요.",
       "builtCards": [
