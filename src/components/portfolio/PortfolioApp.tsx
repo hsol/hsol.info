@@ -23,8 +23,10 @@ import {
 } from "@/components/portfolio/Atoms";
 import type { SiteData } from "@/content/schema";
 import { useMermaid } from "react-x-mermaid";
-import { splitTextForAskHansolLinks } from "@/lib/ask-hansol/answer-linkify";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
+  askHansolSelectionViaApi,
   askHansolViaApi,
   type AskHansolPageContext,
   fetchAskHansolHistory,
@@ -303,28 +305,43 @@ type ChatMsg = {
   streaming?: boolean;
 };
 
-function renderTextWithLinks(text: string): ReactNode[] {
-  return splitTextForAskHansolLinks(text)
-    .filter((p) => p.value.length > 0)
-    .map((part, i) =>
-      part.kind === "link" ? (
-        <a key={`lnk-${i}`} href={part.value} target="_blank" rel="noopener noreferrer">
-          {part.value}
-        </a>
-      ) : (
-        <span key={`txt-${i}`}>{part.value}</span>
-      ),
-    );
+type AskDraft = {
+  id: string;
+  displayQuery: string;
+  selectedText?: string;
+};
+
+function renderMarkdownText(text: string, streaming = false): ReactNode {
+  return (
+    <div className={"md-body" + (streaming ? " cursor-blink" : "")}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function ChatDock({
   defaultOpen = false,
   inline = false,
   pageContext,
+  openSignal,
+  draftToAsk,
 }: {
   defaultOpen?: boolean;
   inline?: boolean;
   pageContext?: AskHansolPageContext;
+  openSignal?: number;
+  draftToAsk?: AskDraft | null;
 }) {
   const D = useSiteData();
   const [open, setOpen] = useState(defaultOpen);
@@ -334,6 +351,7 @@ function ChatDock({
   const [sessionId, setSessionId] = useState("");
   const [historyReady, setHistoryReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const handledDraftIdRef = useRef<string | null>(null);
 
   const suggestions = ASK_HANSOL_SUGGESTIONS;
 
@@ -359,10 +377,16 @@ function ChatDock({
   }, [defaultOpen]);
 
   useEffect(() => {
+    if (typeof openSignal !== "number") return;
+    if (openSignal <= 0) return;
+    setOpen(true);
+  }, [openSignal]);
+
+  useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  const ask = useCallback(async (query?: string) => {
+  const ask = useCallback(async (query?: string, options?: { selectedText?: string }) => {
     const finalQ = (query ?? q).trim();
     if (!finalQ || loading || !historyReady) return;
     const sid = sessionId || getOrCreateAskHansolSessionId();
@@ -378,7 +402,9 @@ function ChatDock({
 
     let answerText;
     try {
-      answerText = await askHansolViaApi(finalQ, sid, pageContext);
+      answerText = options?.selectedText
+        ? await askHansolSelectionViaApi(options.selectedText, sid, pageContext)
+        : await askHansolViaApi(finalQ, sid, pageContext);
     } catch (e) {
       answerText = ASK_HANSOL_FALLBACK_MESSAGE;
     }
@@ -396,6 +422,14 @@ function ChatDock({
       () => setLoading(false),
     );
   }, [q, loading, sessionId, historyReady, pageContext]);
+
+  useEffect(() => {
+    if (!draftToAsk || !historyReady) return;
+    if (handledDraftIdRef.current === draftToAsk.id) return;
+    handledDraftIdRef.current = draftToAsk.id;
+    setOpen(true);
+    void ask(draftToAsk.displayQuery, { selectedText: draftToAsk.selectedText });
+  }, [draftToAsk, historyReady, ask]);
 
   return (
     <>
@@ -434,7 +468,7 @@ function ChatDock({
           <div key={m.key} className={"chatdock-msg chatdock-msg--" + m.role}>
               {m.role === 'hansol' && <div className="chatdock-msg-from">— Hansol</div>}
               <div className="chatdock-msg-body">
-                <span className={m.streaming ? "cursor-blink" : ""}>{renderTextWithLinks(m.text)}</span>
+                {renderMarkdownText(m.text, m.streaming)}
               </div>
             </div>
           )}
@@ -520,7 +554,7 @@ function AskBox({ pageContext }: { pageContext?: AskHansolPageContext }) {
       {a &&
       <div className="ask-answer">
           <span className="meta">{D.portfolioCopy.ask.askMetaLabel}</span>
-          <span className={a.streaming ? "cursor-blink" : ""}>{renderTextWithLinks(a.text)}</span>
+          {renderMarkdownText(a.text, a.streaming)}
         </div>
       }
     </section>);
@@ -852,6 +886,14 @@ function PortfolioAppBody() {
   const [persona, setPersona] = useState<PersonaKey | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [askVisibleSection, setAskVisibleSection] = useState<string | undefined>();
+  const [chatOpenSignal, setChatOpenSignal] = useState(0);
+  const [draftToAsk, setDraftToAsk] = useState<AskDraft | null>(null);
+  const [selectionNudge, setSelectionNudge] = useState<{
+    text: string;
+    x: number;
+    y: number;
+    placeAbove: boolean;
+  } | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -905,6 +947,86 @@ function PortfolioAppBody() {
     [persona, askVisibleSection],
   );
 
+  useEffect(() => {
+    const normalizeSelectedText = (value: string) => value.replace(/\s+/g, " ").trim();
+    const extractElement = (node: Node | null): Element | null => {
+      if (!node) return null;
+      return node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    };
+
+    const updateSelectionNudge = () => {
+      const shell = shellRef.current;
+      if (!shell) return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setSelectionNudge(null);
+        return;
+      }
+
+      const anchorEl = extractElement(sel.anchorNode);
+      const focusEl = extractElement(sel.focusNode);
+      if (!anchorEl || !focusEl || !shell.contains(anchorEl) || !shell.contains(focusEl)) {
+        setSelectionNudge(null);
+        return;
+      }
+
+      const common = extractElement(sel.getRangeAt(0).commonAncestorContainer);
+      if (common?.closest("input, textarea, button, [contenteditable='true']")) {
+        setSelectionNudge(null);
+        return;
+      }
+
+      const text = normalizeSelectedText(sel.toString());
+      if (!text || text.length < 4) {
+        setSelectionNudge(null);
+        return;
+      }
+
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) {
+        setSelectionNudge(null);
+        return;
+      }
+
+      const margin = 16;
+      const x = Math.min(Math.max(rect.left + rect.width / 2, margin), window.innerWidth - margin);
+      const placeAbove = rect.top > 88;
+      const y = placeAbove ? rect.top - 10 : rect.bottom + 10;
+      setSelectionNudge({ text, x, y, placeAbove });
+    };
+
+    const hideNudge = () => setSelectionNudge(null);
+    const onMouseUp = () => window.setTimeout(updateSelectionNudge, 0);
+    const onKeyUp = () => window.setTimeout(updateSelectionNudge, 0);
+
+    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("keyup", onKeyUp);
+    document.addEventListener("scroll", hideNudge, true);
+    window.addEventListener("resize", hideNudge);
+
+    return () => {
+      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("keyup", onKeyUp);
+      document.removeEventListener("scroll", hideNudge, true);
+      window.removeEventListener("resize", hideNudge);
+    };
+  }, []);
+
+  const handleAskFromSelection = useCallback(() => {
+    if (!selectionNudge) return;
+    const selectedText = selectionNudge.text;
+    const selectedTextPreview =
+      selectedText.length > 220 ? `${selectedText.slice(0, 220)}...` : selectedText;
+    setDraftToAsk({
+      id: crypto.randomUUID(),
+      displayQuery: `이 부분을 조금 더 자세히 설명해 주세요: "${selectedTextPreview}"`,
+      selectedText,
+    });
+    setChatOpenSignal((prev) => prev + 1);
+    setSelectionNudge(null);
+    window.getSelection()?.removeAllRanges();
+  }, [selectionNudge]);
+
   let body;
   if (persona === "hire") body = <HireView onBack={back} />;
   else if (persona === "collab") body = <CollabView onBack={back} />;
@@ -924,10 +1046,25 @@ function PortfolioAppBody() {
         {body}
         <Foot />
       </div>
+      {selectionNudge && (
+        <div
+          className={"selection-ask-nudge" + (selectionNudge.placeAbove ? " is-above" : " is-below")}
+          style={{ left: selectionNudge.x, top: selectionNudge.y }}
+          role="dialog"
+          aria-label="Ask Hansol nudging"
+        >
+          <div className="selection-ask-nudge-text">이 부분이 궁금하신가요?</div>
+          <button type="button" className="selection-ask-nudge-btn" onClick={handleAskFromSelection}>
+            질문하기
+          </button>
+        </div>
+      )}
       <ChatDock
         defaultOpen={persona !== null && !isMobileViewport}
         inline={persona !== null}
         pageContext={pageContext}
+        openSignal={chatOpenSignal}
+        draftToAsk={draftToAsk}
       />
     </div>
   );
