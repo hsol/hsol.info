@@ -109,6 +109,42 @@ export const HSOL_DATA = siteDataSchema.parse({
       "heroSubTail": "으로 일하고 있습니다. 아래에서 가장 가까운 항목을 골라주세요. 그에 맞춰 이야기를 정리해 드릴게요.",
       "doorsTitle": "어떤 이유로 오셨어요?",
       "doorsMeta": "Why are you here today",
+      "builtTitle": "이 홈페이지는 어떻게 만든거에요?",
+      "builtMeta": "How this site was made",
+      "builtBody": "Next.js(App Router)와 TypeScript로 만들었고 Vercel에 배포해 두었어요. 프로필·카피는 vault에서 관리하는 데이터를 생성·갱신해 반영합니다. 아래 Ask Hansol은 같은 문서 맥락을 참고해 답하도록 묶여 있어요.",
+      "builtCards": [
+        {
+          "title": "목표",
+          "body": "마크다운 한 파일을 추가하면 이력서·포트폴리오·자기소개·챗봇 답변까지 같이 갱신되는 개인 표현 인프라를 만드는 것이 목표입니다."
+        },
+        {
+          "title": "데이터 흐름",
+          "body": "knowledge base를 단일 소스로 두고, CI에서 LLM이 정규화한 뒤 zod 검증과 빌드 타임 스냅샷을 거쳐 SSR 화면과 Ask Hansol까지 같은 사실을 공유합니다."
+        },
+        {
+          "title": "신뢰성 패턴",
+          "body": "원격 캐시 → 로컬 → 빌드 스냅샷의 다단 폴백, 토큰 폴백, 캐시 TTL, 실패 아티팩트 보존으로 운영 안정성을 확보합니다."
+        },
+        {
+          "title": "경험 설계",
+          "body": "홈의 4개 페르소나(Hire/Collab/Builder/Curious)는 동일한 사실을 다른 우선순위로 보여주고, Ask Hansol은 화면 컨텍스트를 참고해 답변 흐름을 맞춥니다."
+        }
+      ],
+      "builtMermaid": "flowchart LR; KB[Knowledge Base] --> NORM[LLM Normalization]; NORM --> ZOD[Zod Validation]; ZOD --> SNAP[Site Data Snapshot]; SNAP --> SSR[SSR Portfolio Views]; SNAP --> ASK[Ask Hansol Chat];",
+      "builtFlow": [
+        {
+          "label": "Knowledge Base"
+        },
+        {
+          "label": "LLM Normalization (CI)"
+        },
+        {
+          "label": "Zod Validation"
+        },
+        {
+          "label": "SSR + Ask Hansol"
+        }
+      ],
       "coffeeEyebrow": "— Coffee chat",
       "coffeeTitle": "시간 괜찮으시면 30분만 같이 이야기해요.",
       "coffeeBody": "여기까지 읽어주셨다면, 그것만으로도 감사합니다. 더 궁금한 얘기가 있다면 직접 만나서 나누고 싶어요.",

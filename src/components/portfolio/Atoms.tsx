@@ -246,7 +246,7 @@ export function PlanDiagram({
         <g pointerEvents="none">
           <path d="M 100 180 A 30 30 0 0 1 130 150" fill="none" stroke="#3d7a9c" strokeWidth="0.7" strokeDasharray="2 2" />
           <path d="M 200 100 A 30 30 0 0 1 230 130" fill="none" stroke="#3d7a9c" strokeWidth="0.7" strokeDasharray="2 2" />
-          <path d="M 200 220 A 30 30 0 0 0 230 250" fill="none" stroke="#3d7a9c" strokeWidth="0.7" strokeDasharray="2 2" />
+          <path d="M 200 220 A 30 30 0 0 1 230 250" fill="none" stroke="#3d7a9c" strokeWidth="0.7" strokeDasharray="2 2" />
           <path d="M 160 280 A 30 30 0 0 0 190 310" fill="none" stroke="#3d7a9c" strokeWidth="0.7" strokeDasharray="2 2" />
         </g>
 

@@ -56,16 +56,6 @@
   transition: transform 200ms ease, background 200ms ease;
 }
 .chatdock-fab:hover { transform: translateY(-2px); }
-.chatdock-fab.is-open {
-  background: rgba(255,255,255,0.08);
-  font-size: 22px;
-  letter-spacing: 0;
-  padding: 8px 14px;
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  justify-content: center;
-}
 .fab-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: #6cd49a;

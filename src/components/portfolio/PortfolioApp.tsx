@@ -22,6 +22,7 @@ import {
   useSiteData,
 } from "@/components/portfolio/Atoms";
 import type { SiteData } from "@/content/schema";
+import { useMermaid } from "react-x-mermaid";
 import { splitTextForAskHansolLinks } from "@/lib/ask-hansol/answer-linkify";
 import {
   askHansolViaApi,
@@ -104,6 +105,45 @@ function renderTitleLines(lines: string[]): ReactNode {
         </span>
       ))}
     </>
+  );
+}
+
+function MermaidDiagram({ chart }: { chart: string }) {
+  const chartText = useMemo(() => {
+    const s = chart.trim();
+    if (!s) return "graph LR; EMPTY[No diagram data];";
+    // react-x-mermaid/mermaid 파서 안정화를 위해 라벨 내부 \n 이스케이프는 공백으로 평탄화
+    return s.replace(/\\n/g, " ").replace(/\r\n/g, "\n");
+  }, [chart]);
+  const { ref, error } = useMermaid(chartText, {
+    theme: "base",
+    securityLevel: "strict",
+    startOnLoad: false,
+    suppressErrorRendering: true,
+    fontFamily: "JetBrains Mono, LINE Seed KR, sans-serif",
+    themeVariables: {
+      background: "#14384f",
+      primaryColor: "#0e2a3d",
+      primaryBorderColor: "#3d7a9c",
+      primaryTextColor: "#f2f7fa",
+      lineColor: "#7fb4d0",
+      secondaryColor: "#123247",
+      tertiaryColor: "#183f58",
+      edgeLabelBackground: "#14384f",
+    },
+    flowchart: {
+      htmlLabels: false,
+      curve: "linear",
+      useMaxWidth: true,
+    },
+  });
+
+  return (
+    <div className="home-built-mermaid-wrap" aria-label="How this site works diagram">
+      <div className="home-built-mermaid-head">Mermaid Diagram</div>
+      <div className="home-built-mermaid" ref={ref} />
+      {error ? <pre className="home-built-mermaid-fallback">{error}</pre> : null}
+    </div>
   );
 }
 
@@ -193,6 +233,23 @@ function Home({ onPick }: { onPick: (key: PersonaKey) => void }) {
             </button>
           )}
         </div>
+      </section>
+
+      <section className="home-built" data-ask-section="home/built">
+        <div className="home-built-head">
+          <h2 className="home-built-h">{D.portfolioCopy.home.builtTitle}</h2>
+          <div className="home-built-meta">{D.portfolioCopy.home.builtMeta}</div>
+        </div>
+        <p className="home-built-body">{D.portfolioCopy.home.builtBody}</p>
+        <div className="home-built-grid">
+          {D.portfolioCopy.home.builtCards.map((card) => (
+            <article className="home-built-card" key={card.title}>
+              <h3 className="home-built-card-title">{card.title}</h3>
+              <p className="home-built-card-body">{card.body}</p>
+            </article>
+          ))}
+        </div>
+        <MermaidDiagram chart={D.portfolioCopy.home.builtMermaid} />
       </section>
 
       <section className="coffee" data-ask-section="home/coffee">
@@ -324,9 +381,17 @@ function ChatDock({
 
   return (
     <>
-      <button className={"chatdock-fab" + (open ? " is-open" : "")} onClick={() => setOpen((o) => !o)} aria-label="Ask Hansol">
-        {open ? '×' : <><span className="fab-dot"></span>ASK</>}
-      </button>
+      {!open && (
+        <button
+          type="button"
+          className="chatdock-fab"
+          onClick={() => setOpen(true)}
+          aria-label="Ask Hansol"
+        >
+          <span className="fab-dot" />
+          ASK
+        </button>
+      )}
       <aside className={"chatdock" + (open ? " is-open" : "") + (inline ? " is-inline" : "")}>
         <header className="chatdock-head">
           <div>
