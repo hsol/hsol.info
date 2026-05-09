@@ -4,6 +4,8 @@ export type AskHansolPageContext = {
   view: "home" | "hire" | "collab" | "builder" | "curious";
   section?: string;
   hash?: string;
+  /** 스크롤 등으로 사용자가 주로 보고 있는 화면 블록(예: hire/strengths) */
+  detail?: string;
 };
 
 export type AskHansolHistoryMessage = {
