@@ -22,6 +22,7 @@ import {
   useSiteData,
 } from "@/components/portfolio/Atoms";
 import type { SiteData } from "@/content/schema";
+import { splitTextForAskHansolLinks } from "@/lib/ask-hansol/answer-linkify";
 import {
   askHansolViaApi,
   type AskHansolPageContext,
@@ -228,17 +229,17 @@ type ChatMsg = {
 };
 
 function renderTextWithLinks(text: string): ReactNode[] {
-  const parts = text.split(/(https?:\/\/[^\s)]+(?:\)[^\s]*)?)/g);
-  return parts.map((part, i) => {
-    if (/^https?:\/\//.test(part)) {
-      return (
-        <a key={`link-${i}`} href={part} target="_blank" rel="noopener noreferrer">
-          {part}
+  return splitTextForAskHansolLinks(text)
+    .filter((p) => p.value.length > 0)
+    .map((part, i) =>
+      part.kind === "link" ? (
+        <a key={`lnk-${i}`} href={part.value} target="_blank" rel="noopener noreferrer">
+          {part.value}
         </a>
-      );
-    }
-    return <span key={`text-${i}`}>{part}</span>;
-  });
+      ) : (
+        <span key={`txt-${i}`}>{part.value}</span>
+      ),
+    );
 }
 
 function ChatDock({

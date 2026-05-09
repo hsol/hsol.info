@@ -21,6 +21,7 @@ export async function fetchAskHansolHistory(
   if (!sessionId) return [];
   const response = await fetch(
     "/api/ask-hansol?sessionId=" + encodeURIComponent(sessionId),
+    { cache: "no-store" },
   );
   if (!response.ok) return [];
   const data = (await response.json()) as { messages?: AskHansolHistoryMessage[] };
@@ -34,6 +35,7 @@ export async function askHansolViaApi(
 ): Promise<string> {
   const response = await fetch("/api/ask-hansol", {
     method: "POST",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       query,

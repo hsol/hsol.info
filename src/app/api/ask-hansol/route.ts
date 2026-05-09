@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { list } from "@vercel/blob";
 import { getSiteData } from "@/lib/content/site-data";
 import type { SiteData } from "@/content/schema";
+import { normalizeAskAnswerPlainText } from "@/lib/ask-hansol/answer-linkify";
 import {
   ASK_HANSOL_FALLBACK_MESSAGE,
   isValidAskHansolSessionId,
@@ -18,8 +19,8 @@ import {
   refreshSessionMemoryRollup,
 } from "@/lib/db/ask-hansol-memory";
 
-/** `output: "export"` 빌드 요구사항 — 런타임(Vercel Function)에서는 여전히 동적 처리됨 */
-export const dynamic = "force-static";
+/** 세션별 GET 히스토리·POST가 DB를 쓰므로 매 요청 동적 처리(정적 캐시 시 이전 대화가 비어 보임) */
+export const dynamic = "force-dynamic";
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/[?!.\s]/g, "");
@@ -418,11 +419,7 @@ type AnthropicContentBlock =
   | { type: "tool_use"; id: string; name: string; input?: unknown };
 
 function toPlainAnswer(text: string): string {
-  return text
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1 ($2)")
-    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return normalizeAskAnswerPlainText(text);
 }
 
 async function summarizeMemoryMerge(
@@ -605,11 +602,12 @@ export async function POST(req: Request) {
     );
     const faqAnswer = skipFaq ? null : findFaqAnswer(query, siteData.faq);
     if (faqAnswer) {
+      const faqPlain = toPlainAnswer(faqAnswer);
       if (sessionId) {
-        await persistAskExchange(sessionId, query, faqAnswer);
+        await persistAskExchange(sessionId, query, faqPlain);
         await refreshSessionMemoryRollup(sessionId, tailLimit, summarizeMemoryMerge);
       }
-      return NextResponse.json({ answer: faqAnswer });
+      return NextResponse.json({ answer: faqPlain });
     }
 
     const { priorForClaude, latestUserText } = splitPriorAndLatestUser(priorTurnsRaw, query);

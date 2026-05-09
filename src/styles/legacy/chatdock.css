@@ -197,6 +197,18 @@
   border: 1px solid var(--bp-line, #1f4861);
   color: var(--ink, #f2f7fa);
 }
+.chatdock-msg--hansol .chatdock-msg-body a {
+  color: var(--bp-glow, #7fb4d0);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.chatdock-msg--user .chatdock-msg-body a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
 
 .chatdock-form {
   display: flex;
