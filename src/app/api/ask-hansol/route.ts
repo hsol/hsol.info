@@ -76,25 +76,6 @@ const RETRIEVAL_SKILLS: RetrievalSkill[] = [
     ],
   },
   {
-    id: "family-spouse",
-    keywords: [
-      "아내",
-      "배우자",
-      "부인",
-      "결혼",
-      "김연수",
-      "bella",
-      "벨라",
-      "가족",
-      "spouse",
-      "wife",
-    ],
-    blobPaths: [
-      "vault/objects/people/김연수.md",
-      "vault/object-views/관계망.md",
-    ],
-  },
-  {
     id: "writing-content",
     keywords: ["블로그", "글", "아카이브", "콘텐츠", "작문", "writing"],
     blobPaths: [
