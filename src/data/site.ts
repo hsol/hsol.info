@@ -351,8 +351,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "전통산업의 DX → AX 를 통한 기업가치 향상",
-        "업무 효율화 & 자동화",
-        "웹/모바일 애플리케이션 소프트웨어 외주"
+        "B2B 맥락에서 현장 운영과 제품·데이터를 연결하는 전환 과제를 다룸",
+        "창업 대표로서 제품 방향·조직·파트너십을 한 축에서 조율"
       ],
       "tier": {
         "hire": 1,
@@ -373,10 +373,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "물류 — 가맹 — MD — 브랜드를 잇는 옴니채널 생태계 구축",
-        "Operations: 물류 프로세스와 가맹점 오프라인 경험을 디지털로 전환",
-        "Service: 온-오프라인을 아우르는 옴니 플랫폼으로 확장성 확보",
-        "Integration: MD/브랜드 등 부서별 목표를 하나의 플랫폼으로 조율",
-        "AI Native 팀 문화 구축 · Claude Code + Linear 기반 바이브 코딩 프로토콜 설계/도입"
+        "리테일·DT 관점에서 채널 간 데이터와 업무 흐름을 정렬",
+        "팀장으로서 제품·엔지니어링·운영이 맞물리는 우선순위를 관리"
       ],
       "tier": {
         "hire": 1,
@@ -396,9 +394,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "스타트업 창업 — 개발자 생산성 영역",
-        "뉴스레터 \"Measurable Developer\" 발행",
-        "개발자 성과관리 대시보드 \"프루퍼 인사이트\"",
-        "지속적 개발자 평가 솔루션 \"프루퍼 데브엠\""
+        "CTO로서 엔지니어링 조직과 도구·프로세스 쪽에 집중",
+        "초기 단계 제품과 팀 빌딩을 병행"
       ],
       "tier": {
         "hire": 1,
@@ -418,7 +415,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "예비창업기업·초기기업 대상 서비스 기획 및 개발 기술 자문",
-        "비즈니스 모델 설계, 제품 전략, 확장 가능한 기술 아키텍처 구축 지원"
+        "비경영 이사로서 제품·기술 의사결정에 조언",
+        "초기기업의 MVP 범위와 기술 부채 균형을 함께 점검"
       ],
       "tier": {
         "hire": 3,
@@ -437,7 +435,9 @@ export const HSOL_DATA = siteDataSchema.parse({
         "EIR"
       ],
       "points": [
-        "글로벌 초기단계 VC 프로그램 참여"
+        "글로벌 초기단계 VC 프로그램 참여",
+        "EIR로서 아이디어 검증과 피칭·팀 구성 과정에 몰입",
+        "초기 창업자 커뮤니티와 멘토링 리듬에 맞춰 실행"
       ],
       "tier": {
         "hire": 3,
@@ -457,10 +457,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "사내 웹/앱 포털 \"토스인터널\" 개발",
-        "근태관리 애플리케이션 \"티티(time-tracker)\"",
-        "수습평가시스템 \"3 month review\"",
-        "사내 매거진 \"비바뉴스\", 슬랙봇, 다수 인터널 제품",
-        "데이터 기반으로 문제단계부터 디벨롭 → 설계 → 개발 → 배포"
+        "Internal Product Developer로 사내 사용자 경험과 운영 요구를 반영",
+        "인터널 제품의 지속 배포·유지보수와 기능 확장을 담당"
       ],
       "tier": {
         "hire": 1,
@@ -480,8 +478,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "리디북스 CMS 유지관리 및 기능개발",
-        "CP(Contents Provider) 사이트 — 작가/매니저 업무 플랫폼",
-        "도서메타정보관리시스템 운영 및 기능개발"
+        "B2B·CMS 도구 맥락에서 출판 워크플로에 맞는 기능을 설계·구현",
+        "레거시와 신규 요구를 병행하며 안정적으로 운영"
       ],
       "tier": {
         "hire": 2,
@@ -501,7 +499,8 @@ export const HSOL_DATA = siteDataSchema.parse({
       ],
       "points": [
         "여러 프랜차이즈 홈페이지 / 주문시스템 / 모바일 앱 개발",
-        "Java/Spring · ASP.NET · PHP · JSP — 다양한 스택 경험"
+        "풀스택·외주개발 환경에서 고객사별 요구를 빠르게 옮겨 구현",
+        "웹·모바일·주문 흐름을 한 팀에서 끝까지 맡는 실행 경험 축적"
       ],
       "tier": {
         "hire": 3,
