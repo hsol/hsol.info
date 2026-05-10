@@ -8,8 +8,7 @@
     "start": "next start -p 9999",
     "lint": "next lint",
     "content:refresh:claude": "tsx scripts/refresh-site-data-with-claude.ts",
-    "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts",
-    "sync:blob:pull": "node scripts/pull-blob-to-submodule.mjs"
+    "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
