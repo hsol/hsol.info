@@ -18,11 +18,14 @@ export function ViewHead({
   coord,
   title,
   lede,
+  children,
 }: {
   room: string;
   coord: string;
   title: ReactNode;
   lede: string;
+  /** 제목·lede 아래, 같은 view-head 프레임 안(예: /architecture Mermaid) */
+  children?: ReactNode;
 }) {
   return (
     <div className="view-head">
@@ -34,6 +37,7 @@ export function ViewHead({
       <div className="view-head-body">
         <h1 className="view-title">{title}</h1>
         <p className="view-lede">{lede}</p>
+        {children}
       </div>
     </div>
   );
