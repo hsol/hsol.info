@@ -5,7 +5,9 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import type { SiteData } from "@/content/schema";
@@ -376,30 +378,81 @@ export function Back({ onBack }: { onBack: () => void }) {
   );
 }
 
-export function CareerList({ items }: { items: readonly CareerItem[] | CareerItem[] }) {
+export function CareerList({
+  items,
+  itemTiers,
+  highlightTier1 = false,
+}: {
+  items: readonly CareerItem[] | CareerItem[];
+  /** `items`와 동일한 길이. tier 1이면 기본 펼침, 그보다 크면 접힌 채로 시작(페르소나별 큐레이션). */
+  itemTiers?: readonly number[];
+  highlightTier1?: boolean;
+}) {
+  const initialCollapsed = useMemo(() => {
+    if (!highlightTier1) return {};
+    return Object.fromEntries(
+      items.map((c, i) => {
+        const tier = itemTiers?.[i] ?? 1;
+        return [`${c.period}-${c.org}-${c.role}-${i}`, tier !== 1];
+      }),
+    ) as Record<string, boolean>;
+  }, [items, itemTiers, highlightTier1]);
+  const [collapsedByKey, setCollapsedByKey] = useState<Record<string, boolean>>(initialCollapsed);
+
+  useEffect(() => {
+    setCollapsedByKey(initialCollapsed);
+  }, [initialCollapsed]);
+
   return (
     <div className="career">
-      {items.map((c, i) => (
-        <div className="career-item" key={i}>
-          <div className="career-period">{c.period}</div>
-          <div>
-            <div className="career-org">{c.org}</div>
-            <div className="career-role">{c.role}</div>
-            <ul className="career-points">
-              {c.points.map((p, j) => (
-                <li key={j}>{p}</li>
+      {items.map((c, i) => {
+        const itemKey = `${c.period}-${c.org}-${c.role}-${i}`;
+        const tier = itemTiers?.[i] ?? 1;
+        const isCollapsible = highlightTier1 && tier !== 1;
+        const isCollapsed = isCollapsible ? (collapsedByKey[itemKey] ?? true) : false;
+        return (
+        <div className={"career-item" + (isCollapsible ? " is-collapsible" : "") + (isCollapsed ? " is-collapsed" : "")} key={i}>
+          <div className="career-period-wrap">
+            {isCollapsible && (
+              <button
+                type="button"
+                className="career-toggle"
+                aria-label={isCollapsed ? "경력 펼치기" : "경력 접기"}
+                onClick={() =>
+                  setCollapsedByKey((prev) => ({ ...prev, [itemKey]: !isCollapsed }))
+                }
+              >
+                {isCollapsed ? "+" : "−"}
+              </button>
+            )}
+            <div className="career-period">{c.period}</div>
+          </div>
+          <div className="career-main">
+            {isCollapsed ? (
+              <div className="career-collapsed-line">{c.org} · {c.role}</div>
+            ) : (
+              <>
+                <div className="career-org">{c.org}</div>
+                <div className="career-role">{c.role}</div>
+              <ul className="career-points">
+                {c.points.map((p, j) => (
+                  <li key={j}>{p}</li>
+                ))}
+              </ul>
+              </>
+            )}
+          </div>
+          {!isCollapsed && (
+            <div className="career-tags">
+              {(c.tags ?? []).map((t, j) => (
+                <span className="career-tag" key={j}>
+                  {t}
+                </span>
               ))}
-            </ul>
-          </div>
-          <div className="career-tags">
-            {(c.tags ?? []).map((t, j) => (
-              <span className="career-tag" key={j}>
-                {t}
-              </span>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
-      ))}
+      )})}
     </div>
   );
 }

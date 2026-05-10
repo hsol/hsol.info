@@ -876,6 +876,14 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .career {
   border: 1px solid var(--bp-line);
 }
+.career-curation-note {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
 .career-item {
   display: grid;
   grid-template-columns: 160px 1fr 110px;
@@ -884,13 +892,50 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   border-bottom: 1px solid var(--bp-line);
   position: relative;
 }
+.career-item.is-collapsed {
+  grid-template-columns: 160px 1fr;
+  gap: 20px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
 .career-item:last-child { border-bottom: none; }
+.career-period-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.career-toggle {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--bp-line);
+  background: rgba(94,147,177,0.06);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.career-toggle:hover { background: rgba(94,147,177,0.15); }
 .career-period {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--bp-soft);
   letter-spacing: 0.04em;
   padding-top: 4px;
+}
+.career-main {
+  min-width: 0;
+}
+.career-collapsed-line {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-top: 2px;
 }
 .career-org {
   font-family: var(--sans);
@@ -934,7 +979,6 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   padding: 3px 8px;
   border: 1px solid var(--bp-line);
 }
-
 /* facts grid */
 .facts {
   display: grid;
@@ -1087,6 +1131,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   .pillar { border-right: none; border-bottom: 1px solid var(--bp-line); }
   .pillar:last-child { border-bottom: none; }
   .career-item { grid-template-columns: 1fr; gap: 12px; }
+  .career-item.is-collapsed { grid-template-columns: 1fr; }
   .career-tags { flex-direction: row; align-items: flex-start; flex-wrap: wrap; }
   .facts { grid-template-columns: 1fr; }
   .fact { border-right: none; }

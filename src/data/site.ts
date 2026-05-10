@@ -69,7 +69,7 @@ export const HSOL_DATA = siteDataSchema.parse({
   "viewHeaders": {
     "hire": {
       "titleLines": [
-        "10년 차 엔지니어,",
+        "12년 차 엔지니어,",
         "제품·운영·창업을 거친 사람."
       ],
       "lede": "엔지니어로 시작해 토스 인터널 제품 4년 10개월, 두 번의 창업, 옴니채널 플랫폼 리드까지 — \"기능을 잘 만드는 사람\"보다 \"무엇을 만들지 정하고 끝까지 가져가는 사람\"으로 자랐습니다."
@@ -79,18 +79,18 @@ export const HSOL_DATA = siteDataSchema.parse({
         "기술과 운영 사이,",
         "다리를 놓는 일을 합니다."
       ],
-      "lede": "지금 두 곳에서 — 프루퍼(대표), PPB Studios(팀장) 으로 동시에 움직이고 있습니다. 공통점은 모두 “흩어진 부서·채널·역할을 하나의 시스템으로 묶는 일”이라는 점입니다."
+      "lede": "지금 두 곳에서 — 프루퍼(대표), PPB Studios(팀장) 으로 동시에 움직이고 있습니다. 공통점은 모두 \"흩어진 부서·채널·역할을 하나의 시스템으로 묶는 일\"이라는 점입니다."
     },
     "builder": {
       "titleLines": [
         "코드도 짜고,",
         "무엇을 만들지도 정합니다."
       ],
-      "lede": "2014년 외주개발사 풀스택부터, 리디·토스 인터널 제품, 그리고 지금은 AI Native 워크플로우와 개발자 생산성 — 10년 동안 “제품을 만든다는 것”의 정의를 계속 갱신해 왔습니다."
+      "lede": "2014년 외주개발사 풀스택부터, 리디·토스 인터널 제품, 그리고 지금은 AI Native 워크플로우와 개발자 생산성 — 12년 동안 \"제품을 만든다는 것\"의 정의를 계속 갱신해 왔습니다."
     },
     "curious": {
       "titleLines": [
-        "한 사람의 10년치",
+        "한 사람의 12년치",
         "궤적을 펼쳐놓으면."
       ],
       "lede": "엔지니어 → 인터널 제품 메이커 → 자문가 → 창업가 → 옴니채널 리드 — 한 줄로 적으면 점프처럼 보이지만 사이사이는 이어져 있습니다. 시간순으로 천천히 따라가보셔도 좋습니다."
@@ -104,7 +104,7 @@ export const HSOL_DATA = siteDataSchema.parse({
         "오프라인의 운영을 잇는",
         "임한솔입니다."
       ],
-      "heroSubLead": "10년이상 경력의 엔지니어이자 스타트업을 창업한 메이커. 씨엔티테크 → 리디북스 → 토스 인터널 제품팀을 거쳐, 지금은",
+      "heroSubLead": "12년 경력의 엔지니어이자 스타트업을 창업한 메이커. 씨엔티테크 → 리디북스 → 토스 인터널 제품팀을 거쳐, 지금은",
       "heroSubEmphasis": "프루퍼 ㈜ 대표이자 PPB Studios 팀장",
       "heroSubTail": "으로 일하고 있습니다. 아래에서 가장 가까운 항목을 골라주세요. 그에 맞춰 이야기를 정리해 드릴게요.",
       "doorsTitle": "어떤 이유로 오셨어요?",
@@ -178,7 +178,7 @@ export const HSOL_DATA = siteDataSchema.parse({
     },
     "hire": {
       "factsYearsLabel": "Years",
-      "factsYearsValue": "10년+ (since 2014)",
+      "factsYearsValue": "12년+ (since 2014)",
       "factsBaseLabel": "Base",
       "factsEducationLabel": "Education",
       "factsLanguagesLabel": "Languages",
@@ -193,7 +193,7 @@ export const HSOL_DATA = siteDataSchema.parse({
           "no": "METHOD · 01",
           "name": "문제부터 다시 그린다",
           "en": "Reframe before build",
-          "blurb": "의뢰가 들어와도 “그게 정말 그 문제냐“부터 묻습니다. 토스 인터널도, PPB의 옴니채널도 의뢰받은 명세 그대로가 아니라 한 단계 위에서 다시 정의한 결과였습니다."
+          "blurb": "의뢰가 들어와도 \"그게 정말 그 문제냐\"부터 묻습니다. 토스 인터널도, PPB의 옴니채널도 의뢰받은 명세 그대로가 아니라 한 단계 위에서 다시 정의한 결과였습니다."
         },
         {
           "no": "METHOD · 02",
@@ -263,7 +263,7 @@ export const HSOL_DATA = siteDataSchema.parse({
         {
           "year": "2016 — 2018",
           "title": "리디북스",
-          "desc": "B2B 도구 — CMS와 작가/매니저 플랫폼을 만들며 “내부 사용자“라는 관점을 처음 익혔습니다."
+          "desc": "B2B 도구 — CMS와 작가/매니저 플랫폼을 만들며 \"내부 사용자\"라는 관점을 처음 익혔습니다."
         },
         {
           "year": "2018 — 2023",
@@ -281,7 +281,7 @@ export const HSOL_DATA = siteDataSchema.parse({
           "desc": "글로벌 초기 VC 프로그램. 창업의 형태에 대해 본격적으로 고민한 시기."
         },
         {
-          "year": "2024.01 — 2024.11",
+          "year": "2024.01 — 2025.04",
           "title": "프루퍼 CTO — 첫 창업",
           "desc": "개발자 생산성을 측정 가능한 형태로 다루는 일. 'Measurable Developer'와 '프루퍼 인사이트'를 만들었습니다."
         },
@@ -301,7 +301,7 @@ export const HSOL_DATA = siteDataSchema.parse({
           "no": "NOTE · 01",
           "name": "메이커와 엔지니어 사이",
           "en": "Maker × Engineer",
-          "blurb": "“메이커와 엔지니어 — 개발자가 됐습니다. 그 다음은요?“라는 글을 썼습니다. 코드 그 자체보다, 코드로 만들어진 것이 누군가의 하루를 어떻게 바꾸는지가 더 흥미로워요."
+          "blurb": "\"메이커와 엔지니어 — 개발자가 됐습니다. 그 다음은요?\"라는 글을 썼습니다. 코드 그 자체보다, 코드로 만들어진 것이 누군가의 하루를 어떻게 바꾸는지가 더 흥미로워요."
         },
         {
           "no": "NOTE · 02",
@@ -313,7 +313,7 @@ export const HSOL_DATA = siteDataSchema.parse({
           "no": "NOTE · 03",
           "name": "기술과 운영의 접점",
           "en": "Where tech meets ops",
-          "blurb": "관심사는 점점 “코드로 무엇을 짓는가“에서 “코드와 운영이 만나는 지점에서 무엇이 작동하는가“로 옮겨가고 있습니다. 옴니채널, 개발자 생산성, AX — 모두 그 접점의 다른 이름입니다."
+          "blurb": "관심사는 점점 \"코드로 무엇을 짓는가\"에서 \"코드와 운영이 만나는 지점에서 무엇이 작동하는가\"로 옮겨가고 있습니다. 옴니채널, 개발자 생산성, AX — 모두 그 접점의 다른 이름입니다."
         }
       ],
       "coffee": {
@@ -350,7 +350,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "업무 효율화 & 자동화",
         "웹/모바일 애플리케이션 소프트웨어 외주"
       ],
-      "tier": 1
+      "tier": {
+        "hire": 1,
+        "collab": 1,
+        "builder": 1,
+        "curious": 1
+      }
     },
     {
       "org": "PPB Studios Co.",
@@ -369,7 +374,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "Integration: MD/브랜드 등 부서별 목표를 하나의 플랫폼으로 조율",
         "AI Native 팀 문화 구축 · Claude Code + Linear 기반 바이브 코딩 프로토콜 설계/도입"
       ],
-      "tier": 1
+      "tier": {
+        "hire": 1,
+        "collab": 1,
+        "builder": 2,
+        "curious": 1
+      }
     },
     {
       "org": "프루퍼 ㈜",
@@ -386,7 +396,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "개발자 성과관리 대시보드 \"프루퍼 인사이트\"",
         "지속적 개발자 평가 솔루션 \"프루퍼 데브엠\""
       ],
-      "tier": 1
+      "tier": {
+        "hire": 1,
+        "collab": 2,
+        "builder": 1,
+        "curious": 1
+      }
     },
     {
       "org": "(주) 라이트형제",
@@ -401,7 +416,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "예비창업기업·초기기업 대상 서비스 기획 및 개발 기술 자문",
         "비즈니스 모델 설계, 제품 전략, 확장 가능한 기술 아키텍처 구축 지원"
       ],
-      "tier": 2
+      "tier": {
+        "hire": 3,
+        "collab": 2,
+        "builder": 3,
+        "curious": 2
+      }
     },
     {
       "org": "Antler",
@@ -415,7 +435,12 @@ export const HSOL_DATA = siteDataSchema.parse({
       "points": [
         "글로벌 초기단계 VC 프로그램 참여"
       ],
-      "tier": 2
+      "tier": {
+        "hire": 3,
+        "collab": 2,
+        "builder": 3,
+        "curious": 1
+      }
     },
     {
       "org": "토스 (Viva Republica)",
@@ -433,7 +458,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "사내 매거진 \"비바뉴스\", 슬랙봇, 다수 인터널 제품",
         "데이터 기반으로 문제단계부터 디벨롭 → 설계 → 개발 → 배포"
       ],
-      "tier": 1
+      "tier": {
+        "hire": 1,
+        "collab": 2,
+        "builder": 1,
+        "curious": 1
+      }
     },
     {
       "org": "리디북스 (Ridibooks)",
@@ -449,7 +479,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "CP(Contents Provider) 사이트 — 작가/매니저 업무 플랫폼",
         "도서메타정보관리시스템 운영 및 기능개발"
       ],
-      "tier": 2
+      "tier": {
+        "hire": 2,
+        "collab": 3,
+        "builder": 2,
+        "curious": 2
+      }
     },
     {
       "org": "씨엔티테크 (CNT Tech)",
@@ -464,7 +499,12 @@ export const HSOL_DATA = siteDataSchema.parse({
         "여러 프랜차이즈 홈페이지 / 주문시스템 / 모바일 앱 개발",
         "Java/Spring · ASP.NET · PHP · JSP — 다양한 스택 경험"
       ],
-      "tier": 3
+      "tier": {
+        "hire": 3,
+        "collab": 3,
+        "builder": 2,
+        "curious": 2
+      }
     }
   ],
   "education": [
@@ -496,7 +536,7 @@ export const HSOL_DATA = siteDataSchema.parse({
   "publications": [
     {
       "title": "메이커와 엔지니어 — 개발자가 됐습니다. 그 다음은요?",
-      "desc": "엔지니어 그 이후의 커리어에 대한 글"
+      "desc": "12년 개발자의 자기 정체성 에세이. 2026-03-23 전자책 출간 (작가와 플랫폼)."
     }
   ],
   "faq": [
@@ -514,7 +554,11 @@ export const HSOL_DATA = siteDataSchema.parse({
     },
     {
       "q": "코드를 직접 짜나요?",
-      "a": "10년 차 엔지니어 출신이고 지금도 짭니다. 다만 \"코드를 쓰는 사람\"보다 \"무엇을 만들지 결정하는 사람\"으로서의 비중이 더 큽니다."
+      "a": "12년 차 엔지니어 출신이고 지금도 짭니다. 다만 \"코드를 쓰는 사람\"보다 \"무엇을 만들지 결정하는 사람\"으로서의 비중이 더 큽니다."
+    },
+    {
+      "q": "책을 쓰셨나요?",
+      "a": "네. 2026년 3월 전자책 \"메이커와 엔지니어\"를 작가와 플랫폼에서 출간했습니다. 12년 개발자로 일하면서 \"메이커\"와 \"엔지니어\" 사이에서 자기 결을 찾아가는 이야기입니다."
     },
     {
       "q": "커피챗 가능한가요?",
@@ -522,11 +566,7 @@ export const HSOL_DATA = siteDataSchema.parse({
     },
     {
       "q": "연락처는?",
-      "a": "molmoty@gmail.com 또는 LinkedIn(/in/hsolim) 메시지. 빠른 응답을 원하시면 커피챗 링크가 가장 좋습니다."
-    },
-    {
-      "q": "강점은 무엇인가요?",
-      "a": "전략적 사고 · 고객 중심 사고 · 디자인적 사고 — 세 가지를 본인이 직접 꼽고 있습니다. 엔지니어로 출발해 인터널 제품, 창업, 옴니채널까지 \"문제의 형태를 다시 그리는 일\"을 반복해왔습니다."
+      "a": "molmoty@gmail.com 또는 LinkedIn(/in/hsolim)으로 연락주세요."
     }
   ]
 } as const);
