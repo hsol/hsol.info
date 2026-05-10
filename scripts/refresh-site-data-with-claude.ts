@@ -644,20 +644,11 @@ async function main() {
 
 규칙:
 1) 반드시 ${EMIT_TOOL_NAME} tool_use로만 결과를 반환한다. 일반 텍스트 답변 금지.
-2) JSON 구조는 기존 site-data.json 스키마를 그대로 유지한다.
-3) 템플릿 고정값(room, coord 같은 템플릿 메타)은 건드리지 않는다.
-4) 한국어 문구 톤은 반드시 object-views/작문-가이드를 우선 기준으로 맞춘다.
-5) 증거가 없는 정보는 추측하지 말고 현재 값을 유지한다.
-6) [HIGH_PRIORITY_CONTEXT]로 표시된 파일은 최신 변경으로 간주하고 반영 우선순위를 가장 높게 둔다.
-7) 필드 키는 절대 번역/변형하지 말고 템플릿 키를 1:1 유지한다. (예: identity.name, pillars[].key)
-8) 루트 객체를 다른 키로 감싸지 말고, 최상위에 identity/pillars/.../faq를 직접 둔다.
-9) portfolioCopy.home.builtTitle / builtMeta / builtBody / builtCards / builtMermaid / builtFlow / builtPerspectiveTitle / builtPerspectiveMeta / builtPerspectives 는 반드시 ${HOME_BUILT_SOURCE_PATH}와 hsol-info-소개-백데이터 ObjectView를 1차 근거로 작성한다.
-10) built* 필드에는 구현·운영 방식(아키텍처/데이터 흐름/운영 스택)만 요약하고, 문서에 없는 새로운 주장/수치를 만들지 않는다.
-11) builtCards 는 최소 3개 이상으로 구성하고, 제목 중복 없이 "목표/흐름/신뢰성/경험 설계" 관점을 우선 반영한다.
-12) builtFlow 는 최소 3개 이상의 단계(label)로 작성하고, 데이터 흐름 순서를 한 줄 다이어그램처럼 읽히게 구성한다.
-13) builtMermaid 는 mermaid 'flowchart LR' 문법의 문자열로 작성하고, 단계 노드 4개 이상과 연결 화살표를 포함한다. 파서 안정성을 위해 statement 구분을 ';'로 명시하고, 라벨에는 괄호·특수문자 대신 단순 텍스트를 사용한다. 라벨 텍스트에는 "\\n" 이스케이프를 넣지 않는다. (줄바꿈 대신 공백을 사용)
-14) builtPerspectives 는 hsol-info-소개-백데이터의 8개 관점 중 서로 다른 4개를 골라 title/summary로 압축한다.
-15) 각 career[i] 에는 tier 객체가 있어야 한다. tier 의 키는 personas[].key 와 정확히 일치해야 하며(추가·누락 금지), 값은 양의 정수다. 1이면 해당 페르소나 타임라인에서 기본 펼침, 2 이상이면 접힌 채로 시작한다. hire·collab·builder·curious 는 서로 다른 관점이므로, 모든 키에 같은 숫자만 반복해 넣지 말고 항목마다 관점별로 tier 를 다르게 정한다(정말로 네 관점 모두 동일한 중요도일 때만 예외).
+2) 출력 JSON은 스키마와 동일한 최상위 키·형태를 유지한다(루트 래핑 금지). 필드 키는 템플릿과 1:1(번역·이름 변경 금지). room·coord 등 템플릿 고정 UI 메타는 바꾸지 않는다.
+3) 근거·우선순위: [HIGH_PRIORITY_CONTEXT]를 최우선. 아래 [참조 vault 컨텍스트]에 실제로 나온 내용으로만 사실·고유명사·기간을 뒷받침하고, 증거 없는 추측·새 주장·새 수치는 넣지 않는다. 애매하면 기존 site-data 값을 유지한다. 한국어 톤은 같은 세션에 포함된 작문 가이드에 맞추고, 빈 수식어 남용은 피한다.
+4) portfolioCopy.home 의 builtTitle~builtPerspectives: 이 프롬프트에 실린 hsol.info 프로젝트 설명·소개 백데이터를 1차 근거로 하고, 구현·데이터 흐름·운영 방식만 요약한다(문서 밖 주장·수치 금지). builtCards는 3개 이상·제목 중복 없이 목표/흐름/신뢰성/경험 설계 성격. builtFlow는 3단계 이상·한 줄로 읽히는 순서. builtMermaid는 mermaid flowchart LR, 노드 4개 이상·화살표 포함, statement는 ';'로 구분, 라벨은 단순 텍스트·라벨에 "\\n" 금지. builtPerspectives는 소개 백데이터 8관점 중 서로 다른 4개를 title/summary로 압축.
+5) 페르소나(hire/collab/builder/curious): portfolioCopy 쪽 timelineIntro는 필수. 문단은 JSON에서 \\n\\n. (1) 한 줄 포지셔닝 (2) 기관·역할·기간·도메인 등 구체를 최소 2곳 이상 녹인 근거 (3) 타임라인으로 자연스럽게 이어지는 마무리. hire/collab/builder/curious 각각 채용·협업·동료 빌더·인간 궤적 독자에 맞는 설득 축을 분명히 한다. viewHeaders의 titleLines·lede는 같은 근거로 timelineIntro와 모순 없이 짝을 이루게(lede는 1~2문장 첫인상, 서사는 timelineIntro). collab 방법론·curious 노트 등 몸통 블러브도 동일 근거·항목마다 다른 각도로 배치한다.
+6) career[i].tier: 키는 personas[].key 와 정확히 일치·값은 양의 정수(1=기본 펼침, 2+=접힘). 관점별로 의미 있게 차등하고, 네 관점 전부 동일 중요도가 아니면 숫자만 복붙하지 않는다.
 
 키 구조 템플릿(키 이름 고정 참고용):
 ${SITE_DATA_TEMPLATE}

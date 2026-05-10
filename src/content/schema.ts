@@ -152,19 +152,27 @@ export const siteDataSchema = z
       factsBaseLabel: z.string().min(1),
       factsEducationLabel: z.string().min(1),
       factsLanguagesLabel: z.string().min(1),
+      /** 풀 경력 타임라인 직전, 채용 관점 자기소개 줄글 */
+      timelineIntro: z.string().min(1),
       coffee: CoffeeCopySchema,
     }),
     collab: z.object({
       methods: z.array(MethodItemSchema).min(1),
+      /** 풀 경력 타임라인 직전, 협업·자문 관점 자기소개 줄글 */
+      timelineIntro: z.string().min(1),
       coffee: CoffeeCopySchema,
     }),
     builder: z.object({
       facts: z.array(FactItemSchema).min(1),
       certificationLabel: z.string().min(1),
       extraWritings: z.array(MethodItemSchema).min(1),
+      /** 풀 경력 타임라인 직전, 빌더 관점 자기소개 줄글 */
+      timelineIntro: z.string().min(1),
       coffee: CoffeeCopySchema,
     }),
     curious: z.object({
+      /** 간트 타임라인 직전, 인간적 궤적 소개 줄글 */
+      timelineIntro: z.string().min(1),
       timeline: z.array(TimelineItemSchema).min(1),
       notes: z.array(MethodItemSchema).min(1),
       coffee: CoffeeCopySchema,

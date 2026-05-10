@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Back, CoffeeCTA, SecHead, useSiteData } from "@/components/portfolio/Atoms";
-import { renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
+import { PersonaTimelineIntro, renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
 
 function parseTimelineRange(t: { year: string }) {
   const NOW = 2025 + 11 / 12;
@@ -139,6 +139,7 @@ export function CuriousView({
 
       <div className="sec" data-ask-section="curious/timeline">
         <SecHead title="Section drawing — 2012 to now" num="01" meta="parallel tracks" />
+        <PersonaTimelineIntro text={D.portfolioCopy.curious.timelineIntro} />
         <GanttTimeline items={timeline} accent={accent} />
       </div>
       <div className="sec" data-ask-section="curious/personal">

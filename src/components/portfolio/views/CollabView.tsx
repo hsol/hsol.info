@@ -1,7 +1,7 @@
 "use client";
 
 import { Back, CareerList, CoffeeCTA, SecHead, useSiteData } from "@/components/portfolio/Atoms";
-import { renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
+import { PersonaTimelineIntro, renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
 
 export function CollabView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
@@ -36,6 +36,7 @@ export function CollabView({ onBack }: { onBack: () => void }) {
           num="02"
           meta={`${D.career.length} roles · full timeline · ${tier1Count} highlighted`}
         />
+        <PersonaTimelineIntro text={D.portfolioCopy.collab.timelineIntro} />
         <p className="career-curation-note">
           전체 경력을 시간순으로 열람할 수 있고, 협업·자문·빌딩 관점에서 특히 관련 있는 항목은 기본 펼침으로 두었습니다. 나머지는
           접어 두었으며 왼쪽 + 로 펼칠 수 있습니다.

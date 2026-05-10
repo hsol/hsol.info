@@ -799,6 +799,18 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   font-weight: 400;
 }
 
+/* cover-letter style block before full career / gantt */
+.persona-timeline-intro {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  max-width: 52em;
+  margin: 0 0 20px;
+  white-space: pre-line;
+  font-weight: 400;
+}
+
 /* section heading inside views */
 .sec { margin-top: 64px; }
 .sec-head {
