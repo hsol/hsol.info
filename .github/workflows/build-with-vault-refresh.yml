@@ -67,13 +67,21 @@ jobs:
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/hsol/hsol-info-blob.git"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
+          # Non-fast-forward 방지: 원격 최신 브랜치를 기준으로 로컬 작업 브랜치 구성
+          git fetch origin "${SUBMODULE_BRANCH}"
+          git switch -C ci-sync "origin/${SUBMODULE_BRANCH}"
           git add "$SITE_FILE" "$REF_FILE"
           if git diff --cached --quiet; then
             echo "No staged vault changes; skip submodule push."
             exit 0
           fi
           git commit -m "chore: vault sync from hsol.info CI (${{ github.sha }})"
-          git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"
+          # 동시 실행 경쟁이 있을 수 있어 rebase 후 1회 재시도
+          if ! git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"; then
+            git fetch origin "${SUBMODULE_BRANCH}"
+            git rebase "origin/${SUBMODULE_BRANCH}"
+            git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"
+          fi
 
       - name: Upload content refresh failure dumps
         if: failure()

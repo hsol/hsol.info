@@ -20,3 +20,4 @@
 - Ask Hansol API(`src/app/api/ask-hansol/route.ts`)는 시스템 프롬프트에 `vault/README.md`(vault 탐색·읽기 절차용 지침이며 답변 사실을 채우는 발췌 문서가 아님)와 `vault/object-views/AI-클론-운영-매뉴얼.md`를 넣고, Blob 토큰은 `ASK_HANSOL_BLOB_TOKEN`, `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_TOKEN` 순으로 쓴다. Claude는 `blob_lookup`으로 본문 근거 문서를 추가 조회한다.
 - Ask Hansol API가 서버 함수로 실제 배포되는 환경에서는 세션 히스토리 GET이 DB를 읽으므로 `export const dynamic = "force-dynamic"`으로 두고, 클라이언트 히스토리·질문 `fetch`에는 `cache: "no-store"`를 쓴다(`force-static`이면 GET이 빌드·CDN에 고정되어 대화 목록이 비어 보일 수 있다). 순수 정적 export만 쓰는 빌드와는 타깃이 다를 수 있다.
 - Ask Hansol 답변 URL 처리는 `src/lib/ask-hansol/answer-linkify.ts`에서 마크다운·괄호 등을 평문으로 정리한 뒤 클라이언트에서 분리 렌더하며, `https`/`http`뿐 아니라 `www.` 접두·스킴 없는 호스트 형태·`mailto:` 등도 링크로 인식한다.
+- Preview Deployment Protection 환경에서 `ask-hansol-selection`이 `ask-hansol`로 서버-서버 재호출할 때는 원 요청의 `cookie`/`authorization`을 전달해야 내부 호출 401을 피할 수 있다.
