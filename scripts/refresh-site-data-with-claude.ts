@@ -159,6 +159,40 @@ function dateRangeLabel(start: unknown, end: unknown): string {
   return `${s} - ${e}`;
 }
 
+/** `career[].tier` 를 personas 전체 키에 대해 채운다(`tier`가 숫자인 구형 입력·부분 객체·템플릿 폴백). */
+function mergeCareerItemTier(args: {
+  item: Record<string, unknown>;
+  personaKeys: readonly string[];
+  template: Record<string, number> | undefined;
+}): Record<string, number> {
+  const { item, personaKeys, template } = args;
+  const rawTier = item.tier;
+  const legacyScalar =
+    typeof rawTier === "number" && Number.isFinite(rawTier)
+      ? Math.max(1, Math.floor(rawTier))
+      : null;
+  const obj =
+    rawTier && typeof rawTier === "object" && !Array.isArray(rawTier)
+      ? (rawTier as Record<string, unknown>)
+      : null;
+
+  const out: Record<string, number> = {};
+  for (const pk of personaKeys) {
+    let v: number | null = null;
+    if (obj && typeof obj[pk] === "number" && Number.isFinite(obj[pk])) {
+      v = Math.max(1, Math.floor(obj[pk] as number));
+    } else if (legacyScalar !== null) {
+      v = legacyScalar;
+    }
+    if (v === null) {
+      const t = template?.[pk];
+      v = typeof t === "number" && Number.isFinite(t) ? Math.max(1, Math.floor(t)) : 1;
+    }
+    out[pk] = v;
+  }
+  return out;
+}
+
 function normalizeAlternateSiteDataShape(input: unknown): unknown {
   const src = toRecord(input);
   if (!src) return input;
@@ -239,6 +273,8 @@ function normalizeAlternateSiteDataShape(input: unknown): unknown {
   }
 
   if (Array.isArray(src.career) && src.career.length > 0) {
+    const personaKeys = out.personas.map((p) => p.key);
+    const tierTemplates = structuredClone(out.career).map((c) => c.tier);
     out.career = src.career
       .map((item) => toRecord(item))
       .filter((item): item is Record<string, unknown> => Boolean(item))
@@ -259,12 +295,11 @@ function normalizeAlternateSiteDataShape(input: unknown): unknown {
             ? toStringArray(item.tags)
             : [pickString(item.type, "경력") ?? "경력"],
           points: [desc],
-          tier:
-            typeof out.career[idx]?.tier === "number"
-              ? out.career[idx].tier
-              : idx < 2
-                ? 1
-                : 2,
+          tier: mergeCareerItemTier({
+            item,
+            personaKeys,
+            template: tierTemplates[idx],
+          }),
         };
       });
   }
@@ -620,10 +655,9 @@ async function main() {
 10) built* 필드에는 구현·운영 방식(아키텍처/데이터 흐름/운영 스택)만 요약하고, 문서에 없는 새로운 주장/수치를 만들지 않는다.
 11) builtCards 는 최소 3개 이상으로 구성하고, 제목 중복 없이 "목표/흐름/신뢰성/경험 설계" 관점을 우선 반영한다.
 12) builtFlow 는 최소 3개 이상의 단계(label)로 작성하고, 데이터 흐름 순서를 한 줄 다이어그램처럼 읽히게 구성한다.
-13) builtMermaid 는 mermaid 'flowchart LR' 문법의 문자열로 작성하고, 단계 노드 4개 이상과 연결 화살표를 포함한다.
-14) builtMermaid 는 파서 안정성을 위해 statement 구분을 ';'로 명시하고, 라벨에는 괄호·특수문자 대신 단순 텍스트를 사용한다.
-15) builtMermaid 라벨 텍스트에는 "\\n" 이스케이프를 넣지 않는다. (줄바꿈 대신 공백을 사용)
-16) builtPerspectives 는 hsol-info-소개-백데이터의 8개 관점 중 서로 다른 4개를 골라 title/summary로 압축한다.
+13) builtMermaid 는 mermaid 'flowchart LR' 문법의 문자열로 작성하고, 단계 노드 4개 이상과 연결 화살표를 포함한다. 파서 안정성을 위해 statement 구분을 ';'로 명시하고, 라벨에는 괄호·특수문자 대신 단순 텍스트를 사용한다. 라벨 텍스트에는 "\\n" 이스케이프를 넣지 않는다. (줄바꿈 대신 공백을 사용)
+14) builtPerspectives 는 hsol-info-소개-백데이터의 8개 관점 중 서로 다른 4개를 골라 title/summary로 압축한다.
+15) 각 career[i] 에는 tier 객체가 있어야 한다. tier 의 키는 personas[].key 와 정확히 일치해야 하며(추가·누락 금지), 값은 양의 정수다. 1이면 해당 페르소나 타임라인에서 기본 펼침, 2 이상이면 접힌 채로 시작한다. hire·collab·builder·curious 는 서로 다른 관점이므로, 모든 키에 같은 숫자만 반복해 넣지 말고 항목마다 관점별로 tier 를 다르게 정한다(정말로 네 관점 모두 동일한 중요도일 때만 예외).
 
 키 구조 템플릿(키 이름 고정 참고용):
 ${SITE_DATA_TEMPLATE}

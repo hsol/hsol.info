@@ -47,6 +47,25 @@ const COORDS: Record<string, string> = {
 
 type PersonaKey = "hire" | "collab" | "builder" | "curious";
 
+function filterCareerForPersona(
+  career: SiteData["career"],
+  personaKey: PersonaKey,
+  predicate: (item: SiteData["career"][number], index: number) => boolean,
+): { items: SiteData["career"]; itemTiers: number[] } {
+  const items: SiteData["career"] = [];
+  const itemTiers: number[] = [];
+  career.forEach((item, index) => {
+    if (predicate(item, index)) {
+      items.push(item);
+      const t = item.tier[personaKey];
+      itemTiers.push(
+        typeof t === "number" && Number.isFinite(t) ? Math.max(1, Math.floor(t)) : 1,
+      );
+    }
+  });
+  return { items, itemTiers };
+}
+
 /** `.shell` 안의 `[data-ask-section]` 중 뷰포트와 겹침이 가장 큰 블록 id를 Ask API `pageContext.detail`로 넘깁니다. */
 function useReportAskVisibleSection(
   shellRef: React.RefObject<HTMLDivElement | null>,
@@ -593,7 +612,8 @@ function ViewHead({
 // ---------- 01 HIRE ----------
 function HireView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
-  const tier1 = D.career.filter((c) => c.tier === 1);
+  const tier1Count = D.career.filter((c) => c.tier.hire === 1).length;
+  const hireTiers = D.career.map((c) => c.tier.hire);
   return (
     <div className="view">
       <Back onBack={onBack} />
@@ -608,8 +628,11 @@ function HireView({ onBack }: { onBack: () => void }) {
         <Pillars />
       </div>
       <div className="sec" data-ask-section="hire/experience">
-        <SecHead title="Selected experience" num="02" meta={`${tier1.length} roles`} />
-        <CareerList items={tier1} />
+        <SecHead title="Career timeline" num="02" meta={`${D.career.length} roles · ${tier1Count} selected`} />
+        <p className="career-curation-note">
+          전체 경력을 시간순으로 열람할 수 있고, 채용 관점에서 특히 관련 있는 항목은 기본 펼침으로 큐레이션해 두었습니다.
+        </p>
+        <CareerList items={D.career} itemTiers={hireTiers} highlightTier1 />
       </div>
       <div className="sec" data-ask-section="hire/facts">
         <SecHead title="Facts" num="03" meta="basic" />
@@ -631,6 +654,14 @@ function HireView({ onBack }: { onBack: () => void }) {
 // ---------- 02 COLLAB ----------
 function CollabView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
+  const collabCareer = filterCareerForPersona(
+    D.career,
+    "collab",
+    (c) =>
+      c.period.includes("현재") ||
+      (c.tags || []).includes("자문") ||
+      c.org === "Antler",
+  );
   return (
     <div className="view">
       <Back onBack={onBack} />
@@ -640,12 +671,8 @@ function CollabView({ onBack }: { onBack: () => void }) {
         title={renderTitleLines(D.viewHeaders.collab.titleLines)}
         lede={D.viewHeaders.collab.lede} />
       
-      <div className="sec" data-ask-section="collab/building">
-        <SecHead title="What I'm building now" num="01" meta="active" />
-        <CareerList items={D.career.filter((c) => c.period.includes("현재"))} />
-      </div>
       <div className="sec" data-ask-section="collab/methods">
-        <SecHead title="How I work" num="02" meta="approach" />
+        <SecHead title="How I work" num="01" meta="approach" />
         <div className="pillars">
           {D.portfolioCopy.collab.methods.map((method) => (
             <div className="pillar" key={method.no}>
@@ -657,9 +684,16 @@ function CollabView({ onBack }: { onBack: () => void }) {
           ))}
         </div>
       </div>
-      <div className="sec" data-ask-section="collab/advisory">
-        <SecHead title="Past advisory" num="03" meta="reference" />
-        <CareerList items={D.career.filter((c) => (c.tags || []).includes("자문") || c.org === "Antler")} />
+      <div className="sec" data-ask-section="collab/career">
+        <SecHead
+          title="What I'm building & advisory"
+          num="02"
+          meta={`${collabCareer.items.length} roles · active + reference`}
+        />
+        <p className="career-curation-note">
+          현재 진행 중인 역할과 자문·인큐베이션 경험을 한 목록에 시간순으로 모았습니다. 협업 관점에서 특히 관련 있는 항목은 기본으로 펼쳐 두었고, 나머지는 접어 한 줄로 보입니다. 왼쪽 + 로 펼칠 수 있습니다.
+        </p>
+        <CareerList items={collabCareer.items} itemTiers={collabCareer.itemTiers} highlightTier1 />
       </div>
       <CoffeeCTA
         title={D.portfolioCopy.collab.coffee.title}
@@ -672,6 +706,7 @@ function CollabView({ onBack }: { onBack: () => void }) {
 // ---------- 03 BUILDER ----------
 function BuilderView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
+  const builderTiers = D.career.map((c) => c.tier.builder);
   return (
     <div className="view">
       <Back onBack={onBack} />
@@ -694,8 +729,11 @@ function BuilderView({ onBack }: { onBack: () => void }) {
         </div>
       </div>
       <div className="sec" data-ask-section="builder/career">
-        <SecHead title="Career as engineer" num="02" meta="full timeline" />
-        <CareerList items={D.career} />
+        <SecHead title="Career as builder" num="02" meta="full timeline" />
+        <p className="career-curation-note">
+          전체 경력을 시간순으로 열람할 수 있고, 빌더 관점에서 특히 관련 있는 항목은 기본 펼침으로 두었습니다. 나머지는 접어 두었으며 왼쪽 + 로 펼칠 수 있습니다.
+        </p>
+        <CareerList items={D.career} itemTiers={builderTiers} highlightTier1 />
       </div>
       <div className="sec" data-ask-section="builder/writing">
         <SecHead title="Writing" num="03" meta="publications" />

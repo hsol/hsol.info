@@ -30,6 +30,9 @@ const PersonaSchema = z.object({
   hint: z.string().min(1),
 });
 
+/** 페르소나 키 → 타임라인 큐레이션 tier(1이면 기본 펼침, 2 이상이면 접힌 채로 시작). */
+const CareerPersonaTierSchema = z.record(z.string(), z.number().int().positive());
+
 const CareerItemSchema = z.object({
   org: z.string().min(1),
   orgEn: z.string().min(1),
@@ -37,7 +40,7 @@ const CareerItemSchema = z.object({
   period: z.string().min(1),
   tags: z.array(z.string().min(1)).min(1),
   points: z.array(z.string().min(1)).min(1),
-  tier: z.number().int().positive(),
+  tier: CareerPersonaTierSchema,
 });
 
 const EducationSchema = z.object({
@@ -103,7 +106,8 @@ const HomeBuiltPerspectiveSchema = z.object({
   summary: z.string().min(1),
 });
 
-export const siteDataSchema = z.object({
+export const siteDataSchema = z
+  .object({
   identity: IdentitySchema,
   pillars: z.array(PillarSchema).min(1),
   personas: z.array(PersonaSchema).min(1),
@@ -184,6 +188,30 @@ export const siteDataSchema = z.object({
   languages: z.array(LanguageSchema).min(1),
   publications: z.array(PublicationSchema).min(1),
   faq: z.array(FaqItemSchema).min(1),
-});
+})
+  .superRefine((data, ctx) => {
+    const personaKeys = data.personas.map((p) => p.key);
+    const keySet = new Set(personaKeys);
+    data.career.forEach((item, i) => {
+      for (const pk of personaKeys) {
+        if (typeof item.tier[pk] !== "number") {
+          ctx.addIssue({
+            code: "custom",
+            message: `career[${i}].tier에 personas.key "${pk}" 가 필요합니다.`,
+            path: ["career", i, "tier", pk],
+          });
+        }
+      }
+      for (const k of Object.keys(item.tier)) {
+        if (!keySet.has(k)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `career[${i}].tier에 알 수 없는 페르소나 키 "${k}"가 있습니다.`,
+            path: ["career", i, "tier", k],
+          });
+        }
+      }
+    });
+  });
 
 export type SiteData = z.infer<typeof siteDataSchema>;
