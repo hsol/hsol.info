@@ -41,7 +41,20 @@ jobs:
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
         run: npm run content:refresh:claude
 
-      - name: Commit and push site-data to hsol-info-blob submodule
+      # vault/object-views만 바뀌어도 Blob·generate 파이프라인이 돌도록, 부모 커밋 SHA를 vault에 항상 남긴다.
+      - name: Record hsol.info parent SHA in submodule vault
+        run: |
+          set -euo pipefail
+          REF_FILE="hsol-info-blob/vault/object-views/hsol-info-parent-ref.json"
+          mkdir -p "$(dirname "$REF_FILE")"
+          jq -n \
+            --arg sha "${{ github.sha }}" \
+            --arg ref "${{ github.ref }}" \
+            --argjson run ${{ github.run_id }} \
+            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{parentSha:$sha, parentRef:$ref, workflowRunId:$run, recordedAt:$at}' > "$REF_FILE"
+
+      - name: Commit and push vault updates to hsol-info-blob submodule
         env:
           TOKEN: ${{ secrets.SUBMODULES_PAT }}
           # Push target on hsol-info-blob (parent pins submodule SHA; we commit on that commit then update this branch)
@@ -49,20 +62,17 @@ jobs:
         run: |
           set -euo pipefail
           SITE_FILE="vault/object-views/site-data.json"
+          REF_FILE="vault/object-views/hsol-info-parent-ref.json"
           cd hsol-info-blob
-          if git diff --quiet HEAD -- "$SITE_FILE" 2>/dev/null; then
-            echo "No changes under $SITE_FILE; skip submodule push."
-            exit 0
-          fi
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/hsol/hsol-info-blob.git"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add "$SITE_FILE"
+          git add "$SITE_FILE" "$REF_FILE"
           if git diff --cached --quiet; then
-            echo "Nothing to commit."
+            echo "No staged vault changes; skip submodule push."
             exit 0
           fi
-          git commit -m "chore: refresh site-data from hsol.info (${{ github.sha }})"
+          git commit -m "chore: vault sync from hsol.info CI (${{ github.sha }})"
           git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"
 
       - name: Upload content refresh failure dumps
