@@ -55,10 +55,18 @@ export async function POST(req: Request) {
     }
 
     const askEndpoint = new URL("/api/ask-hansol", req.url).toString();
+    const forwardedHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    // Preview 보호가 켜진 경우 내부 재호출에도 인증 쿠키/토큰을 전달해야 401을 피할 수 있다.
+    const cookie = req.headers.get("cookie");
+    if (cookie) forwardedHeaders.cookie = cookie;
+    const authorization = req.headers.get("authorization");
+    if (authorization) forwardedHeaders.authorization = authorization;
     const response = await fetch(askEndpoint, {
       method: "POST",
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers: forwardedHeaders,
       body: JSON.stringify({
         query: buildSelectionQuery(selectedText),
         sessionId,
