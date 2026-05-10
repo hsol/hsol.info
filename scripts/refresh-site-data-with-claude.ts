@@ -57,6 +57,13 @@ function logStep(message: string) {
   console.log(`[refresh-site-data][${now}] ${message}`);
 }
 
+/** `npm run content:refresh:claude -- force` 또는 `CONTENT_REFRESH_FORCE=1` */
+function isForceRefresh(): boolean {
+  const env = process.env.CONTENT_REFRESH_FORCE?.trim().toLowerCase();
+  if (env === "1" || env === "true" || env === "yes") return true;
+  return process.argv.slice(2).includes("force");
+}
+
 function extractJson(text: string): unknown {
   const trimmed = text.trim();
 
@@ -613,7 +620,11 @@ async function main() {
 
   const { text: currentSiteDataText, exists: hasExistingSiteData } = await getExistingSiteDataText();
   const changedVaultFiles = await detectChangedVaultFiles();
-  if (hasExistingSiteData && changedVaultFiles.length === 0) {
+  const forceRefresh = isForceRefresh();
+  if (forceRefresh) {
+    logStep("Force refresh: vault diff empty guard skipped.");
+  }
+  if (hasExistingSiteData && changedVaultFiles.length === 0 && !forceRefresh) {
     logStep("No vault file changes detected for this deployment. Keep existing site-data as-is.");
     return;
   }
