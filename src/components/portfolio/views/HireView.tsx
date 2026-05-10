@@ -8,7 +8,7 @@ import {
   SecHead,
   useSiteData,
 } from "@/components/portfolio/Atoms";
-import { renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
+import { PersonaTimelineIntro, renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
 
 export function HireView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
@@ -30,6 +30,7 @@ export function HireView({ onBack }: { onBack: () => void }) {
       </div>
       <div className="sec" data-ask-section="hire/experience">
         <SecHead title="Career timeline" num="02" meta={`${D.career.length} roles · ${tier1Count} selected`} />
+        <PersonaTimelineIntro text={D.portfolioCopy.hire.timelineIntro} />
         <p className="career-curation-note">
           전체 경력을 시간순으로 열람할 수 있고, 채용 관점에서 특히 관련 있는 항목은 기본 펼침으로 큐레이션해 두었습니다.
         </p>

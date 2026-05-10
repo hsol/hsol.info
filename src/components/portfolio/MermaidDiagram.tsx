@@ -2,8 +2,23 @@
 
 import { useMemo } from "react";
 import { useMermaid } from "react-x-mermaid";
+import { MermaidPanZoomViewport } from "@/components/portfolio/MermaidPanZoomViewport";
 
-export function MermaidDiagram({ chart }: { chart: string }) {
+export function MermaidDiagram({
+  chart,
+  diagramHead,
+  panZoom = false,
+}: {
+  chart: string;
+  /** 상단 라벨. 생략 시 "Mermaid Diagram", `null`·빈 문자열이면 라벨 행 숨김 */
+  diagramHead?: string | null;
+  /** 고정 뷰포트 안에서 휠 확대·축소, 드래그 이동 */
+  panZoom?: boolean;
+}) {
+  const headLabel =
+    diagramHead === null || diagramHead === ""
+      ? null
+      : (diagramHead ?? "Mermaid Diagram");
   const chartText = useMemo(() => {
     const s = chart.trim();
     if (!s) return "graph LR; EMPTY[No diagram data];";
@@ -29,17 +44,22 @@ export function MermaidDiagram({ chart }: { chart: string }) {
       flowchart: {
         htmlLabels: false,
         curve: "linear" as const,
-        useMaxWidth: true,
+        /** pan-zoom 모드에서는 자연 크기로 그려 측정·줌이 맞게 동작 */
+        useMaxWidth: !panZoom,
       },
     }),
-    [],
+    [panZoom],
   );
   const { ref, error } = useMermaid(chartText, mermaidConfig);
 
+  const chartEl = (
+    <div className={"home-built-mermaid" + (panZoom ? " is-panzoom-inner" : "")} ref={ref} />
+  );
+
   return (
     <div className="home-built-mermaid-wrap" aria-label="How this site works diagram">
-      <div className="home-built-mermaid-head">Mermaid Diagram</div>
-      <div className="home-built-mermaid" ref={ref} />
+      {headLabel != null ? <div className="home-built-mermaid-head">{headLabel}</div> : null}
+      {panZoom ? <MermaidPanZoomViewport>{chartEl}</MermaidPanZoomViewport> : chartEl}
       {error ? <pre className="home-built-mermaid-fallback">{error}</pre> : null}
     </div>
   );
