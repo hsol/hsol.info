@@ -158,6 +158,29 @@ function toStringArray(input: unknown): string[] {
     .filter(Boolean);
 }
 
+function normalizeCareerPoints(args: {
+  rawPoints: unknown;
+  fallbackDesc: string;
+  role: string;
+  org: string;
+}): string[] {
+  const base = toStringArray(args.rawPoints);
+  const seed = [
+    ...base,
+    args.fallbackDesc.trim(),
+    `${args.org}에서 ${args.role} 역할 수행`,
+    "실무 맥락에서 실행과 협업을 통해 결과를 만들었다.",
+    "문제 정의부터 실행·개선까지 책임지고 운영했다.",
+  ]
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const deduped = [...new Set(seed)];
+  while (deduped.length < 3) {
+    deduped.push(`핵심 책임: ${args.role}`);
+  }
+  return deduped.slice(0, 5);
+}
+
 function dateRangeLabel(start: unknown, end: unknown): string {
   const s = typeof start === "string" && start.trim() ? start.trim() : "";
   const e = typeof end === "string" && end.trim() ? end.trim() : "현재";
@@ -301,7 +324,12 @@ function normalizeAlternateSiteDataShape(input: unknown): unknown {
           tags: toStringArray(item.tags).length > 0
             ? toStringArray(item.tags)
             : [pickString(item.type, "경력") ?? "경력"],
-          points: [desc],
+          points: normalizeCareerPoints({
+            rawPoints: item.points,
+            fallbackDesc: desc,
+            role,
+            org,
+          }),
           tier: mergeCareerItemTier({
             item,
             personaKeys,
@@ -659,7 +687,8 @@ async function main() {
 3) 근거·우선순위: [HIGH_PRIORITY_CONTEXT]를 최우선. 아래 [참조 vault 컨텍스트]에 실제로 나온 내용으로만 사실·고유명사·기간을 뒷받침하고, 증거 없는 추측·새 주장·새 수치는 넣지 않는다. 애매하면 기존 site-data 값을 유지한다. 한국어 톤은 같은 세션에 포함된 작문 가이드에 맞추고, 빈 수식어 남용은 피한다.
 4) portfolioCopy.home 의 builtTitle~builtPerspectives: 이 프롬프트에 실린 hsol.info 프로젝트 설명·소개 백데이터를 1차 근거로 하고, 구현·데이터 흐름·운영 방식만 요약한다(문서 밖 주장·수치 금지). builtCards는 3개 이상·제목 중복 없이 목표/흐름/신뢰성/경험 설계 성격. builtFlow는 3단계 이상·한 줄로 읽히는 순서. builtMermaid는 mermaid flowchart LR, 노드 4개 이상·화살표 포함, statement는 ';'로 구분, 라벨은 단순 텍스트·라벨에 "\\n" 금지. builtPerspectives는 소개 백데이터 8관점 중 서로 다른 4개를 title/summary로 압축.
 5) 페르소나(hire/collab/builder/curious): portfolioCopy 쪽 timelineIntro는 필수. 문단은 JSON에서 \\n\\n. (1) 한 줄 포지셔닝 (2) 기관·역할·기간·도메인 등 구체를 최소 2곳 이상 녹인 근거 (3) 타임라인으로 자연스럽게 이어지는 마무리. hire/collab/builder/curious 각각 채용·협업·동료 빌더·인간 궤적 독자에 맞는 설득 축을 분명히 한다. viewHeaders의 titleLines·lede는 같은 근거로 timelineIntro와 모순 없이 짝을 이루게(lede는 1~2문장 첫인상, 서사는 timelineIntro). collab 방법론·curious 노트 등 몸통 블러브도 동일 근거·항목마다 다른 각도로 배치한다.
-6) career[i].tier: 키는 personas[].key 와 정확히 일치·값은 양의 정수(1=기본 펼침, 2+=접힘). 관점별로 의미 있게 차등하고, 네 관점 전부 동일 중요도가 아니면 숫자만 복붙하지 않는다.
+6) career[i].points는 항목당 3개 이상 5개 이하로 유지한다(빈 bullet 금지).
+7) career[i].tier: 키는 personas[].key 와 정확히 일치·값은 양의 정수(1=기본 펼침, 2+=접힘). 관점별로 의미 있게 차등하고, 네 관점 전부 동일 중요도가 아니면 숫자만 복붙하지 않는다.
 
 키 구조 템플릿(키 이름 고정 참고용):
 ${SITE_DATA_TEMPLATE}

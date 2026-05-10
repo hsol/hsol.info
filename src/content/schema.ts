@@ -39,7 +39,7 @@ const CareerItemSchema = z.object({
   role: z.string().min(1),
   period: z.string().min(1),
   tags: z.array(z.string().min(1)).min(1),
-  points: z.array(z.string().min(1)).min(1),
+  points: z.array(z.string().min(1)).min(3).max(5),
   tier: CareerPersonaTierSchema,
 });
 
