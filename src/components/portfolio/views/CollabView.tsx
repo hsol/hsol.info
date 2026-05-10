@@ -1,19 +1,12 @@
 "use client";
 
 import { Back, CareerList, CoffeeCTA, SecHead, useSiteData } from "@/components/portfolio/Atoms";
-import { filterCareerForPersona } from "@/components/portfolio/career-utils";
 import { renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
 
 export function CollabView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
-  const collabCareer = filterCareerForPersona(
-    D.career,
-    "collab",
-    (c) =>
-      c.period.includes("현재") ||
-      (c.tags || []).includes("자문") ||
-      c.org === "Antler",
-  );
+  const collabTiers = D.career.map((c) => c.tier.collab);
+  const tier1Count = collabTiers.filter((t) => t === 1).length;
   return (
     <div className="view">
       <Back onBack={onBack} />
@@ -41,13 +34,13 @@ export function CollabView({ onBack }: { onBack: () => void }) {
         <SecHead
           title="What I'm building & advisory"
           num="02"
-          meta={`${collabCareer.items.length} roles · active + reference`}
+          meta={`${D.career.length} roles · full timeline · ${tier1Count} highlighted`}
         />
         <p className="career-curation-note">
-          현재 진행 중인 역할과 자문·인큐베이션 경험을 한 목록에 시간순으로 모았습니다. 협업 관점에서 특히 관련 있는 항목은
-          기본으로 펼쳐 두었고, 나머지는 접어 한 줄로 보입니다. 왼쪽 + 로 펼칠 수 있습니다.
+          전체 경력을 시간순으로 열람할 수 있고, 협업·자문·빌딩 관점에서 특히 관련 있는 항목은 기본 펼침으로 두었습니다. 나머지는
+          접어 두었으며 왼쪽 + 로 펼칠 수 있습니다.
         </p>
-        <CareerList items={collabCareer.items} itemTiers={collabCareer.itemTiers} highlightTier1 />
+        <CareerList items={D.career} itemTiers={collabTiers} highlightTier1 />
       </div>
       <CoffeeCTA title={D.portfolioCopy.collab.coffee.title} sub={D.portfolioCopy.collab.coffee.sub} />
     </div>
