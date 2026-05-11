@@ -7,10 +7,11 @@
 - 가족·배우자·결혼 여부 등은 vault에 적혀 있으면 Ask 답변에 말해도 되고, 운영 매뉴얼의 "외부 비공개" 문구만으로 vault에 있는 사실을 숨기거나 거절하는 답은 원하지 않는다.
 - ChatDock이 열릴 때는 플로팅 ASK 버튼을 숨기고(투명 영역의 × FAB로 바꾸지 않음), 닫기는 헤더의 ×만 쓰길 기대한다.
 - Ask Hansol(특히 드래그·선택 텍스트로 이어지는 질문)은 과친한 칭찬·환호로 시작하는 도입부 없이 담백하게 본론 위주로 답하길 기대한다. 쉬운 풀이식 설명보다는 포트폴리오 본문만으로 부족할 때 보완하는 수준의 밀도를 선호한다.
+- `content:refresh:claude`로 채워지는 방문자 노출 한국어 카피는 자기소개서형 첫 문장·이름 주도 템플릿(예: 「저는 ~로」「~은」으로 문단 시작)을 피하고, 해당 스크립트에 적어 둔 전역 산문 문체 규칙을 따르길 기대한다.
 
 ## Learned Workspace Facts
 
-- 이 저장소의 Vercel 배포 대상 프로젝트는 팀 `hsol`의 `hsol-info`이다(`vercel link --scope hsol --project hsol-info`로 맞출 수 있다).
+- 이 저장소의 Vercel 배포 대상 프로젝트는 팀 `hsol`의 `hsol-info`이다(`vercel link --scope hsol --project hsol-info`로 맞출 수 있다). Web Analytics를 쓰려면 해당 프로젝트에서 기능을 활성화하고 루트 레이아웃에 `@vercel/analytics/next`의 `<Analytics />`를 둔다([시작 가이드](https://vercel.com/docs/analytics/quickstart?framework=nextjs)).
 - `vercel env pull`은 기본이 development 환경이라, Production·Preview에만 있는 변수는 `.env.local`에 포함되지 않을 수 있다.
 - Next.js 정적보내기(`output: "export"`, 산출물 `out/`)와 함께 쓸 때는 `vercel.json`에 `outputDirectory`를 중복으로 넣지 않는 편이 안전하며, 이 모드에서는 `app/api/*`가 배포되지 않아 `/api/*`가 404가 될 수 있다.
 - 정적 export 빌드에서는 `dynamic = "force-dynamic"` 같은 강제 동적 페이지를 쓰면 export가 실패한다. `getSiteData()`는 Blob → `hsol-info-blob/vault/object-views/site-data.json` → 커밋된 `src/data/site.ts`의 `HSOL_DATA` 순으로 폴백한다.
@@ -21,3 +22,4 @@
 - Ask Hansol API가 서버 함수로 실제 배포되는 환경에서는 세션 히스토리 GET이 DB를 읽으므로 `export const dynamic = "force-dynamic"`으로 두고, 클라이언트 히스토리·질문 `fetch`에는 `cache: "no-store"`를 쓴다(`force-static`이면 GET이 빌드·CDN에 고정되어 대화 목록이 비어 보일 수 있다). 순수 정적 export만 쓰는 빌드와는 타깃이 다를 수 있다.
 - Ask Hansol 답변 URL 처리는 `src/lib/ask-hansol/answer-linkify.ts`에서 마크다운·괄호 등을 평문으로 정리한 뒤 클라이언트에서 분리 렌더하며, `https`/`http`뿐 아니라 `www.` 접두·스킴 없는 호스트 형태·`mailto:` 등도 링크로 인식한다.
 - Preview Deployment Protection 환경에서 `ask-hansol-selection`이 `ask-hansol`로 서버-서버 재호출할 때는 원 요청의 `cookie`/`authorization`을 전달해야 내부 호출 401을 피할 수 있다.
+- Actions secret `SUBMODULES_PAT`는 서브모듈 체크아웃과 `hsol-info-blob` 원격 브랜치 푸시에 쓰이며, fine-grained PAT는 대상 저장소 **Contents 읽기·쓰기**(classic은 `repo`)와 조직 SSO authorize가 필요하다. `build-with-vault-refresh` 등에서 원격이 앞설 때는 fetch·작업 브랜치 재구성 또는 rebase 후 push 재시도로 non-fast-forward를 흡수한다. 포트폴리오 등에서 쓰는 대형 Mermaid `classDef` 클래스명은 페이지 전역 CSS(예: `.view`)와 선택자 충돌하지 않도록 `mermaid-` 같은 접두를 둔다. `siteData.career[].points`는 항목당 3개 이상 5개 이하만 유효하다(Zod 및 refresh 폴백이 맞춘다).
