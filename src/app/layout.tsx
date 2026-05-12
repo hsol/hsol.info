@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
+import { GoogleAnalyticsReporter } from "@/components/GoogleAnalyticsReporter";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -57,11 +59,41 @@ export default function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
+  /** 전체 값 예: `ca-pub-7020502027743099` — `NEXT_PUBLIC_ADSENSE_CLIENT_ID` */
+  const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim();
+
   return (
     <html lang="ko" className={jetbrainsMono.variable}>
+      <head>
+        {adsenseClientId ? (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(adsenseClientId)}`}
+            crossOrigin="anonymous"
+          />
+        ) : null}
+      </head>
       <body>
         {children}
         <Analytics />
+        {gaMeasurementId ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaMeasurementId}');
+              `}
+            </Script>
+            <GoogleAnalyticsReporter measurementId={gaMeasurementId} />
+          </>
+        ) : null}
       </body>
     </html>
   );

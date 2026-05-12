@@ -388,6 +388,10 @@ export function CareerList({
   itemTiers?: readonly number[];
   highlightTier1?: boolean;
 }) {
+  /** 부모가 매 렌더 `map`으로 새 배열을 넘기면 객체 참조만 바뀌어 동일 데이터인데도 useMemo가 매번 갱신된다 → 시그니처로 안정화 */
+  const itemsSignature = items.map((c) => `${c.period}|${c.org}|${c.role}`).join("\0");
+  const itemTiersKey = itemTiers?.join("\0") ?? "";
+
   const initialCollapsed = useMemo(() => {
     if (!highlightTier1) return {};
     return Object.fromEntries(
@@ -396,7 +400,9 @@ export function CareerList({
         return [`${c.period}-${c.org}-${c.role}-${i}`, tier !== 1];
       }),
     ) as Record<string, boolean>;
-  }, [items, itemTiers, highlightTier1]);
+    // items / itemTiers 내용은 itemsSignature·itemTiersKey에 반영됨(참조만 바뀌는 재렌더에서 접힘 상태가 덮어씌워지지 않게)
+  }, [highlightTier1, itemsSignature, itemTiersKey]);
+
   const [collapsedByKey, setCollapsedByKey] = useState<Record<string, boolean>>(initialCollapsed);
 
   useEffect(() => {
