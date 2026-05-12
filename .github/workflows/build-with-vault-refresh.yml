@@ -41,19 +41,6 @@ jobs:
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
         run: npm run content:refresh:claude
 
-      # vault/object-views만 바뀌어도 Blob·generate 파이프라인이 돌도록, 부모 커밋 SHA를 vault에 항상 남긴다.
-      - name: Record hsol.info parent SHA in submodule vault
-        run: |
-          set -euo pipefail
-          REF_FILE="hsol-info-blob/vault/object-views/hsol-info-parent-ref.json"
-          mkdir -p "$(dirname "$REF_FILE")"
-          jq -n \
-            --arg sha "${{ github.sha }}" \
-            --arg ref "${{ github.ref }}" \
-            --argjson run ${{ github.run_id }} \
-            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            '{parentSha:$sha, parentRef:$ref, workflowRunId:$run, recordedAt:$at}' > "$REF_FILE"
-
       - name: Commit and push vault updates to hsol-info-blob submodule
         env:
           TOKEN: ${{ secrets.SUBMODULES_PAT }}
@@ -67,9 +54,24 @@ jobs:
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/hsol/hsol-info-blob.git"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          # Non-fast-forward 방지: 원격 최신 브랜치를 기준으로 로컬 작업 브랜치 구성
           git fetch origin "${SUBMODULE_BRANCH}"
+          # refresh 등으로 작업 트리가 더러우면 switch 전에 stash(미추적 ref 포함). 그렇지 않으면 checkout 거부됨.
+          STASHED=0
+          if [ -n "$(git status --porcelain --untracked-files=all -- "$SITE_FILE" "$REF_FILE" 2>/dev/null || true)" ]; then
+            git stash push -u -m "hsol.info-ci pre-sync" -- "$SITE_FILE" "$REF_FILE"
+            STASHED=1
+          fi
           git switch -C ci-sync "origin/${SUBMODULE_BRANCH}"
+          if [ "$STASHED" -eq 1 ]; then
+            git stash pop
+          fi
+          mkdir -p "$(dirname "$REF_FILE")"
+          jq -n \
+            --arg sha "${{ github.sha }}" \
+            --arg ref "${{ github.ref }}" \
+            --argjson run ${{ github.run_id }} \
+            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{parentSha:$sha, parentRef:$ref, workflowRunId:$run, recordedAt:$at}' > "$REF_FILE"
           git add "$SITE_FILE" "$REF_FILE"
           if git diff --cached --quiet; then
             echo "No staged vault changes; skip submodule push."
