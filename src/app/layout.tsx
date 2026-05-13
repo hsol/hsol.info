@@ -139,6 +139,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={jetbrainsMono.variable}>
       <head>
+        <meta property="og:logo" content={`${SITE_URL}/icons/icon-512.png`} />
         <script
           type="application/ld+json"
           // JSON.stringify 결과는 안전하게 직렬화된 JSON 문자열
