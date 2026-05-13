@@ -17,24 +17,45 @@ export const viewport = {
   themeColor: "#0e2a3d",
 };
 
+const SITE_URL = "https://hsol.info";
+const SITE_TITLE = "임한솔 · Hansol Lim — hsol.info";
+const SITE_DESCRIPTION =
+  "임한솔(Hansol Lim) — 프루퍼 ㈜ 대표 · PPB Studios 팀장. 온라인의 기술과 오프라인의 운영을 잇는 AI 클론 포트폴리오 hsol.info. Ask Hansol과 대화하며 10년+ 엔지니어 출신 메이커의 일과 생각을 살펴봅니다.";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://hsol.info"),
-  title: "임한솔 · Hansol Lim — hsol.info",
-  description:
-    "임한솔(Hansol Lim) — 프루퍼 ㈜ 대표 · PPB Studios 팀장. 온라인의 기술과 오프라인의 운영을 잇는 일을 합니다. 10년+ 엔지니어 출신 메이커.",
-  authors: [{ name: "임한솔 (Hansol Lim)" }],
-  alternates: { canonical: "/" },
-  icons: {
-    icon: [{ url: "/signature.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/og.png" }],
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: "%s — hsol.info" },
+  description: SITE_DESCRIPTION,
+  applicationName: "hsol.info",
+  authors: [{ name: "임한솔 (Hansol Lim)", url: SITE_URL }],
+  creator: "임한솔 (Hansol Lim)",
+  publisher: "임한솔 (Hansol Lim)",
+  category: "portfolio",
+  keywords: [
+    "임한솔",
+    "Hansol Lim",
+    "hsol",
+    "hsol.info",
+    "프루퍼",
+    "Proofer",
+    "PPB Studios",
+    "AI 포트폴리오",
+    "AI 클론",
+    "Ask Hansol",
+    "엔지니어 출신 메이커",
+    "온라인 오프라인",
+  ],
+  alternates: {
+    canonical: "/",
+    languages: { "ko-KR": "/", "x-default": "/" },
   },
+  formatDetection: { telephone: false, email: false, address: false },
   openGraph: {
     type: "profile",
     siteName: "hsol.info",
-    title: "임한솔 · Hansol Lim — hsol.info",
-    description:
-      "온라인의 기술과 오프라인의 운영을 잇는 임한솔입니다. 프루퍼 ㈜ 대표 · PPB Studios 팀장. 10년+ 엔지니어.",
-    url: "https://hsol.info/",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: `${SITE_URL}/`,
     images: [
       {
         url: "/og.png",
@@ -47,11 +68,63 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "임한솔 · Hansol Lim — hsol.info",
-    description:
-      "온라인의 기술과 오프라인의 운영을 잇는 임한솔입니다. 프루퍼 ㈜ 대표 · PPB Studios 팀장.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: ["/og.png"],
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+};
+
+/** schema.org Person + WebSite JSON-LD — 검색엔진 지식 패널·리치 스니펫 노출에 사용 */
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": `${SITE_URL}/#person`,
+      name: "임한솔",
+      alternateName: ["Hansol Lim", "hsol"],
+      url: SITE_URL,
+      image: `${SITE_URL}/og.png`,
+      jobTitle: "대표 / 메이커",
+      description:
+        "프루퍼 ㈜ 대표이자 PPB Studios 팀장. 10년+ 엔지니어 출신 메이커로, 온라인의 기술과 오프라인의 운영을 잇는 일을 합니다.",
+      worksFor: [
+        {
+          "@type": "Organization",
+          name: "프루퍼 ㈜ (Proofer)",
+          url: "https://proofer.tech",
+        },
+        { "@type": "Organization", name: "PPB Studios" },
+      ],
+      sameAs: [
+        "https://www.linkedin.com/in/hsolim/",
+        "https://github.com/hsol",
+        "https://medium.com/@hsol",
+        "https://gravatar.com/hsolim",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "hsol.info",
+      alternateName: "임한솔 · Hansol Lim",
+      description: SITE_DESCRIPTION,
+      inLanguage: "ko-KR",
+      author: { "@id": `${SITE_URL}/#person` },
+      publisher: { "@id": `${SITE_URL}/#person` },
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -66,6 +139,11 @@ export default function RootLayout({
   return (
     <html lang="ko" className={jetbrainsMono.variable}>
       <head>
+        <script
+          type="application/ld+json"
+          // JSON.stringify 결과는 안전하게 직렬화된 JSON 문자열
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+        />
         {adsenseClientId ? (
           <script
             async
