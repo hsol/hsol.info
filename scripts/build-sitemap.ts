@@ -11,9 +11,10 @@ import { PERSONA_PATH_KEYS } from "../src/components/portfolio/portfolio-types";
  * - `SITE_URL`은 trailing slash 없음 (각 페이지 `<link rel="canonical">`과 정확히 일치시키기 위함).
  * - `<lastmod>`는 빌드 시각으로 통일 (SSR 사이트라 페이지별 정확한 변경 시각을 알기 어렵다).
  * - 엔트리 순서는 priority 내림차순으로 정렬해 사람이 읽기 쉽게.
+ * - 동일 본문을 `public/sitemap.xml`과 `public/sitemap`에 모두 쓴다(리다이렉트 없이 공존).
  */
 const SITE_URL = "https://hsol.info";
-const OUTPUT_PATH = "public/sitemap.xml";
+const OUTPUT_PATHS = ["public/sitemap.xml", "public/sitemap"] as const;
 
 type ChangeFreq =
   | "always"
@@ -80,13 +81,15 @@ async function main() {
   const entries = buildEntries(now);
   const xml = renderXml(entries);
 
-  await mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
-  await writeFile(OUTPUT_PATH, xml, "utf8");
-  console.log(`Generated ${OUTPUT_PATH} (${entries.length} urls)`);
+  for (const outputPath of OUTPUT_PATHS) {
+    await mkdir(path.dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, xml, "utf8");
+    console.log(`Generated ${outputPath} (${entries.length} urls)`);
+  }
 }
 
 main().catch((error) => {
-  console.error("Failed to generate sitemap.xml");
+  console.error("Failed to generate sitemap");
   console.error(error);
   process.exit(1);
 });
