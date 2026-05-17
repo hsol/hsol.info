@@ -13,17 +13,26 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  async redirects() {
+    return [
+      {
+        source: "/sitemap.xml",
+        destination: "/sitemap",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
-        source: '/sitemap.xml',
+        source: "/sitemap",
         headers: [
-          { key: 'Content-Type', value: 'application/xml' },
-          { key: 'Cache-Control', value: 'public, max-age=3600, s-maxage=3600' },
+          { key: "Content-Type", value: "application/xml" },
+          { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600" },
         ],
       },
     ];
-  }
+  },
 };
 
 export default nextConfig;
