@@ -10,15 +10,15 @@
   --bp-wall:    #1d4866;   /* card surface */
   --bp-line:    #2e6889;   /* gridline */
   --bp-line-2:  #3d7a9c;   /* stronger gridline */
-  --bp-soft:    #5e93b1;   /* signature soft */
+  --bp-soft:    #82aac0;   /* signature soft — WCAG AA 4.5:1+ on --bp-deep */
   --bp-bright:  #287099;   /* signature primary */
   --bp-glow:    #7fb4d0;   /* highlight */
 
-  /* ink — light text on blue */
+  /* ink — light text on blue (faint ≤ mute ≤ 2 ≤ primary) */
   --ink:        #f2f7fa;
   --ink-2:      #d6e3ec;
-  --ink-mute:   #8fb1c4;
-  --ink-faint:  #5b819a;
+  --ink-mute:   #9bc0d4;
+  --ink-faint:  #7aa3b8;
 
   --accent:     #f4c977;   /* warm contrast for emphasis */
   --accent-2:   #ff8765;   /* secondary warm */
@@ -282,6 +282,14 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   width: 100%;
   height: auto;
 }
+.plan-room { cursor: default; }
+.plan-room--pickable { cursor: pointer; }
+.plan-room__furniture {
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+.plan-room.is-active .plan-room__furniture { opacity: 1; }
 
 /* 히어로 아래 섹션 — content-visibility로 초기 레이아웃·페인트 비용 절감 */
 .doors,
@@ -416,7 +424,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .home-built-mermaid .mermaid svg .node path,
 .home-built-mermaid .mermaid svg .node circle {
   fill: rgba(20, 56, 79, 0.92) !important;
-  stroke: #5e93b1 !important;
+  stroke: var(--bp-soft) !important;
   stroke-width: 1.2px !important;
 }
 .home-built-mermaid .mermaid svg .node .label,
@@ -1382,6 +1390,11 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   flex-shrink: 0;
   margin-left: 24px;
   z-index: 1;
+}
+.coffee-photo picture {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .coffee-photo img {
   width: 100%; height: 100%;

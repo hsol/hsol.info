@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const emptyPolyfill = path.join(rootDir, "src/lib/empty-polyfill.ts");
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -9,13 +14,20 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   /** Claude Design `TweaksPanel` — gradually add types in `src/components/TweaksPanel.tsx` */
   typescript: { ignoreBuildErrors: true },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve = config.resolve ?? {};
     config.resolve.fallback = {
       ...(config.resolve.fallback ?? {}),
       fs: false,
       path: false,
     };
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "next/dist/build/polyfills/polyfill-module": emptyPolyfill,
+        "next/dist/build/polyfills/polyfill-module.js": emptyPolyfill,
+      };
+    }
     return config;
   },
   async headers() {
