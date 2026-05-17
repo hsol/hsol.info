@@ -13,7 +13,7 @@ import { PERSONA_PATH_KEYS } from "../src/components/portfolio/portfolio-types";
  * - 엔트리 순서는 priority 내림차순으로 정렬해 사람이 읽기 쉽게.
  */
 const SITE_URL = "https://hsol.info";
-const OUTPUT_PATH = "public/sitemap";
+const OUTPUT_PATH = "public/sitemap.xml";
 
 type ChangeFreq =
   | "always"
@@ -86,7 +86,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Failed to generate sitemap");
+  console.error("Failed to generate sitemap.xml");
   console.error(error);
   process.exit(1);
 });
