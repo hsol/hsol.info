@@ -1,6 +1,7 @@
 # hsol.info robots policy
 # - /api/* : Ask Hansol 동적 응답·세션 데이터라 인덱싱 제외
 # - /_next/* : Next.js 빌드 산출물
+# 참고: Next.js App Router의 src/app/robots.ts가 우선 적용된다. 이 파일은 fallback.
 
 User-agent: *
 Allow: /
@@ -8,4 +9,3 @@ Disallow: /api/
 Disallow: /_next/
 
 Sitemap: https://hsol.info/sitemap.xml
-Host: https://hsol.info

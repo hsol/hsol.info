@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "next dev -p 9999",
     "build": "next build",
-    "postbuild": "next-sitemap",
+    "postbuild": "tsx scripts/build-sitemap.ts",
     "start": "next start -p 9999",
     "lint": "next lint",
     "content:refresh:claude": "tsx scripts/refresh-site-data-with-claude.ts",
-    "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts"
+    "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts",
+    "sitemap:build": "tsx scripts/build-sitemap.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -31,7 +32,6 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
-    "next-sitemap": "^4.2.3",
     "postcss": "^8.5.14",
     "tailwindcss": "^3.4.16",
     "tsx": "^4.21.0",
