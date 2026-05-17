@@ -8,4 +8,4 @@ Allow: /
 Disallow: /api/
 Disallow: /_next/
 
-Sitemap: https://hsol.info/sitemap
+Sitemap: https://hsol.info/sitemap.xml
