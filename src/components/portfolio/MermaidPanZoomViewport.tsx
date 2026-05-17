@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ReactElement,
@@ -24,6 +23,9 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     py: 0,
   });
   const debounceRef = useRef<number | undefined>(undefined);
+  const vpSizeRef = useRef<{ w: number; h: number } | null>(null);
+  const innerSizeRef = useRef<{ w: number; h: number } | null>(null);
+  const wheelRectRef = useRef<DOMRect | null>(null);
 
   const [view, setView] = useState<View>({ scale: 1, tx: 0, ty: 0 });
   const [dragging, setDragging] = useState(false);
@@ -35,11 +37,11 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     if (!vp || !layer) return;
     const inner = layer.firstElementChild as HTMLElement | null;
     if (!inner) return;
-    const vw = vp.clientWidth;
-    const vh = vp.clientHeight;
+    const vw = vpSizeRef.current?.w ?? vp.clientWidth;
+    const vh = vpSizeRef.current?.h ?? vp.clientHeight;
     if (vw < 8 || vh < 8) return;
-    const bw = Math.max(inner.scrollWidth, inner.offsetWidth);
-    const bh = Math.max(inner.scrollHeight, inner.offsetHeight);
+    const bw = innerSizeRef.current?.w ?? inner.scrollWidth;
+    const bh = innerSizeRef.current?.h ?? inner.scrollHeight;
     if (bw < 8 || bh < 8) return;
     const s = Math.min(vw / bw, vh / bh) * 0.94;
     const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
@@ -63,19 +65,23 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     queueMicrotask(() => fitBounds(true));
   }, [fitBounds]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const vp = viewportRef.current;
     const layer = transformRef.current;
     if (!vp || !layer) return;
     const inner = layer.firstElementChild as HTMLElement | null;
     if (!inner) return;
 
-    const roVp = new ResizeObserver(() => {
+    const roVp = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      if (box) vpSizeRef.current = { w: box.width, h: box.height };
       scheduleIdleFit();
     });
     roVp.observe(vp);
 
-    const roInner = new ResizeObserver(() => {
+    const roInner = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      if (box) innerSizeRef.current = { w: box.width, h: box.height };
       scheduleIdleFit();
     });
     roInner.observe(inner);
@@ -85,7 +91,7 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     });
     mo.observe(inner, { subtree: true, childList: true, attributes: true });
 
-    scheduleIdleFit();
+    const raf = requestAnimationFrame(() => scheduleIdleFit());
     const t = window.setTimeout(scheduleIdleFit, 150);
     const t2 = window.setTimeout(scheduleIdleFit, 500);
 
@@ -93,6 +99,7 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
       roVp.disconnect();
       roInner.disconnect();
       mo.disconnect();
+      cancelAnimationFrame(raf);
       window.clearTimeout(debounceRef.current);
       window.clearTimeout(t);
       window.clearTimeout(t2);
@@ -102,9 +109,18 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
+
+    const syncWheelRect = () => {
+      wheelRectRef.current = el.getBoundingClientRect();
+    };
+    syncWheelRect();
+    const ro = new ResizeObserver(() => syncWheelRect());
+    ro.observe(el);
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = el.getBoundingClientRect();
+      const rect = wheelRectRef.current;
+      if (!rect) return;
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       const factor = e.deltaY < 0 ? 1.09 : 1 / 1.09;
@@ -120,7 +136,10 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
       });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("wheel", onWheel);
+    };
   }, []);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {

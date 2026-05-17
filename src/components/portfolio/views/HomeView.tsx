@@ -1,11 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plate, PlanDiagram, useSiteData } from "@/components/portfolio/Atoms";
 import { COORDS, type PersonaKey } from "@/components/portfolio/portfolio-types";
-import { MermaidDiagram } from "@/components/portfolio/MermaidDiagram";
+import { HomeBuiltFlowDiagram } from "@/components/portfolio/HomeBuiltFlowDiagram";
 
 export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
   const D = useSiteData();
@@ -16,13 +15,14 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
     lastInteractRef.current = Date.now();
   }, []);
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const keys = D.personas.map((p) => p.key);
-    const tick = setInterval(() => {
-      if (hovered) return;
+    const tick = window.setInterval(() => {
+      if (document.hidden || hovered) return;
       if (Date.now() - lastInteractRef.current < 1000) return;
       setAutoIdx((i) => (i + 1) % keys.length);
-    }, 1600);
-    return () => clearInterval(tick);
+    }, 2000);
+    return () => window.clearInterval(tick);
   }, [hovered, D.personas]);
   const activeKey: PersonaKey = hovered ?? (D.personas[autoIdx].key as PersonaKey);
   return (
@@ -115,13 +115,7 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
             </article>
           ))}
         </div>
-        <MermaidDiagram chart={D.portfolioCopy.home.builtMermaid} />
-        <p className="home-built-arch-teaser">
-          <Link className="home-built-arch-teaser-link" href="/architecture">
-            전체 사이트 구조도
-          </Link>
-          는 별도 페이지에 두었습니다.
-        </p>
+        <HomeBuiltFlowDiagram />
         <div className="home-built-perspectives">
           <div className="home-built-perspectives-head">
             <h3 className="home-built-perspectives-title">{D.portfolioCopy.home.builtPerspectiveTitle}</h3>

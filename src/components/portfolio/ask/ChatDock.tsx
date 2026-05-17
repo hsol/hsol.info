@@ -1,5 +1,6 @@
 "use client";
 
+import "@/styles/legacy/chatdock.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSiteData } from "@/components/portfolio/Atoms";
 import {

@@ -5,8 +5,10 @@ export function useReportAskVisibleSection(
   shellRef: RefObject<HTMLDivElement | null>,
   viewKey: string,
   onPick: (detail: string | undefined) => void,
+  enabled = true,
 ) {
   useEffect(() => {
+    if (!enabled) return;
     const root = shellRef.current;
     if (!root) return;
 
@@ -17,18 +19,22 @@ export function useReportAskVisibleSection(
     }
 
     const ratios = new Map<Element, number>();
+    let raf = 0;
     const apply = () => {
-      let bestEl: Element | null = null;
-      let best = -1;
-      for (const el of nodes) {
-        const v = ratios.get(el) ?? 0;
-        if (v > best) {
-          best = v;
-          bestEl = el;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        let bestEl: Element | null = null;
+        let best = -1;
+        for (const el of nodes) {
+          const v = ratios.get(el) ?? 0;
+          if (v > best) {
+            best = v;
+            bestEl = el;
+          }
         }
-      }
-      const label = bestEl?.getAttribute("data-ask-section")?.trim();
-      onPick(label || undefined);
+        const label = bestEl?.getAttribute("data-ask-section")?.trim();
+        onPick(label || undefined);
+      });
     };
 
     const io = new IntersectionObserver(
@@ -38,14 +44,15 @@ export function useReportAskVisibleSection(
         }
         apply();
       },
-      { root: null, threshold: [0, 0.05, 0.15, 0.35, 0.55, 0.75, 1] },
+      { root: null, threshold: [0, 0.5, 1] },
     );
     nodes.forEach((n) => io.observe(n));
     apply();
 
     return () => {
+      cancelAnimationFrame(raf);
       io.disconnect();
       ratios.clear();
     };
-  }, [shellRef, viewKey, onPick]);
+  }, [shellRef, viewKey, onPick, enabled]);
 }

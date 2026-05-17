@@ -2,7 +2,14 @@
 
 import { useMemo } from "react";
 import { useMermaid } from "react-x-mermaid";
-import { MermaidPanZoomViewport } from "@/components/portfolio/MermaidPanZoomViewport";
+import { jetbrainsMono, lineSeedKR } from "@/lib/site-fonts";
+import { lazy } from "@/lib/lazy-dynamic";
+
+const MermaidPanZoomViewport = lazy(() =>
+  import("@/components/portfolio/MermaidPanZoomViewport").then((m) => ({
+    default: m.MermaidPanZoomViewport,
+  })),
+);
 
 export function MermaidDiagram({
   chart,
@@ -30,7 +37,7 @@ export function MermaidDiagram({
       securityLevel: "strict" as const,
       startOnLoad: false,
       suppressErrorRendering: true,
-      fontFamily: "JetBrains Mono, LINE Seed KR, sans-serif",
+      fontFamily: `${jetbrainsMono.style.fontFamily}, ${lineSeedKR.style.fontFamily}, sans-serif`,
       themeVariables: {
         background: "#14384f",
         primaryColor: "#0e2a3d",

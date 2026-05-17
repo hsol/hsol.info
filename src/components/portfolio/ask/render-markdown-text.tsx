@@ -1,22 +1,36 @@
-import type { ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+"use client";
 
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { lazy } from "@/lib/lazy-dynamic";
+
+const MarkdownBody = lazy(() =>
+  import("@/components/portfolio/ask/MarkdownBody").then((m) => ({ default: m.MarkdownBody })),
+);
+
+/** ChatDock — 첫 마크다운 렌더 시에만 remark/react-markdown 청크 로드 */
+export function RenderMarkdownText({
+  text,
+  streaming = false,
+}: {
+  text: string;
+  streaming?: boolean;
+}) {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    setActive(true);
+  }, []);
+  if (!active) {
+    return (
+      <div className={"md-body" + (streaming ? " cursor-blink" : "")}>
+        <p>{text}</p>
+      </div>
+    );
+  }
+  return <MarkdownBody text={text} streaming={streaming} />;
+}
+
+/** @deprecated RenderMarkdownText 컴포넌트 사용 */
 export function renderMarkdownText(text: string, streaming = false): ReactNode {
-  return (
-    <div className={"md-body" + (streaming ? " cursor-blink" : "")}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {text}
-      </ReactMarkdown>
-    </div>
-  );
+  return <RenderMarkdownText text={text} streaming={streaming} />;
 }

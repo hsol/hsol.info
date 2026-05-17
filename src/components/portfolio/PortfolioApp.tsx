@@ -1,18 +1,28 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { lazy } from "@/lib/lazy-dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Foot, SiteDataProvider } from "@/components/portfolio/Atoms";
-import { ChatDock } from "@/components/portfolio/ask/ChatDock";
+import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { SiteData } from "@/content/schema";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
 import { personaFromPathname, type AskDraft, type PersonaKey } from "@/components/portfolio/portfolio-types";
 import { useReportAskVisibleSection } from "@/components/portfolio/use-report-ask-visible-section";
-import { BuilderView } from "@/components/portfolio/views/BuilderView";
-import { CollabView } from "@/components/portfolio/views/CollabView";
-import { CuriousView } from "@/components/portfolio/views/CuriousView";
-import { HireView } from "@/components/portfolio/views/HireView";
 import { HomeView } from "@/components/portfolio/views/HomeView";
+
+const HireView = lazy(() =>
+  import("@/components/portfolio/views/HireView").then((m) => ({ default: m.HireView })),
+);
+const CollabView = lazy(() =>
+  import("@/components/portfolio/views/CollabView").then((m) => ({ default: m.CollabView })),
+);
+const BuilderView = lazy(() =>
+  import("@/components/portfolio/views/BuilderView").then((m) => ({ default: m.BuilderView })),
+);
+const CuriousView = lazy(() =>
+  import("@/components/portfolio/views/CuriousView").then((m) => ({ default: m.CuriousView })),
+);
 
 const DEFAULT_ACCENT = "#287099";
 
@@ -31,6 +41,7 @@ function PortfolioAppBody() {
     y: number;
     placeAbove: boolean;
   } | null>(null);
+  const [askTrackingReady, setAskTrackingReady] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,7 +71,17 @@ function PortfolioAppBody() {
   }, [router]);
 
   const viewKey = persona ?? "home";
-  useReportAskVisibleSection(shellRef, viewKey, setAskVisibleSection);
+  useReportAskVisibleSection(shellRef, viewKey, setAskVisibleSection, askTrackingReady);
+
+  useEffect(() => {
+    const run = () => setAskTrackingReady(true);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 3000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 1500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const pageContext: AskHansolPageContext = useMemo(
     () => ({
@@ -73,6 +94,8 @@ function PortfolioAppBody() {
   );
 
   useEffect(() => {
+    if (!askTrackingReady) return;
+
     const normalizeSelectedText = (value: string) => value.replace(/\s+/g, " ").trim();
     const extractElement = (node: Node | null): Element | null => {
       if (!node) return null;
@@ -135,7 +158,7 @@ function PortfolioAppBody() {
       document.removeEventListener("scroll", hideNudge, true);
       window.removeEventListener("resize", hideNudge);
     };
-  }, []);
+  }, [askTrackingReady]);
 
   const handleAskFromSelection = useCallback(() => {
     if (!selectionNudge) return;
@@ -179,7 +202,7 @@ function PortfolioAppBody() {
           </button>
         </div>
       )}
-      <ChatDock
+      <DeferredChatDock
         defaultOpen={persona !== null && !isMobileViewport}
         inline={persona !== null}
         pageContext={pageContext}

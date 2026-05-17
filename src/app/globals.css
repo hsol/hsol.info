@@ -1,12 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* 레거시 스타일은 layout에서 직접 import — @import 체인·미사용 Tailwind 제거 */
 
-@import "../styles/legacy/main.css";
-@import "../styles/legacy/chatdock.css";
-@import "../styles/legacy/gantt.css";
-
-/* next/font JetBrains Mono — legacy CSS expects --mono */
 :root {
   --mono: var(--font-jetbrains), "IBM Plex Mono", ui-monospace, monospace;
 }
