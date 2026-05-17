@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { JetBrains_Mono } from "next/font/google";
-import Script from "next/script";
-import { Analytics } from "@vercel/analytics/next";
-import { GoogleAnalyticsReporter } from "@/components/GoogleAnalyticsReporter";
+import { siteFontVariables } from "@/lib/site-fonts";
+import { AdSenseScript } from "@/components/AdSenseScript";
+import { DeferredThirdPartyScripts } from "@/components/DeferredThirdPartyScripts";
+import { DeferredGoogleAnalyticsScripts } from "@/components/DeferredGoogleAnalyticsScripts";
+import "@/styles/legacy/main.css";
 import "./globals.css";
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
 
 export const viewport = {
   themeColor: "#0e2a3d",
@@ -140,7 +134,7 @@ export default function RootLayout({
   const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID?.trim();
 
   return (
-    <html lang="ko" className={jetbrainsMono.variable}>
+    <html lang="ko" className={siteFontVariables}>
       <head>
         <meta property="og:logo" content={`${SITE_URL}/icons/icon-512.png`} />
         <meta
@@ -152,34 +146,14 @@ export default function RootLayout({
           // JSON.stringify 결과는 안전하게 직렬화된 JSON 문자열
           dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
         />
-        {adsenseClientId ? (
-          <script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(adsenseClientId)}`}
-            crossOrigin="anonymous"
-          />
-        ) : null}
       </head>
       <body>
         {children}
-        <Analytics />
+        {adsenseClientId ? <AdSenseScript clientId={adsenseClientId} /> : null}
         {gaMeasurementId ? (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaMeasurementId}');
-              `}
-            </Script>
-            <GoogleAnalyticsReporter measurementId={gaMeasurementId} />
-          </>
+          <DeferredGoogleAnalyticsScripts measurementId={gaMeasurementId} />
         ) : null}
+        <DeferredThirdPartyScripts gaMeasurementId={gaMeasurementId} />
       </body>
     </html>
   );

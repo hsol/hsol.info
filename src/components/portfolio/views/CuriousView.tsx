@@ -1,5 +1,7 @@
 "use client";
 
+import "@/styles/legacy/gantt.css";
+
 import { useState } from "react";
 import { Back, CoffeeCTA, SecHead, useSiteData } from "@/components/portfolio/Atoms";
 import { PersonaTimelineIntro, renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";

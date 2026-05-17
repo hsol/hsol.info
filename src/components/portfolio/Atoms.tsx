@@ -36,7 +36,14 @@ export function Plate() {
   return (
     <div className="plate">
       <div className="plate-cell plate-id">
-        <Image src="/signature.svg" alt="" className="plate-sig" width={36} height={36} />
+        <Image
+          src="/signature.svg"
+          alt=""
+          className="plate-sig"
+          width={36}
+          height={36}
+          priority
+        />
         <div>
           <div className="plate-key">Person</div>
           <div className="plate-val">임한솔 · Hansol Lim</div>
@@ -319,6 +326,10 @@ export function CoffeeCTA({ title, sub }: { title?: string; sub?: string }) {
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const host = ref.current;
+    if (!host) return;
+
+    const loadCalendly = () => {
     if (!document.querySelector("link[data-calendly]")) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -350,6 +361,23 @@ export function CoffeeCTA({ title, sub }: { title?: string; sub?: string }) {
       }
       s.addEventListener("load", ensureWidget, { once: true });
     }
+    };
+
+    if (typeof IntersectionObserver === "undefined") {
+      loadCalendly();
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          loadCalendly();
+          io.disconnect();
+        }
+      },
+      { rootMargin: "160px 0px" },
+    );
+    io.observe(host);
+    return () => io.disconnect();
   }, [d.calendly]);
 
   return (
