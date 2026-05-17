@@ -144,8 +144,13 @@ function PortfolioAppBody() {
     };
 
     const hideNudge = () => setSelectionNudge(null);
-    const onMouseUp = () => window.setTimeout(updateSelectionNudge, 0);
-    const onKeyUp = () => window.setTimeout(updateSelectionNudge, 0);
+    const scheduleNudge = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(updateSelectionNudge);
+      });
+    };
+    const onMouseUp = () => scheduleNudge();
+    const onKeyUp = () => scheduleNudge();
 
     document.addEventListener("mouseup", onMouseUp);
     document.addEventListener("keyup", onKeyUp);
@@ -186,7 +191,7 @@ function PortfolioAppBody() {
   return (
     <div className={"app-layout" + (persona !== null ? " has-dock" : "")}>
       <div className="shell" ref={shellRef}>
-        {body}
+        <main id="main-content">{body}</main>
         <Foot />
       </div>
       {selectionNudge && (

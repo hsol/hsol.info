@@ -215,7 +215,7 @@
   color: var(--ink, #f2f7fa);
   outline: none;
 }
-.chatdock-input::placeholder { color: var(--ink-faint, #6a8493); }
+.chatdock-input::placeholder { color: var(--ink-faint, #7aa3b8); }
 .chatdock-send {
   padding: 0 18px;
   background: var(--accent, #287099);

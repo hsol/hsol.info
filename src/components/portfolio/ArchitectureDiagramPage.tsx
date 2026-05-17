@@ -11,7 +11,8 @@ export function ArchitectureDiagramPage() {
   return (
     <div className="app-layout">
       <div className="shell">
-        <div className="view">
+        <main id="main-content">
+          <div className="view">
           <Back onBack={() => router.push("/")} />
           <Plate />
           <ViewHead
@@ -24,8 +25,9 @@ export function ArchitectureDiagramPage() {
               <MermaidDiagram chart={SITE_ARCHITECTURE_MERMAID} diagramHead={null} panZoom />
             </div>
           </ViewHead>
-          <Foot />
-        </div>
+          </div>
+        </main>
+        <Foot />
       </div>
     </div>
   );

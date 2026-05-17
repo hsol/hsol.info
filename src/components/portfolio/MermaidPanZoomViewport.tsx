@@ -23,6 +23,7 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     py: 0,
   });
   const debounceRef = useRef<number | undefined>(undefined);
+  const fitRafRef = useRef<number | undefined>(undefined);
   const vpSizeRef = useRef<{ w: number; h: number } | null>(null);
   const innerSizeRef = useRef<{ w: number; h: number } | null>(null);
   const wheelRectRef = useRef<DOMRect | null>(null);
@@ -47,15 +48,22 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
     const tx = (vw - bw * clamped) / 2;
     const ty = (vh - bh * clamped) / 2;
-    setView({ scale: clamped, tx, ty });
+    const next = { scale: clamped, tx, ty };
+    cancelAnimationFrame(fitRafRef.current ?? 0);
+    fitRafRef.current = requestAnimationFrame(() => {
+      fitRafRef.current = undefined;
+      setView(next);
+    });
   }, []);
 
   const scheduleIdleFit = useCallback(() => {
     window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = undefined;
-      if (!userAdjustedRef.current) fitBounds(false);
-    }, 72);
+      requestAnimationFrame(() => {
+        if (!userAdjustedRef.current) fitBounds(false);
+      });
+    }, 120);
   }, [fitBounds]);
 
   const resetView = useCallback(() => {
@@ -86,11 +94,6 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     });
     roInner.observe(inner);
 
-    const mo = new MutationObserver(() => {
-      scheduleIdleFit();
-    });
-    mo.observe(inner, { subtree: true, childList: true, attributes: true });
-
     const raf = requestAnimationFrame(() => scheduleIdleFit());
     const t = window.setTimeout(scheduleIdleFit, 150);
     const t2 = window.setTimeout(scheduleIdleFit, 500);
@@ -98,8 +101,8 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     return () => {
       roVp.disconnect();
       roInner.disconnect();
-      mo.disconnect();
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(fitRafRef.current ?? 0);
       window.clearTimeout(debounceRef.current);
       window.clearTimeout(t);
       window.clearTimeout(t2);
@@ -111,10 +114,12 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     if (!el) return;
 
     const syncWheelRect = () => {
-      wheelRectRef.current = el.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        wheelRectRef.current = el.getBoundingClientRect();
+      });
     };
     syncWheelRect();
-    const ro = new ResizeObserver(() => syncWheelRect());
+    const ro = new ResizeObserver(syncWheelRect);
     ro.observe(el);
 
     const onWheel = (e: WheelEvent) => {

@@ -10,7 +10,8 @@
     "lint": "next lint",
     "content:refresh:claude": "tsx scripts/refresh-site-data-with-claude.ts",
     "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts",
-    "sitemap:build": "tsx scripts/build-sitemap.ts"
+    "sitemap:build": "tsx scripts/build-sitemap.ts",
+    "assets:hansol-photo": "cwebp -q 82 public/hansol.png -o public/hansol.webp && avifenc -q 50 -s 6 public/hansol.png public/hansol.avif && cp public/hansol.webp public/hansol.avif assets/"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -39,5 +40,11 @@
   },
   "overrides": {
     "postcss": "^8.5.14"
-  }
+  },
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 111",
+    "safari >= 16.4"
+  ]
 }

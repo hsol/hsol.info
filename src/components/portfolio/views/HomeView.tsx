@@ -147,7 +147,18 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
             </div>
           </div>
           <div className="coffee-photo">
-            <Image src="/hansol.png" alt={D.identity.name} width={280} height={280} />
+            <picture>
+              <source srcSet="/hansol.avif" type="image/avif" />
+              <source srcSet="/hansol.webp" type="image/webp" />
+              <Image
+                src="/hansol.png"
+                alt={D.identity.name}
+                width={189}
+                height={172}
+                loading="lazy"
+                sizes="(max-width: 720px) 120px, 200px"
+              />
+            </picture>
           </div>
         </div>
       </section>

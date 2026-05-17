@@ -197,10 +197,10 @@ export function PlanDiagram({
           return (
             <g
               key={r.key}
+              className={"plan-room" + (active ? " is-active" : "") + (onPick ? " plan-room--pickable" : "")}
               onClick={() => onPick?.(r.key)}
               onMouseEnter={() => onHover?.(r.key)}
               onMouseLeave={() => onHover?.(null)}
-              style={{ cursor: onPick ? "pointer" : "default" }}
             >
               <rect
                 x={r.x}
@@ -233,17 +233,7 @@ export function PlanDiagram({
               >
                 {r.area}
               </text>
-              <g
-                style={{
-                  opacity: active ? 1 : 0,
-                  transform: active ? "scale(1)" : "scale(0.92)",
-                  transformOrigin: `${r.x + r.w / 2}px ${r.y + r.h / 2}px`,
-                  transition: "opacity 280ms ease, transform 320ms cubic-bezier(.2,.8,.2,1)",
-                  pointerEvents: "none",
-                }}
-              >
-                {r.furniture}
-              </g>
+              <g className="plan-room__furniture">{r.furniture}</g>
             </g>
           );
         })}
@@ -268,7 +258,7 @@ export function PlanDiagram({
           <line x1="20" y1="450" x2="340" y2="450" stroke="#3d7a9c" strokeWidth="0.5" />
           <line x1="20" y1="445" x2="20" y2="455" stroke="#3d7a9c" strokeWidth="0.5" />
           <line x1="340" y1="445" x2="340" y2="455" stroke="#3d7a9c" strokeWidth="0.5" />
-          <text x="180" y="448" fill="#5b819a" fontFamily="JetBrains Mono, monospace" fontSize="7" textAnchor="middle">
+          <text x="180" y="448" fill="#7aa3b8" fontFamily="JetBrains Mono, monospace" fontSize="7" textAnchor="middle">
             10 yr · since 2014
           </text>
         </g>
