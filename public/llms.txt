@@ -1,0 +1,18 @@
+# hsol.info — 임한솔 (Hansol Lim)
+
+> 온라인의 기술과 오프라인의 운영을 잇는 메이커 임한솔의 AI 클론 포트폴리오. 프루퍼 ㈜ 대표이자 PPB Studios 팀장이며, 10년차 이상 엔지니어 출신으로 제품을 만들고 운영합니다. 사이트 곳곳에서 AI 클론 "Ask Hansol"과 직접 대화할 수 있습니다.
+
+## 페르소나 둘러보기
+
+- [채용·영입 제안](https://hsol.info/hire): 경력 요약과 협업 가능 영역
+- [협업하기](https://hsol.info/collab): 프로덕트·창업 협업 검토용 결과물과 관심 영역
+- [만든 것들](https://hsol.info/builder): 엔지니어 출신 메이커가 만든 프로덕트와 시도
+- [그냥 궁금한 분](https://hsol.info/curious): 가볍게 둘러보는 소개
+
+## 더 보기
+
+- [사이트 아키텍처](https://hsol.info/architecture): 이 포트폴리오와 Ask Hansol의 구조 다이어그램
+- [프루퍼 (Proofer)](https://proofer.tech): 임한솔이 대표로 있는 회사
+- [LinkedIn](https://www.linkedin.com/in/hsolim/)
+- [GitHub](https://github.com/hsol)
+- [Medium](https://medium.com/@hsol)

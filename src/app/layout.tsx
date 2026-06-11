@@ -82,7 +82,14 @@ export const metadata: Metadata = {
   },
 };
 
-/** schema.org Person + WebSite JSON-LD — 검색엔진 지식 패널·리치 스니펫 노출에 사용 */
+/** 빌드 시점을 콘텐츠 최신성(dateModified) 신호로 사용 — 빌드마다 vault 콘텐츠가 갱신된다. */
+const BUILD_DATE = new Date().toISOString();
+
+/**
+ * schema.org JSON-LD — 검색엔진 지식 패널·리치 스니펫·AI 답변 인용에 사용.
+ * 인물 홈페이지 성격에 맞춰 og:type은 profile로 두되, ProfilePage·Organization·
+ * dateModified를 함께 두어 발행 기관·시의성 신호를 보강한다.
+ */
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
@@ -96,11 +103,7 @@ const STRUCTURED_DATA = {
       jobTitle: "대표 / 메이커",
       description: SITE_DESCRIPTION_LONG,
       worksFor: [
-        {
-          "@type": "Organization",
-          name: "프루퍼 ㈜ (Proofer)",
-          url: "https://proofer.tech",
-        },
+        { "@id": "https://proofer.tech/#organization" },
         { "@type": "Organization", name: "PPB Studios" },
       ],
       sameAs: [
@@ -109,6 +112,13 @@ const STRUCTURED_DATA = {
         "https://medium.com/@hsol",
         "https://gravatar.com/hsolim",
       ],
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://proofer.tech/#organization",
+      name: "프루퍼 ㈜ (Proofer)",
+      url: "https://proofer.tech",
+      founder: { "@id": `${SITE_URL}/#person` },
     },
     {
       "@type": "WebSite",
@@ -120,6 +130,17 @@ const STRUCTURED_DATA = {
       inLanguage: "ko-KR",
       author: { "@id": `${SITE_URL}/#person` },
       publisher: { "@id": `${SITE_URL}/#person` },
+    },
+    {
+      "@type": "ProfilePage",
+      "@id": `${SITE_URL}/#profilepage`,
+      url: `${SITE_URL}/`,
+      name: SITE_TITLE,
+      inLanguage: "ko-KR",
+      dateModified: BUILD_DATE,
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+      about: { "@id": `${SITE_URL}/#person` },
+      mainEntity: { "@id": `${SITE_URL}/#person` },
     },
   ],
 };
@@ -137,6 +158,9 @@ export default function RootLayout({
     <html lang="ko" className={siteFontVariables}>
       <head>
         <meta property="og:logo" content={`${SITE_URL}/icons/icon-512.png`} />
+        {/* 광고·분석은 지연 로드라 preconnect 대신 가벼운 dns-prefetch만 둔다. */}
+        <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <meta
           name="naver-site-verification"
           content="6fea90e30e52efc3f552b4b4b570cd8c48c582f5"
@@ -148,6 +172,9 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <a className="skip-link" href="#main-content">
+          본문 바로가기
+        </a>
         {children}
         {adsenseClientId ? <AdSenseScript clientId={adsenseClientId} /> : null}
         {gaMeasurementId ? (

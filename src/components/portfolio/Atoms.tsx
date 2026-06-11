@@ -34,7 +34,7 @@ export function useSiteData(): SiteData {
 export function Plate() {
   const d = useSiteData().identity;
   return (
-    <div className="plate">
+    <header className="plate">
       <div className="plate-cell plate-id">
         <Image
           src="/signature.svg"
@@ -59,7 +59,7 @@ export function Plate() {
           <span className="dot"></span>Open for coffee
         </div>
       </a>
-    </div>
+    </header>
   );
 }
 
@@ -184,6 +184,8 @@ export function PlanDiagram({
         viewBox="0 0 360 460"
         preserveAspectRatio="xMidYMid meet"
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label="페르소나를 방으로 표현한 평면도 — 같은 이동 경로를 아래 목록 버튼으로도 제공합니다."
       >
         <rect x="20" y="20" width="320" height="420" fill="none" stroke="#5e93b1" strokeWidth="2" />
         <line x1="20" y1="180" x2="200" y2="180" stroke="#5e93b1" strokeWidth="1.2" />

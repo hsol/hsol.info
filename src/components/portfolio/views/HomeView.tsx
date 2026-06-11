@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plate, PlanDiagram, useSiteData } from "@/components/portfolio/Atoms";
+import { PlanDiagram, useSiteData } from "@/components/portfolio/Atoms";
 import { COORDS, type PersonaKey } from "@/components/portfolio/portfolio-types";
 import { HomeBuiltFlowDiagram } from "@/components/portfolio/HomeBuiltFlowDiagram";
 
@@ -27,8 +27,6 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
   const activeKey: PersonaKey = hovered ?? (D.personas[autoIdx].key as PersonaKey);
   return (
     <div className="view" onMouseMove={bumpInteract} onClick={bumpInteract} onKeyDown={bumpInteract}>
-      <Plate />
-
       <section className="hero" data-ask-section="home/hero">
         <div className="hero-left">
           <div>
@@ -73,7 +71,7 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
           <h2 className="doors-h">{D.portfolioCopy.home.doorsTitle}</h2>
           <div className="doors-meta">{D.portfolioCopy.home.doorsMeta}</div>
         </div>
-        <div className="doors-list">
+        <nav className="doors-list" aria-label="페르소나 둘러보기">
           {D.personas.map((p) => (
             <button
               className={"persona" + (activeKey === p.key ? " is-hover" : "")}
@@ -98,7 +96,7 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
               <div className="persona-arrow">→</div>
             </button>
           ))}
-        </div>
+        </nav>
       </section>
 
       <section className="home-built" data-ask-section="home/built">
@@ -152,7 +150,7 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
               <source srcSet="/hansol.webp" type="image/webp" />
               <Image
                 src="/hansol.png"
-                alt={D.identity.name}
+                alt={`${D.identity.name} 프로필 사진`}
                 width={189}
                 height={172}
                 loading="lazy"
