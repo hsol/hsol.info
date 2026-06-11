@@ -3,3 +3,29 @@
 :root {
   --mono: var(--font-jetbrains), "IBM Plex Mono", ui-monospace, monospace;
 }
+
+/* 키보드 사용자용 "본문 바로가기" — 평소 화면 밖, 포커스 시 노출 (WCAG 2.4.1 A) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: #f4c977;
+  color: #0e2a3d;
+  font-weight: 600;
+  outline: 2px solid #0e2a3d;
+}
+
+/* outline:none을 쓰는 입력 요소에 키보드 포커스 단서 복원 (WCAG 2.4.7) */
+.ask-input:focus-visible,
+.chatdock-input:focus-visible {
+  outline: 2px solid var(--accent, #287099);
+  outline-offset: -2px;
+  border-radius: 4px;
+}

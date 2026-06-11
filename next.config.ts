@@ -39,6 +39,41 @@ const nextConfig: NextConfig = {
       key: "Cache-Control",
       value: "public, max-age=31536000, immutable",
     };
+    /** 표준 권장 보안 헤더 — 응답 헤더가 메타 태그보다 강하다(HSTS·nosniff 등). */
+    const securityHeaders = [
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+      /**
+       * Report-Only CSP — 아무것도 차단하지 않고 위반만 콘솔에 보고한다.
+       * 광고·분석·임베드가 많아 enforcing 전에 실제 로드 도메인을 관찰하는 단계.
+       * 위반 로그를 며칠 모은 뒤 누락 도메인을 채우고 enforcing으로 승격한다.
+       */
+      {
+        key: "Content-Security-Policy-Report-Only",
+        value: [
+          "default-src 'self'",
+          "base-uri 'self'",
+          "object-src 'none'",
+          "frame-ancestors 'self'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com https://*.googlesyndication.com https://www.googletagmanager.com https://*.google-analytics.com https://*.doubleclick.net https://*.google.com https://va.vercel-scripts.com",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "img-src 'self' data: blob: https:",
+          "font-src 'self' data: https://fonts.gstatic.com",
+          "connect-src 'self' https://*.google-analytics.com https://*.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://*.vercel-insights.com https://va.vercel-scripts.com",
+          "frame-src https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://calendly.com https://*.calendly.com https://www.youtube.com https://www.youtube-nocookie.com",
+        ].join("; "),
+      },
+    ];
     return [
       { source: "/sitemap.xml", headers: sitemapHeaders },
       { source: "/sitemap", headers: sitemapHeaders },
@@ -46,6 +81,7 @@ const nextConfig: NextConfig = {
         source: "/_next/static/media/:path*.woff2",
         headers: [fontCache],
       },
+      { source: "/:path*", headers: securityHeaders },
     ];
   },
 };

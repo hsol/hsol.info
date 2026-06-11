@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { lazy } from "@/lib/lazy-dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Foot, SiteDataProvider } from "@/components/portfolio/Atoms";
+import { Foot, Plate, SiteDataProvider } from "@/components/portfolio/Atoms";
 import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { SiteData } from "@/content/schema";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
@@ -191,6 +191,8 @@ function PortfolioAppBody() {
   return (
     <div className={"app-layout" + (persona !== null ? " has-dock" : "")}>
       <div className="shell" ref={shellRef}>
+        {/* 사이트 신원 바를 <main> 밖에 두어 banner 랜드마크로 인식되게 한다(홈에서만 노출). */}
+        {persona === null && <Plate />}
         <main id="main-content">{body}</main>
         <Foot />
       </div>
