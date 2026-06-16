@@ -176,8 +176,14 @@
   padding: 10px 14px;
   border-radius: 4px;
   max-width: 92%;
-  white-space: pre-wrap;
 }
+/*
+ * 블록 사이 간격은 .md-body의 p·ul·li 마진이 담당한다. 컨테이너에 pre-wrap을 주면
+ * react-markdown이 블록 사이에 넣는 줄바꿈 텍스트 노드까지 보여서 빈 줄이 하나씩
+ * 더 생긴다. 문단 내부의 의도한 줄바꿈과 마크다운 로드 전 평문 폴백만 pre-wrap 유지.
+ */
+.chatdock-msg-body .md-body { white-space: normal; }
+.chatdock-msg-body .md-body p { white-space: pre-wrap; }
 .chatdock-msg--user .chatdock-msg-body {
   background: var(--accent, #287099);
   color: #fff;
@@ -198,6 +204,120 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   word-break: break-all;
+}
+
+/* JD 적합도 분석 — Hire 상세 진입점 */
+.chatdock-jd-cta {
+  margin-top: 14px;
+  width: 100%;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 14px;
+  background: var(--accent, #287099);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.chatdock-jd-cta:hover {
+  background: var(--bp-glow, #7fb4d0);
+}
+
+.chatdock-jd-toggle {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  padding: 11px 18px;
+  background: rgba(127, 180, 208, 0.06);
+  border: none;
+  border-top: 1px solid var(--bp-line, #1f4861);
+  color: var(--bp-glow, #7fb4d0);
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+.chatdock-jd-toggle:hover {
+  background: rgba(127, 180, 208, 0.14);
+}
+
+.chatdock-jd-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--bp-line, #1f4861);
+  background: rgba(127, 180, 208, 0.04);
+}
+.chatdock-jd-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chatdock-jd-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--bp-glow, #7fb4d0);
+  text-transform: uppercase;
+}
+.chatdock-jd-close {
+  background: transparent;
+  border: none;
+  color: var(--ink-2, #c8d8e0);
+  font-family: var(--sans);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.chatdock-jd-close:hover {
+  color: #fff;
+}
+.chatdock-jd-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 110px;
+  background: rgba(8, 24, 36, 0.6);
+  border: 1px solid var(--bp-line, #1f4861);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink, #f2f7fa);
+  outline: none;
+}
+.chatdock-jd-textarea::placeholder {
+  color: var(--ink-faint, #7aa3b8);
+}
+.chatdock-jd-textarea:focus {
+  border-color: var(--bp-glow, #7fb4d0);
+}
+.chatdock-jd-submit {
+  align-self: flex-end;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  background: var(--accent, #287099);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+.chatdock-jd-submit:hover {
+  background: var(--bp-glow, #7fb4d0);
+}
+.chatdock-jd-submit:disabled {
+  background: var(--bp-line, #1f4861);
+  color: var(--ink-mute, #7a8a93);
+  cursor: default;
 }
 
 .chatdock-form {

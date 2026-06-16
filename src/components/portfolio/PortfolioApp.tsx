@@ -31,9 +31,12 @@ function PortfolioAppBody() {
   const router = useRouter();
   const persona = useMemo(() => personaFromPathname(pathname), [pathname]);
 
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
+  );
   const [askVisibleSection, setAskVisibleSection] = useState<string | undefined>();
   const [chatOpenSignal, setChatOpenSignal] = useState(0);
+  const [jdOpenSignal, setJdOpenSignal] = useState(0);
   const [draftToAsk, setDraftToAsk] = useState<AskDraft | null>(null);
   const [selectionNudge, setSelectionNudge] = useState<{
     text: string;
@@ -69,6 +72,9 @@ function PortfolioAppBody() {
   const back = useCallback(() => {
     router.push("/");
   }, [router]);
+  const triggerJdAnalysis = useCallback(() => {
+    setJdOpenSignal((prev) => prev + 1);
+  }, []);
 
   const viewKey = persona ?? "home";
   useReportAskVisibleSection(shellRef, viewKey, setAskVisibleSection, askTrackingReady);
@@ -181,7 +187,7 @@ function PortfolioAppBody() {
   }, [selectionNudge]);
 
   let body;
-  if (persona === "hire") body = <HireView onBack={back} />;
+  if (persona === "hire") body = <HireView onBack={back} onAnalyzeJd={triggerJdAnalysis} />;
   else if (persona === "collab") body = <CollabView onBack={back} />;
   else if (persona === "builder") body = <BuilderView onBack={back} />;
   else if (persona === "curious")
@@ -214,6 +220,7 @@ function PortfolioAppBody() {
         inline={persona !== null}
         pageContext={pageContext}
         openSignal={chatOpenSignal}
+        jdOpenSignal={jdOpenSignal}
         draftToAsk={draftToAsk}
       />
     </div>
