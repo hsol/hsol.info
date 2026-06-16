@@ -31,7 +31,9 @@ function PortfolioAppBody() {
   const router = useRouter();
   const persona = useMemo(() => personaFromPathname(pathname), [pathname]);
 
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
+  );
   const [askVisibleSection, setAskVisibleSection] = useState<string | undefined>();
   const [chatOpenSignal, setChatOpenSignal] = useState(0);
   const [draftToAsk, setDraftToAsk] = useState<AskDraft | null>(null);

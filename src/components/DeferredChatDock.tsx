@@ -1,5 +1,8 @@
 "use client";
 
+// FAB(chatdock-fab) 스타일은 ChatDock 지연 청크가 로드되기 전에도 필요하므로 여기서 함께
+// 로드한다(작은 CSS만 즉시 로드, react-markdown 등 무거운 JS는 ChatDock 청크에 그대로 지연).
+import "@/styles/legacy/chatdock.css";
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { lazy } from "@/lib/lazy-dynamic";
 
@@ -31,7 +34,8 @@ export function DeferredChatDock({ defaultOpen, inline, openSignal, ...rest }: P
   }, [openSignal, mountDock]);
 
   if (!ready) {
-    if (inline) return null;
+    // 데스크톱 인라인(has-dock, ≥900px)에서는 CSS로 FAB이 숨겨지고 곧바로 인라인 도크가
+    // 마운트된다. 모바일에서는 자동으로 열지 않고 FAB만 노출해 탭으로 열도록 한다.
     return (
       <button
         type="button"
