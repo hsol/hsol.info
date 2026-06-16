@@ -16,7 +16,7 @@ type Props = ComponentProps<typeof ChatDock>;
  * Ask Hansol — ChatDock 청크(react-markdown 등)는 FAB 클릭·페르소나 인라인·openSignal 때만 로드.
  * 홈 초기 방문에서 미사용 JS ~100KiB+ 절감.
  */
-export function DeferredChatDock({ defaultOpen, inline, openSignal, ...rest }: Props) {
+export function DeferredChatDock({ defaultOpen, inline, openSignal, jdOpenSignal, ...rest }: Props) {
   const [ready, setReady] = useState(false);
   const [openAfterLoad, setOpenAfterLoad] = useState(false);
 
@@ -32,6 +32,10 @@ export function DeferredChatDock({ defaultOpen, inline, openSignal, ...rest }: P
   useEffect(() => {
     if (openSignal && openSignal > 0) mountDock(true);
   }, [openSignal, mountDock]);
+
+  useEffect(() => {
+    if (jdOpenSignal && jdOpenSignal > 0) mountDock(true);
+  }, [jdOpenSignal, mountDock]);
 
   if (!ready) {
     // 데스크톱 인라인(has-dock, ≥900px)에서는 CSS로 FAB이 숨겨지고 곧바로 인라인 도크가
@@ -53,6 +57,7 @@ export function DeferredChatDock({ defaultOpen, inline, openSignal, ...rest }: P
       defaultOpen={openAfterLoad || defaultOpen}
       inline={inline}
       openSignal={openSignal}
+      jdOpenSignal={jdOpenSignal}
       {...rest}
     />
   );

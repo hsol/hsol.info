@@ -1079,6 +1079,47 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   color: var(--ink-faint);
   text-transform: uppercase;
 }
+
+/* Hire 상세 — JD 적합도 분석 진입 콜아웃 */
+.hire-jd-callout {
+  margin: 28px 0 8px;
+  padding: 20px 22px;
+  border: 1px solid var(--bp-line);
+  border-left: 3px solid var(--accent, #287099);
+  border-radius: 6px;
+  background: rgba(127, 180, 208, 0.05);
+}
+.hire-jd-callout-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bp-glow, #7fb4d0);
+  margin-bottom: 10px;
+}
+.hire-jd-callout-body {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink-2, #c8d8e0);
+}
+.hire-jd-callout-btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 11px 18px;
+  background: var(--accent, #287099);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
+}
+.hire-jd-callout-btn:hover {
+  background: var(--bp-glow, #7fb4d0);
+  transform: translateY(-1px);
+}
 .career-item {
   display: grid;
   grid-template-columns: 160px 1fr 110px;
