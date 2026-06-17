@@ -35,11 +35,26 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
               {D.portfolioCopy.home.heroEyebrow}
             </div>
             <h1 className="hero-title">
-              {D.portfolioCopy.home.heroTitleLines.map((line, idx) => (
-                <span className="blk" key={`${line}-${idx}`}>
-                  {idx === D.portfolioCopy.home.heroTitleLines.length - 1 ? <span className="hi">{line}</span> : line}
-                </span>
-              ))}
+              {D.portfolioCopy.home.heroTitleLines.map((line, idx) => {
+                const isLast = idx === D.portfolioCopy.home.heroTitleLines.length - 1;
+                // 마지막 줄에서는 이름(임한솔)만 하이라이트하고 "입니다." 등 뒤따르는 말은 평문으로 둔다.
+                const nameAt = isLast ? line.indexOf(D.identity.name) : -1;
+                return (
+                  <span className="blk" key={`${line}-${idx}`}>
+                    {!isLast ? (
+                      line
+                    ) : nameAt < 0 ? (
+                      <span className="hi">{line}</span>
+                    ) : (
+                      <>
+                        {line.slice(0, nameAt)}
+                        <span className="hi">{D.identity.name}</span>
+                        {line.slice(nameAt + D.identity.name.length)}
+                      </>
+                    )}
+                  </span>
+                );
+              })}
             </h1>
             <p className="hero-sub">
               {D.portfolioCopy.home.heroSubLead}
