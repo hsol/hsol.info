@@ -50,8 +50,8 @@ export function Plate() {
         </div>
       </div>
       <div className="plate-cell">
-        <div className="plate-key">Site</div>
-        <div className="plate-val">hsol.info</div>
+        <div className="plate-key">Language</div>
+        <LangToggle className="plate-lang" />
       </div>
       <a href={d.calendly} target="_blank" rel="noopener noreferrer" className="plate-cell plate-cell-link">
         <div className="plate-key">Status</div>
@@ -269,6 +269,55 @@ export function PlanDiagram({
   );
 }
 
+/**
+ * 언어 전환 토글(KO / EN).
+ * 브라우저가 네이티브 번역 UI를 JS로 직접 열 수 있는 표준 API는 없으므로,
+ * EN을 누르면 현재 페이지를 구글 번역(브라우저 번역과 같은 엔진)으로 열어 영문으로 보여준다.
+ * 번역본(*.translate.goog)에 있을 때는 KO가 원문으로 돌아가는 링크가 된다.
+ */
+export function LangToggle({ className = "" }: { className?: string }) {
+  const [mode, setMode] = useState<"ko" | "en">("ko");
+  const [enHref, setEnHref] = useState("https://hsol.info");
+  const [koHref, setKoHref] = useState("https://hsol.info");
+
+  useEffect(() => {
+    const { hostname, href, pathname, hash } = window.location;
+    const onProxy = hostname.endsWith(".translate.goog");
+    if (onProxy) {
+      setMode("en");
+      setKoHref(`https://hsol.info${pathname}${hash || ""}`);
+    } else {
+      setMode("ko");
+      setEnHref(`https://translate.google.com/translate?sl=ko&tl=en&u=${encodeURIComponent(href)}`);
+    }
+  }, []);
+
+  return (
+    <div className={"lang-toggle" + (className ? ` ${className}` : "")} role="group" aria-label="언어 / Language">
+      <a
+        className={"lang-opt" + (mode === "ko" ? " is-active" : "")}
+        href={koHref}
+        hrefLang="ko"
+        aria-current={mode === "ko" ? "true" : undefined}
+      >
+        KO
+      </a>
+      <span className="lang-sep" aria-hidden="true">
+        /
+      </span>
+      <a
+        className={"lang-opt" + (mode === "en" ? " is-active" : "")}
+        href={enHref}
+        hrefLang="en"
+        rel="nofollow"
+        aria-current={mode === "en" ? "true" : undefined}
+      >
+        EN
+      </a>
+    </div>
+  );
+}
+
 export function Foot() {
   const d = useSiteData().identity;
   return (
@@ -392,9 +441,12 @@ export function CoffeeCTA({ title, sub }: { title?: string; sub?: string }) {
 
 export function Back({ onBack }: { onBack: () => void }) {
   return (
-    <button type="button" className="back" onClick={onBack}>
-      <span className="back-arrow">←</span> 처음으로 돌아가기
-    </button>
+    <div className="back-row">
+      <button type="button" className="back" onClick={onBack}>
+        <span className="back-arrow">←</span> 처음으로 돌아가기
+      </button>
+      <LangToggle className="back-lang" />
+    </div>
   );
 }
 
