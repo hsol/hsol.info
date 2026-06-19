@@ -97,11 +97,38 @@ const STRUCTURED_DATA = {
       "@type": "Person",
       "@id": `${SITE_URL}/#person`,
       name: "임한솔",
-      alternateName: ["Hansol Lim", "hsol"],
+      alternateName: ["Hansol Lim", "hsol", "임한솔 대표", "임한솔 메이커"],
       url: SITE_URL,
       image: `${SITE_URL}/og.png`,
       jobTitle: "대표 / 메이커",
       description: SITE_DESCRIPTION_LONG,
+      // 동명이인(정치인·변호사·교수·배우 등)과 구별되는 엔티티 신호.
+      // 직업·전공·출신·전문 영역을 명시해 "임한솔" 검색에서 이 인물을 특정하게 한다.
+      nationality: { "@type": "Country", name: "대한민국" },
+      homeLocation: { "@type": "Place", name: "서울, 대한민국" },
+      hasOccupation: [
+        { "@type": "Occupation", name: "스타트업 대표 (CEO)" },
+        { "@type": "Occupation", name: "소프트웨어 엔지니어" },
+        { "@type": "Occupation", name: "프로덕트 메이커" },
+      ],
+      knowsAbout: [
+        "소프트웨어 엔지니어링",
+        "프로덕트 매니지먼트",
+        "개발자 생산성",
+        "AI Native 워크플로우",
+        "옴니채널 리테일",
+        "B2B SaaS",
+        "프로세스 설계 및 최적화",
+        "스타트업 창업",
+      ],
+      alumniOf: [
+        {
+          "@type": "CollegeOrUniversity",
+          name: "건국대학교",
+          sameAs: "https://www.konkuk.ac.kr",
+        },
+        { "@type": "HighSchool", name: "선린인터넷고등학교" },
+      ],
       worksFor: [
         { "@id": "https://proofer.tech/#organization" },
         { "@type": "Organization", name: "PPB Studios" },
