@@ -887,6 +887,37 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .foot-links a { transition: color 180ms ease; }
 .foot-links a:hover { color: var(--accent); }
 
+/* 언어 전환(KO / EN) — 브라우저/구글 번역으로 영문 보기 */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.lang-toggle .lang-opt { transition: color 180ms ease; color: var(--ink-mute); }
+.lang-toggle .lang-opt:hover { color: var(--accent); }
+.lang-toggle .lang-opt.is-active {
+  color: var(--ink);
+  font-weight: 600;
+  pointer-events: none;
+}
+.lang-toggle .lang-sep { color: var(--ink-faint); }
+
+/* 홈 Plate의 Language 셀 — 값 영역과 같은 위치감 */
+.plate-cell .plate-lang { font-size: 13px; letter-spacing: 0.1em; }
+
+/* 상세 — 처음으로 돌아가기 행: 좌측 Back, 우측 Language (justify-between) */
+.back-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.back-row .back { margin-bottom: 0; }
+
 /* ============================================================
    PERSONA VIEW — section: detail floor
    ============================================================ */
