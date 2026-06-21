@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,6 +12,12 @@ import {
   type ReactNode,
 } from "react";
 import type { SiteData } from "@/content/schema";
+import {
+  applyEnglishTranslation,
+  getPreferredLang,
+  setPreferredLang,
+  translatorSupported,
+} from "@/lib/i18n/page-translate";
 
 type CareerItem = SiteData["career"][number];
 const SiteDataContext = createContext<SiteData | null>(null);
@@ -271,49 +278,81 @@ export function PlanDiagram({
 
 /**
  * 언어 전환 토글(KO / EN).
- * 브라우저가 네이티브 번역 UI를 JS로 직접 열 수 있는 표준 API는 없으므로,
- * EN을 누르면 현재 페이지를 구글 번역(브라우저 번역과 같은 엔진)으로 열어 영문으로 보여준다.
- * 번역본(*.translate.goog)에 있을 때는 KO가 원문으로 돌아가는 링크가 된다.
+ * EN을 누르면 브라우저 내장(온디바이스) 번역 API로 본문을 그 자리에서 영어로 바꾼다
+ * (한국에서도 동작). KO는 새로고침으로 원문 복귀. 내장 API가 없는 브라우저(사파리·
+ * 파이어폭스 등)에서는 짧은 안내를 띄워 브라우저 자체 번역 기능을 쓰도록 한다.
  */
 export function LangToggle({ className = "" }: { className?: string }) {
   const [mode, setMode] = useState<"ko" | "en">("ko");
-  const [enHref, setEnHref] = useState("https://hsol.info");
-  const [koHref, setKoHref] = useState("https://hsol.info");
+  const [supported, setSupported] = useState(true);
+  const [pending, setPending] = useState(false);
+  const [hint, setHint] = useState(false);
 
   useEffect(() => {
-    const { hostname, href, pathname, hash } = window.location;
-    const onProxy = hostname.endsWith(".translate.goog");
-    if (onProxy) {
-      setMode("en");
-      setKoHref(`https://hsol.info${pathname}${hash || ""}`);
-    } else {
-      setMode("ko");
-      setEnHref(`https://translate.google.com/translate?sl=ko&tl=en&u=${encodeURIComponent(href)}`);
-    }
+    setMode(getPreferredLang());
+    setSupported(translatorSupported());
   }, []);
+
+  const toKo = useCallback(() => {
+    if (mode === "ko" || pending) return;
+    setPreferredLang("ko");
+    window.location.reload();
+  }, [mode, pending]);
+
+  const toEn = useCallback(async () => {
+    if (mode === "en" || pending) return;
+    if (!translatorSupported()) {
+      setSupported(false);
+      setHint(true);
+      window.setTimeout(() => setHint(false), 7000);
+      return;
+    }
+    setPending(true);
+    setPreferredLang("en");
+    const result = await applyEnglishTranslation();
+    setPending(false);
+    if (result.ok) {
+      setMode("en");
+    } else {
+      // 모델 미가용 등 — 원문 유지하고 안내
+      setPreferredLang("ko");
+      setSupported(result.reason !== "unsupported");
+      setHint(true);
+      window.setTimeout(() => setHint(false), 7000);
+    }
+  }, [mode, pending]);
 
   return (
     <div className={"lang-toggle" + (className ? ` ${className}` : "")} role="group" aria-label="언어 / Language">
-      <a
+      <button
+        type="button"
         className={"lang-opt" + (mode === "ko" ? " is-active" : "")}
-        href={koHref}
-        hrefLang="ko"
-        aria-current={mode === "ko" ? "true" : undefined}
+        onClick={toKo}
+        aria-pressed={mode === "ko" ? "true" : "false"}
+        lang="ko"
       >
         KO
-      </a>
+      </button>
       <span className="lang-sep" aria-hidden="true">
         /
       </span>
-      <a
+      <button
+        type="button"
         className={"lang-opt" + (mode === "en" ? " is-active" : "")}
-        href={enHref}
-        hrefLang="en"
-        rel="nofollow"
-        aria-current={mode === "en" ? "true" : undefined}
+        onClick={toEn}
+        aria-pressed={mode === "en" ? "true" : "false"}
+        disabled={pending}
+        lang="en"
       >
-        EN
-      </a>
+        {pending ? "…" : "EN"}
+      </button>
+      {hint && (
+        <span className="lang-hint" role="status">
+          {supported
+            ? "번역 모델을 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
+            : "이 브라우저에선 주소창·우클릭의 번역 기능을 사용해 주세요."}
+        </span>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlanDiagram, useSiteData } from "@/components/portfolio/Atoms";
 import { COORDS, type PersonaKey } from "@/components/portfolio/portfolio-types";
@@ -48,7 +49,13 @@ export function HomeView({ onPick }: { onPick: (key: PersonaKey) => void }) {
                     ) : (
                       <>
                         {line.slice(0, nameAt)}
-                        <span className="hi">{D.identity.name}</span>
+                        <Link
+                          href="/about"
+                          className="hero-name-link"
+                          aria-label={`${D.identity.name} 소개 페이지로 이동`}
+                        >
+                          <span className="hi">{D.identity.name}</span>
+                        </Link>
                         {line.slice(nameAt + D.identity.name.length)}
                       </>
                     )}
