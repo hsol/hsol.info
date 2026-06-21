@@ -187,12 +187,21 @@ export function ChatDock({
   return (
     <>
       {!open && (
-        <button type="button" className="chatdock-fab" onClick={() => setOpen(true)} aria-label="Ask Hansol">
+        <button
+          type="button"
+          className="chatdock-fab"
+          onClick={() => setOpen(true)}
+          aria-label="Ask Hansol"
+          data-no-translate
+        >
           <span className="fab-dot" />
           ASK
         </button>
       )}
-      <aside className={"chatdock" + (open ? " is-open" : "") + (inline ? " is-inline" : "")}>
+      <aside
+        className={"chatdock" + (open ? " is-open" : "") + (inline ? " is-inline" : "")}
+        data-no-translate
+      >
         <header className="chatdock-head">
           <div>
             <div className="chatdock-title">{D.portfolioCopy.ask.dockTitle}</div>

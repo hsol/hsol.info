@@ -13,7 +13,7 @@ import {
 } from "react";
 import type { SiteData } from "@/content/schema";
 import {
-  applyEnglishTranslation,
+  enableEnglishMode,
   getPreferredLang,
   setPreferredLang,
   translatorSupported,
@@ -309,7 +309,7 @@ export function LangToggle({ className = "" }: { className?: string }) {
     }
     setPending(true);
     setPreferredLang("en");
-    const result = await applyEnglishTranslation();
+    const result = await enableEnglishMode();
     setPending(false);
     if (result.ok) {
       setMode("en");
@@ -323,7 +323,12 @@ export function LangToggle({ className = "" }: { className?: string }) {
   }, [mode, pending]);
 
   return (
-    <div className={"lang-toggle" + (className ? ` ${className}` : "")} role="group" aria-label="언어 / Language">
+    <div
+      className={"lang-toggle" + (className ? ` ${className}` : "")}
+      role="group"
+      aria-label="언어 / Language"
+      data-no-translate
+    >
       <button
         type="button"
         className={"lang-opt" + (mode === "ko" ? " is-active" : "")}

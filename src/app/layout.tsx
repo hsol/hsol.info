@@ -4,6 +4,7 @@ import { siteFontVariables } from "@/lib/site-fonts";
 import { AdSenseScript } from "@/components/AdSenseScript";
 import { DeferredThirdPartyScripts } from "@/components/DeferredThirdPartyScripts";
 import { DeferredGoogleAnalyticsScripts } from "@/components/DeferredGoogleAnalyticsScripts";
+import { PageTranslateBootstrap } from "@/components/PageTranslateBootstrap";
 import "@/styles/legacy/main.css";
 import "./globals.css";
 
@@ -175,6 +176,7 @@ export default function RootLayout({
         <a className="skip-link" href="#main-content">
           본문 바로가기
         </a>
+        <PageTranslateBootstrap />
         {children}
         {adsenseClientId ? <AdSenseScript clientId={adsenseClientId} /> : null}
         {gaMeasurementId ? (
