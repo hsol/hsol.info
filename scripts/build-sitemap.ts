@@ -48,6 +48,12 @@ function buildEntries(now: string): UrlEntry[] {
     },
     ...personaEntries,
     {
+      loc: `${SITE_URL}/imhansol`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.9,
+    },
+    {
       loc: `${SITE_URL}/architecture`,
       lastmod: now,
       changefreq: "monthly",

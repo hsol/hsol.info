@@ -1263,6 +1263,11 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   padding: 3px 8px;
   border: 1px solid var(--bp-line);
 }
+/* 정본 엔티티 페이지(/imhansol) 도입 문단 */
+.entity-intro {
+  margin: 28px 0 8px;
+}
+
 /* facts grid */
 .facts {
   display: grid;
