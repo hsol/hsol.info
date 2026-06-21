@@ -13,7 +13,7 @@ import {
 import { ViewHead } from "@/components/portfolio/view-primitives";
 
 /**
- * 정본(canonical) 엔티티 페이지 — "임한솔"이라는 이름이 가리키는 여러 사람 가운데
+ * 정본(canonical) 엔티티 페이지(/about) — "임한솔"이라는 이름이 가리키는 여러 사람 가운데
  * 엔지니어·메이커 임한솔을 특정하는 기준점. 자기소개 뷰(hire/collab/builder/curious)와
  * 달리, 검색·AI가 동명이인과 구별해 이 인물을 인식하도록 신호를 한곳에 모은다.
  */
@@ -67,6 +67,10 @@ export function EntityProfilePage() {
               </div>
               <div className="fact">
                 <div className="fact-label">영문 이름</div>
+                <div className="fact-value">Hansol Lim</div>
+              </div>
+              <div className="fact">
+                <div className="fact-label">로마자 (한국어 순)</div>
                 <div className="fact-value">Lim Hansol</div>
               </div>
               <div className="fact">

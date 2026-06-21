@@ -48,7 +48,7 @@ function buildEntries(now: string): UrlEntry[] {
     },
     ...personaEntries,
     {
-      loc: `${SITE_URL}/imhansol`,
+      loc: `${SITE_URL}/about`,
       lastmod: now,
       changefreq: "weekly",
       priority: 0.9,
