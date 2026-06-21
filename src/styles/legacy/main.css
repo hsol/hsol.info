@@ -1263,6 +1263,143 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   padding: 3px 8px;
   border: 1px solid var(--bp-line);
 }
+/* /about 인물 줄글 페이지 */
+/* 이 페이지의 META·WHO 설명은 본문처럼 풀폭으로 흐르게 한다(전역 .view-lede 720px 제한 해제). */
+.about-view .view-lede {
+  max-width: none;
+}
+/* 이름(임한솔) 옆 작은 메타: 나이·연차. "얘 뭐지" 하는 궁금증을 유도하는 장치. */
+.about-view .view-title .name-meta {
+  margin-left: 14px;
+  font-size: 0.4em;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-mute);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+/* Z1 헤드: 좌측 제목·설명 / 우측 인물 사진(hansol.avif) 2단 배치. */
+.about-view .view-head-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title portrait"
+    "lede  portrait";
+  column-gap: 28px;
+  align-items: center;
+}
+.about-view .view-head-body > .view-title {
+  grid-area: title;
+}
+.about-view .view-head-body > .view-lede {
+  grid-area: lede;
+}
+.about-view .about-portrait {
+  grid-area: portrait;
+  width: 200px;
+  height: auto;
+  border-radius: 12px;
+  align-self: center;
+}
+@media (max-width: 768px) {
+  .about-view .view-head-body {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "portrait"
+      "title"
+      "lede";
+    row-gap: 16px;
+    justify-items: start;
+  }
+  .about-view .about-portrait {
+    width: 140px;
+  }
+}
+.entity-prose {
+  margin: 24px 0 40px;
+}
+.entity-p {
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.9;
+  color: var(--ink);
+  margin: 0 0 18px;
+}
+.entity-p:last-child {
+  margin-bottom: 0;
+}
+.entity-p strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+/* /about 하단 링크: 좌측 프로필 · 우측 관점별 4개 뷰 */
+.about-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 8px;
+}
+.about-links-head {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+.about-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--bp-line);
+  text-decoration: none;
+  color: var(--ink);
+}
+.about-link:last-child {
+  border-bottom: none;
+}
+.about-link-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+.about-link-val {
+  font-family: var(--sans);
+  font-size: 14px;
+  text-align: right;
+}
+.about-link:hover .about-link-val {
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+@media (max-width: 768px) {
+  .about-links {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+}
+
+/* 홈 히어로의 이름(임한솔) → /about 링크. 하이라이트 스타일은 .hi가 유지하고
+   링크는 색·밑줄을 상속받아 평소엔 텍스트처럼, 호버 시에만 클릭 단서를 준다. */
+.hero-name-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hero-name-link:hover .hi,
+.hero-name-link:focus-visible .hi {
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+.hero-name-link:focus-visible {
+  outline: 2px solid var(--bp-accent, currentColor);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* facts grid */
 .facts {
   display: grid;

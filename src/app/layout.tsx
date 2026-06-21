@@ -97,7 +97,7 @@ const STRUCTURED_DATA = {
       "@type": "Person",
       "@id": `${SITE_URL}/#person`,
       name: "임한솔",
-      alternateName: ["Hansol Lim", "hsol"],
+      alternateName: ["Hansol Lim", "Lim Hansol", "hsol"],
       url: SITE_URL,
       image: `${SITE_URL}/og.png`,
       jobTitle: "대표 / 메이커",
