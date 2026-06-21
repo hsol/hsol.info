@@ -8,7 +8,6 @@ import {
   Back,
   CoffeeCTA,
   Foot,
-  Plate,
   SecHead,
   useSiteData,
 } from "@/components/portfolio/Atoms";
@@ -61,17 +60,16 @@ export function EntityProfilePage() {
         <main id="main-content">
           <div className="view about-view">
             <Back onBack={() => router.push("/")} />
-            <Plate />
             <ViewHead
               room="META · WHO"
               coord="Z1"
               title={
                 <>
                   임한솔
-                  <span className="name-meta">30세 · 12년차</span>
+                  <span className="name-meta">30세 · 사회 12년차</span>
                 </>
               }
-              lede="이력서에는 안 적는 이야기를 모은 페이지입니다. 제가 어떻게 자랐고 어떻게 일하며 무엇을 거쳐 왔는지 적었습니다."
+              lede="이력서에는 안 적는 이야기를 모아놓은 페이지입니다. 제가 어떻게 자랐고 어떻게 일하며 무엇을 거쳐 왔는지 적었습니다."
             >
               <Image
                 src="/hansol.avif"

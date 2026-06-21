@@ -12,6 +12,7 @@ import {
   streamAnswerText,
 } from "@/lib/ask-hansol/client";
 import { getOrCreateAskHansolSessionId } from "@/lib/ask-hansol/browser-session";
+import { onSelectionAsk, takePendingSelectionAsk } from "@/components/ask-selection/selection-bridge";
 import { ASK_HANSOL_FALLBACK_MESSAGE, ASK_HANSOL_SUGGESTIONS } from "@/lib/ask-hansol/shared";
 import type { AskDraft, ChatMsg } from "@/components/portfolio/portfolio-types";
 import { renderMarkdownText } from "./render-markdown-text";
@@ -40,6 +41,7 @@ export function ChatDock({
   const [historyReady, setHistoryReady] = useState(false);
   const [jdMode, setJdMode] = useState(false);
   const [jdText, setJdText] = useState("");
+  const [selectionDraft, setSelectionDraft] = useState<AskDraft | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const handledDraftIdRef = useRef<string | null>(null);
   const handledJdSignalRef = useRef(0);
@@ -132,6 +134,25 @@ export function ChatDock({
     setOpen(true);
     void ask(draftToAsk.displayQuery, { selectedText: draftToAsk.selectedText });
   }, [draftToAsk, historyReady, ask]);
+
+  // 전역 드래그→질문 브리지 구독(+ 마운트 전 발생분 1회 흡수).
+  useEffect(() => {
+    const queued = takePendingSelectionAsk();
+    if (queued) setSelectionDraft(queued);
+    return onSelectionAsk((draft) => {
+      // 다른 도크 인스턴스가 중복 처리하지 않도록 즉시 비운다.
+      takePendingSelectionAsk();
+      setSelectionDraft(draft);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!selectionDraft || !historyReady) return;
+    if (handledDraftIdRef.current === selectionDraft.id) return;
+    handledDraftIdRef.current = selectionDraft.id;
+    setOpen(true);
+    void ask(selectionDraft.displayQuery, { selectedText: selectionDraft.selectedText });
+  }, [selectionDraft, historyReady, ask]);
 
   // Hire 상세의 "JD 적합도 분석" 진입점 — 도크를 열고 JD 작성 패널을 펼친다.
   // handledJdSignalRef로 같은 신호를 한 번만 처리해, Hire를 떠났다 돌아올 때

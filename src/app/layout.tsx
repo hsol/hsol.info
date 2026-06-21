@@ -5,6 +5,7 @@ import { AdSenseScript } from "@/components/AdSenseScript";
 import { DeferredThirdPartyScripts } from "@/components/DeferredThirdPartyScripts";
 import { DeferredGoogleAnalyticsScripts } from "@/components/DeferredGoogleAnalyticsScripts";
 import { PageTranslateBootstrap } from "@/components/PageTranslateBootstrap";
+import { SelectionAsk } from "@/components/ask-selection/SelectionAsk";
 import "@/styles/legacy/main.css";
 import "./globals.css";
 
@@ -177,6 +178,7 @@ export default function RootLayout({
           본문 바로가기
         </a>
         <PageTranslateBootstrap />
+        <SelectionAsk />
         {children}
         {adsenseClientId ? <AdSenseScript clientId={adsenseClientId} /> : null}
         {gaMeasurementId ? (
