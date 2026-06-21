@@ -2,11 +2,13 @@
  * 페이지 영문 보기 — 브라우저 내장(온디바이스) 번역 API 활용.
  *
  * 구글 번역 웹 프록시(translate.goog)는 한국 등 일부 지역에서 차단되므로 쓰지 않는다.
- * 대신 Chrome/Edge 138+의 내장 `Translator` API로 #main-content의 한글 텍스트 노드를
- * 그 자리에서 영어로 바꾼다(온디바이스라 지역 제한 없음). 미지원 브라우저에서는
- * `translatorSupported()`가 false를 반환하므로 호출부에서 안내 폴백을 보여준다.
+ * 대신 Chrome/Edge 138+의 내장 `Translator` API로 <body>의 한글 텍스트 노드를 그 자리에서
+ * 영어로 바꾼다(온디바이스라 지역 제한 없음). 미지원 브라우저에서는 `translatorSupported()`가
+ * false를 반환하므로 호출부에서 안내 폴백을 보여준다.
  *
- * KO 복귀는 별도 복원 대신 페이지 새로고침으로 처리한다(원문이 기본이라 가장 안전).
+ * EN 모드는 MutationObserver로 유지한다 — SPA 라우팅, 지연 로드 뷰, /about 같은 별도 라우트
+ * 어디로 이동하든 새로 들어온 한글을 자동으로 다시 번역한다. KO 복귀는 새로고침으로 처리한다
+ * (원문이 기본이라 가장 안전). `[data-no-translate]` 하위(언어 토글·Ask 도크 등)는 건드리지 않는다.
  */
 
 const LANG_KEY = "hsol-lang";
@@ -83,12 +85,11 @@ async function getTranslator(): Promise<TranslatorInstance | null> {
   return pendingTranslator;
 }
 
-const translatedNodes = new WeakSet<Text>();
-
-function collectHangulTextNodes(root: HTMLElement): Text[] {
+function collectHangulTextNodes(root: Node): Text[] {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       const text = node.nodeValue ?? "";
+      // 이미 번역된(영어) 노드는 한글이 없어 자동으로 제외된다 — 멱등성의 핵심.
       if (!HANGUL.test(text)) return NodeFilter.FILTER_REJECT;
       const parent = (node as Text).parentElement;
       if (!parent) return NodeFilter.FILTER_REJECT;
@@ -119,16 +120,16 @@ async function runPool<T>(items: T[], limit: number, fn: (item: T) => Promise<vo
   await Promise.all(workers);
 }
 
-async function translateOnce(rootSelector: string): Promise<TranslateResult> {
+async function translateOnce(): Promise<TranslateResult> {
   if (typeof document === "undefined") return { ok: false, reason: "error" };
   const translator = await getTranslator();
   if (!translator) {
     return { ok: false, reason: translatorSupported() ? "unavailable" : "unsupported" };
   }
-  const root = document.querySelector<HTMLElement>(rootSelector);
+  const root = document.body;
   if (!root) return { ok: false, reason: "no-root" };
 
-  const nodes = collectHangulTextNodes(root).filter((node) => !translatedNodes.has(node));
+  const nodes = collectHangulTextNodes(root);
   if (nodes.length === 0) {
     document.documentElement.setAttribute("data-tr", "en");
     return { ok: true };
@@ -137,13 +138,12 @@ async function translateOnce(rootSelector: string): Promise<TranslateResult> {
   await runPool(nodes, 6, async (node) => {
     const original = node.nodeValue ?? "";
     const trimmed = original.trim();
-    if (!trimmed) return;
+    if (!trimmed || !HANGUL.test(trimmed)) return;
     try {
       const translated = await translator.translate(trimmed);
+      // 번역 도중 노드가 바뀌지 않았을 때만 치환(앞뒤 공백 보존).
       if (translated && node.nodeValue === original) {
-        // 앞뒤 공백은 보존하고 본문만 치환.
         node.nodeValue = original.replace(trimmed, translated);
-        translatedNodes.add(node);
       }
     } catch {
       /* 개별 노드 실패는 건너뛴다 */
@@ -158,25 +158,68 @@ let busy = false;
 let rerunRequested = false;
 
 /**
- * #main-content의 한글을 영어로 번역(제자리). 동시 호출은 합쳐서(coalesce) 처리하므로
- * 클릭·라우팅 effect에서 자유롭게 여러 번 불러도 안전하다. 이미 번역된 노드는 건너뛴다.
+ * <body>의 한글을 영어로 번역(제자리). 동시 호출은 합쳐서(coalesce) 처리하므로
+ * 클릭·옵저버에서 자유롭게 여러 번 불러도 안전하다. 이미 번역된(영어) 노드는 한글이 없어 건너뛴다.
  */
-export async function applyEnglishTranslation(
-  rootSelector = "#main-content",
-): Promise<TranslateResult> {
+export async function applyEnglishTranslation(): Promise<TranslateResult> {
   if (busy) {
     rerunRequested = true;
     return { ok: true };
   }
   busy = true;
   try {
-    let result = await translateOnce(rootSelector);
+    let result = await translateOnce();
     while (rerunRequested) {
       rerunRequested = false;
-      result = await translateOnce(rootSelector);
+      result = await translateOnce();
     }
     return result;
   } finally {
     busy = false;
   }
+}
+
+let observer: MutationObserver | null = null;
+let observerDebounce = 0;
+
+function isInsideNoTranslate(node: Node | null): boolean {
+  const el =
+    node && node.nodeType === Node.ELEMENT_NODE
+      ? (node as Element)
+      : (node as CharacterData | null)?.parentElement ?? null;
+  return Boolean(el?.closest?.("[data-no-translate]"));
+}
+
+function startObserver(): void {
+  if (observer || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
+  observer = new MutationObserver((mutations) => {
+    let relevant = false;
+    for (const m of mutations) {
+      if (isInsideNoTranslate(m.target)) continue;
+      if (m.type === "childList" && m.addedNodes.length > 0) {
+        relevant = true;
+        break;
+      }
+      // 우리가 만든 번역(영어) 변경은 한글이 없어 무시되고, 새로 들어온/되돌려진 한글만 트리거.
+      if (m.type === "characterData" && HANGUL.test((m.target as CharacterData).data ?? "")) {
+        relevant = true;
+        break;
+      }
+    }
+    if (!relevant) return;
+    window.clearTimeout(observerDebounce);
+    observerDebounce = window.setTimeout(() => void applyEnglishTranslation(), 200);
+  });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
+/**
+ * EN 모드 진입: 즉시 1회 번역하고, 이후 라우팅·지연 로드로 들어오는 한글을 옵저버로 계속 번역.
+ * 번역 모델이 없는(미지원/미가용) 경우 첫 결과의 ok=false를 그대로 돌려준다.
+ */
+export async function enableEnglishMode(): Promise<TranslateResult> {
+  if (typeof document === "undefined") return { ok: false, reason: "error" };
+  const result = await applyEnglishTranslation();
+  if (result.ok) startObserver();
+  return result;
 }

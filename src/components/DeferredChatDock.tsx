@@ -46,6 +46,7 @@ export function DeferredChatDock({ defaultOpen, inline, openSignal, jdOpenSignal
         className="chatdock-fab"
         onClick={() => mountDock(true)}
         aria-label="Ask Hansol"
+        data-no-translate
       >
         Ask <span className="fab-dot" />
       </button>
