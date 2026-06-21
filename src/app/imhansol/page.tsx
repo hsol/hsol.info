@@ -5,7 +5,7 @@ import { getSiteData } from "@/lib/content/site-data";
 
 const SITE_URL = "https://hsol.info";
 
-const PAGE_TITLE = "임한솔 (Hansol Lim) — 엔지니어·메이커 | hsol.info";
+const PAGE_TITLE = "임한솔 (Lim Hansol) — 엔지니어·메이커 | hsol.info";
 const PAGE_DESCRIPTION =
   "씨엔티테크·리디북스·토스를 거쳐 프루퍼를 창업한 12년 차 소프트웨어 엔지니어 임한솔. 같은 이름의 정치인·변호사·교수·뮤지컬 배우와 구별되는 엔지니어 임한솔의 경력·활동·연결된 계정을 한곳에 정리한 정본 소개.";
 

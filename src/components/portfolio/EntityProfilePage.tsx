@@ -52,12 +52,10 @@ export function EntityProfilePage() {
 
             <section className="entity-intro">
               <p className="view-lede">
-                이 페이지는 &lsquo;임한솔&rsquo;이라는 이름이 가리키는 여러 사람
-                가운데 온라인 제품을 만들고 오프라인 운영을 설계해 온 엔지니어
-                임한솔을 한곳에 정리한 자리입니다. 검색 첫 화면을 채우는
-                동명이인과 헷갈리지 않도록 경력과 활동, 연결된 계정을 모았습니다.
-                더 궁금한 점은 아래 경력 정리를 보거나 사이트의 AI 클론 Ask
-                Hansol에게 바로 물어볼 수 있습니다.
+                아래에는 경력과 학력, 자격, 그리고 LinkedIn·GitHub·Medium처럼
+                연결된 계정을 정리해 두었습니다. 더 깊은 내용이 궁금하면 각
+                경력을 펼쳐 보거나 사이트의 AI 클론 Ask Hansol에게 바로 물어볼 수
+                있습니다.
               </p>
             </section>
 
@@ -69,7 +67,7 @@ export function EntityProfilePage() {
               </div>
               <div className="fact">
                 <div className="fact-label">영문 이름</div>
-                <div className="fact-value">{d.nameEn}</div>
+                <div className="fact-value">Lim Hansol</div>
               </div>
               <div className="fact">
                 <div className="fact-label">활동명</div>
