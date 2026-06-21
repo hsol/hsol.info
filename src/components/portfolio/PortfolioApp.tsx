@@ -8,6 +8,11 @@ import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { SiteData } from "@/content/schema";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
 import { personaFromPathname, type AskDraft, type PersonaKey } from "@/components/portfolio/portfolio-types";
+import {
+  applyEnglishTranslation,
+  getPreferredLang,
+  translatorSupported,
+} from "@/lib/i18n/page-translate";
 import { useReportAskVisibleSection } from "@/components/portfolio/use-report-ask-visible-section";
 import { HomeView } from "@/components/portfolio/views/HomeView";
 
@@ -53,6 +58,23 @@ function PortfolioAppBody() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [pathname]);
+
+  // EN 모드면 라우팅 후(지연 로드되는 뷰 포함) 본문을 다시 영어로 번역한다.
+  // applyEnglishTranslation은 호출을 합쳐 처리하고 이미 번역된 노드는 건너뛰므로 여러 번 호출해도 안전.
+  useEffect(() => {
+    if (getPreferredLang() !== "en" || !translatorSupported()) return;
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void applyEnglishTranslation();
+    };
+    const raf = requestAnimationFrame(run);
+    const timers = [250, 700, 1500].map((ms) => window.setTimeout(run, ms));
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      timers.forEach((t) => window.clearTimeout(t));
+    };
   }, [pathname]);
 
   useEffect(() => {
