@@ -233,7 +233,7 @@ export function ChatDock({
     setLoading(true);
 
     const preview = finalIssue.length > 180 ? `${finalIssue.slice(0, 180)}…` : finalIssue;
-    const userText = `임한솔이라면 이 이슈를 어떻게 볼까요?\n\n> ${preview.replace(/\n+/g, " ")}`;
+    const userText = `이 이슈, 어떻게 보면 좋을지 의견을 듣고 싶어요.\n\n> ${preview.replace(/\n+/g, " ")}`;
     const botKey = `local-h-${crypto.randomUUID()}`;
     setMessages((prev) => [
       ...prev,
@@ -316,7 +316,7 @@ export function ChatDock({
                   className="chatdock-jd-cta"
                   onClick={() => setAdviceMode(true)}
                 >
-                  이슈를 적고 “임한솔이라면?” 묻기
+                  이슈 적고 “저라면 어떻게 볼지” 묻기
                 </button>
               )}
             </div>
@@ -373,7 +373,7 @@ export function ChatDock({
         {adviceFeatureEnabled && adviceMode && (
           <div className="chatdock-jd-panel">
             <div className="chatdock-jd-head">
-              <span className="chatdock-jd-title">임한솔이라면? — 이슈 자문</span>
+              <span className="chatdock-jd-title">저라면? — 이슈 자문</span>
               <button
                 type="button"
                 className="chatdock-jd-close"
@@ -409,7 +409,7 @@ export function ChatDock({
             className="chatdock-jd-toggle"
             onClick={() => setAdviceMode(true)}
           >
-            임한솔이라면? — 이슈 자문
+            저라면? — 이슈 자문
           </button>
         )}
         <form

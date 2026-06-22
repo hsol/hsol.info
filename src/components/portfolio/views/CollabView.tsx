@@ -25,14 +25,14 @@ export function CollabView({
 
       {onAskAdvice && (
         <div className="hire-jd-callout" data-ask-section="collab/advice">
-          <div className="hire-jd-callout-eyebrow">임한솔이라면? · AI 자문</div>
+          <div className="hire-jd-callout-eyebrow">저라면 어떻게 볼까 · AI 자문</div>
           <p className="hire-jd-callout-body">
-            지금 풀고 있는 이슈를 적어 주시면, 임한솔의 의사결정 방식(문제 재정의 · 작은 검증 ·
-            구체화)을 그 상황에 적용해 “임한솔이라면 어떻게 볼지”를 같이 짚어 드립니다. 정해진
-            정답이 아니라 그의 사고 틀을 빌린 관점입니다.
+            지금 풀고 있는 이슈를 적어 주시면, 제 의사결정 방식(문제 재정의 · 작은 검증 ·
+            구체화)을 그 상황에 적용해 저라면 어떻게 볼지 같이 짚어 드릴게요. 정해진 정답이
+            아니라 제 사고 틀을 빌린 관점이에요.
           </p>
           <button type="button" className="hire-jd-callout-btn" onClick={onAskAdvice}>
-            이슈 적고 임한솔 시각 받기 →
+            이슈 적고 제 시각 받아보기 →
           </button>
         </div>
       )}
