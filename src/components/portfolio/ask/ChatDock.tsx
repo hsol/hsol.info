@@ -316,7 +316,7 @@ export function ChatDock({
                   className="chatdock-jd-cta"
                   onClick={() => setAdviceMode(true)}
                 >
-                  이슈 적고 저라면 어떻게 볼지 묻기
+                  고민이 있으신가요? 제게 말씀해주세요.
                 </button>
               )}
             </div>
@@ -399,7 +399,7 @@ export function ChatDock({
               onClick={() => askAdvice()}
               disabled={loading || adviceText.trim().length < 20 || !historyReady}
             >
-              {loading ? "생각 중..." : "임한솔 시각으로 보기"}
+              {loading ? "생각 중..." : "제 관점은요!"}
             </button>
           </div>
         )}
