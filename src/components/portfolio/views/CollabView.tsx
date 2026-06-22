@@ -32,7 +32,7 @@ export function CollabView({
             아니라 제 사고 틀을 빌린 관점이에요.
           </p>
           <button type="button" className="hire-jd-callout-btn" onClick={onAskAdvice}>
-            이슈 적고 제 시각 받아보기 →
+            당신의 이슈에 대한 제 관점은요 →
           </button>
         </div>
       )}
