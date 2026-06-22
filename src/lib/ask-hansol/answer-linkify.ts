@@ -196,10 +196,23 @@ function expandBareMarkdownAngle(text: string): string {
   return s;
 }
 
+/**
+ * AI가 흔히 쓰는 특수문자를 일반 문장부호로 치환한다(엠/엔대시·말줄임표·불릿·곡선따옴표).
+ * 링크는 위에서 이미 분리하므로 URL에는 영향이 없다(대시·따옴표는 URL에 안 쓰임).
+ */
+function stripAiTypography(text: string): string {
+  return text
+    .replace(/[—–―]/g, "-") // em/en/horizontal dash → 하이픈
+    .replace(/…/g, "...") // 말줄임표 문자 → 마침표 3개
+    .replace(/[“”]/g, '"') // 곡선 큰따옴표 → 곧은 따옴표
+    .replace(/[‘’]/g, "'") // 곡선 작은따옴표 → 곧은 따옴표
+    .replace(/^[ \t]*[•·]\s+/gm, "- "); // 줄머리 불릿(•·) → 마크다운 "- "
+}
+
 /** API 응답 후처리: 마크다운 서식은 유지하고, 링크만 클릭 가능 형태로 정규화 */
 export function normalizeAskAnswerPlainText(text: string): string {
   let s = expandBareMarkdownAngle(text);
-  s = s
+  s = stripAiTypography(s)
     // Autolink 문법의 <www...>를 <https://www...>로 보정
     .replace(/<(www\.[^>\s]+)>/gi, "<https://$1>")
     // 마크다운 링크의 www.는 명시적 스킴으로 보정

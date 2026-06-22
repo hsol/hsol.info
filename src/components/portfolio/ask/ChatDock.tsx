@@ -183,7 +183,7 @@ export function ChatDock({
     setJdMode(false);
     setLoading(true);
 
-    const preview = finalJd.length > 180 ? `${finalJd.slice(0, 180)}…` : finalJd;
+    const preview = finalJd.length > 180 ? `${finalJd.slice(0, 180)}...` : finalJd;
     const userText = `채용 공고 적합도 분석을 부탁드려요.\n\n> ${preview.replace(/\n+/g, " ")}`;
     const botKey = `local-h-${crypto.randomUUID()}`;
     setMessages((prev) => [
@@ -232,7 +232,7 @@ export function ChatDock({
     setAdviceMode(false);
     setLoading(true);
 
-    const preview = finalIssue.length > 180 ? `${finalIssue.slice(0, 180)}…` : finalIssue;
+    const preview = finalIssue.length > 180 ? `${finalIssue.slice(0, 180)}...` : finalIssue;
     const userText = `이 이슈, 어떻게 보면 좋을지 의견을 듣고 싶어요.\n\n> ${preview.replace(/\n+/g, " ")}`;
     const botKey = `local-h-${crypto.randomUUID()}`;
     setMessages((prev) => [
@@ -316,7 +316,7 @@ export function ChatDock({
                   className="chatdock-jd-cta"
                   onClick={() => setAdviceMode(true)}
                 >
-                  이슈 적고 “저라면 어떻게 볼지” 묻기
+                  이슈 적고 저라면 어떻게 볼지 묻기
                 </button>
               )}
             </div>
@@ -357,7 +357,7 @@ export function ChatDock({
               onClick={() => analyzeJd()}
               disabled={loading || jdText.trim().length < 40 || !historyReady}
             >
-              {loading ? "분석 중…" : "적합도 분석하기"}
+              {loading ? "분석 중..." : "적합도 분석하기"}
             </button>
           </div>
         )}
@@ -373,7 +373,7 @@ export function ChatDock({
         {adviceFeatureEnabled && adviceMode && (
           <div className="chatdock-jd-panel">
             <div className="chatdock-jd-head">
-              <span className="chatdock-jd-title">저라면? — 이슈 자문</span>
+              <span className="chatdock-jd-title">저라면 어떻게 볼지</span>
               <button
                 type="button"
                 className="chatdock-jd-close"
@@ -388,7 +388,7 @@ export function ChatDock({
             </div>
             <textarea
               className="chatdock-jd-textarea"
-              placeholder="고민 중인 이슈를 적어주세요. 배경·제약·목표·지금까지 시도한 것을 함께 적으면 더 깊이 짚어드려요. (예: 초기 팀에 PM을 따로 둬야 할까요? 상황은…)"
+              placeholder="고민 중인 이슈를 적어주세요. 배경·제약·목표·지금까지 시도한 것을 함께 적으면 더 깊이 짚어드려요. (예: 초기 팀에 PM을 따로 둬야 할까요? 상황은...)"
               value={adviceText}
               onChange={(e) => setAdviceText(e.target.value)}
               rows={6}
@@ -399,7 +399,7 @@ export function ChatDock({
               onClick={() => askAdvice()}
               disabled={loading || adviceText.trim().length < 20 || !historyReady}
             >
-              {loading ? "생각 중…" : "임한솔 시각으로 보기"}
+              {loading ? "생각 중..." : "임한솔 시각으로 보기"}
             </button>
           </div>
         )}
@@ -409,7 +409,7 @@ export function ChatDock({
             className="chatdock-jd-toggle"
             onClick={() => setAdviceMode(true)}
           >
-            저라면? — 이슈 자문
+            저라면 어떻게 볼지
           </button>
         )}
         <form
@@ -427,7 +427,7 @@ export function ChatDock({
           />
 
           <button className="chatdock-send" type="submit" disabled={loading || !q.trim() || !historyReady}>
-            {loading ? "…" : "↑"}
+            {loading ? "..." : "↑"}
           </button>
         </form>
       </aside>
