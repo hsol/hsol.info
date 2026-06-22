@@ -103,6 +103,31 @@ export async function analyzeJobDescriptionViaApi(
   return data.answer;
 }
 
+export async function askHansolAdviceViaApi(
+  issue: string,
+  sessionId: string,
+  pageContext?: AskHansolPageContext,
+): Promise<string> {
+  const response = await fetch("/api/ask-hansol-advice", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      issue,
+      sessionId: sessionId || undefined,
+      pageContext: pageContext ?? undefined,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`ask-hansol-advice failed: ${response.status}`);
+  }
+  const data = (await response.json()) as AskHansolResponse;
+  if (!data.answer) {
+    throw new Error("empty answer");
+  }
+  return data.answer;
+}
+
 export function streamAnswerText(
   answerText: string,
   onChunk: (text: string, streaming: boolean) => void,

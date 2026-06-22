@@ -2,6 +2,8 @@
  * Ask Hansol 답변용: API 평문 정규화 + 클라이언트에서 클릭 가능한 <a>로 쪼개기.
  */
 
+import { stripAiTypography } from "@/lib/ai-typography";
+
 /** 흔한 파일 확장자·짧은 TLD 오탐 줄이기 */
 const BARE_TLD_DENY = new Set([
   "ts",
@@ -199,7 +201,7 @@ function expandBareMarkdownAngle(text: string): string {
 /** API 응답 후처리: 마크다운 서식은 유지하고, 링크만 클릭 가능 형태로 정규화 */
 export function normalizeAskAnswerPlainText(text: string): string {
   let s = expandBareMarkdownAngle(text);
-  s = s
+  s = stripAiTypography(s)
     // Autolink 문법의 <www...>를 <https://www...>로 보정
     .replace(/<(www\.[^>\s]+)>/gi, "<https://$1>")
     // 마크다운 링크의 www.는 명시적 스킴으로 보정

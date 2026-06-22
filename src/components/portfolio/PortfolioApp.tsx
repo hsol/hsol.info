@@ -36,6 +36,7 @@ function PortfolioAppBody() {
   );
   const [askVisibleSection, setAskVisibleSection] = useState<string | undefined>();
   const [jdOpenSignal, setJdOpenSignal] = useState(0);
+  const [adviceOpenSignal, setAdviceOpenSignal] = useState(0);
   const [askTrackingReady, setAskTrackingReady] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +68,9 @@ function PortfolioAppBody() {
   const triggerJdAnalysis = useCallback(() => {
     setJdOpenSignal((prev) => prev + 1);
   }, []);
+  const triggerAdvice = useCallback(() => {
+    setAdviceOpenSignal((prev) => prev + 1);
+  }, []);
 
   const viewKey = persona ?? "home";
   useReportAskVisibleSection(shellRef, viewKey, setAskVisibleSection, askTrackingReady);
@@ -93,7 +97,7 @@ function PortfolioAppBody() {
 
   let body;
   if (persona === "hire") body = <HireView onBack={back} onAnalyzeJd={triggerJdAnalysis} />;
-  else if (persona === "collab") body = <CollabView onBack={back} />;
+  else if (persona === "collab") body = <CollabView onBack={back} onAskAdvice={triggerAdvice} />;
   else if (persona === "builder") body = <BuilderView onBack={back} />;
   else if (persona === "curious")
     body = <CuriousView onBack={back} accent={DEFAULT_ACCENT} />;
@@ -112,6 +116,7 @@ function PortfolioAppBody() {
         inline={persona !== null}
         pageContext={pageContext}
         jdOpenSignal={jdOpenSignal}
+        adviceOpenSignal={adviceOpenSignal}
       />
     </div>
   );
