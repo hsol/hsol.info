@@ -2,6 +2,8 @@
  * Ask Hansol 답변용: API 평문 정규화 + 클라이언트에서 클릭 가능한 <a>로 쪼개기.
  */
 
+import { stripAiTypography } from "@/lib/ai-typography";
+
 /** 흔한 파일 확장자·짧은 TLD 오탐 줄이기 */
 const BARE_TLD_DENY = new Set([
   "ts",
@@ -194,19 +196,6 @@ function expandBareMarkdownAngle(text: string): string {
     },
   );
   return s;
-}
-
-/**
- * AI가 흔히 쓰는 특수문자를 일반 문장부호로 치환한다(엠/엔대시·말줄임표·불릿·곡선따옴표).
- * 링크는 위에서 이미 분리하므로 URL에는 영향이 없다(대시·따옴표는 URL에 안 쓰임).
- */
-function stripAiTypography(text: string): string {
-  return text
-    .replace(/[—–―]/g, "-") // em/en/horizontal dash → 하이픈
-    .replace(/…/g, "...") // 말줄임표 문자 → 마침표 3개
-    .replace(/[“”]/g, '"') // 곡선 큰따옴표 → 곧은 따옴표
-    .replace(/[‘’]/g, "'") // 곡선 작은따옴표 → 곧은 따옴표
-    .replace(/^[ \t]*[•·]\s+/gm, "- "); // 줄머리 불릿(•·) → 마크다운 "- "
 }
 
 /** API 응답 후처리: 마크다운 서식은 유지하고, 링크만 클릭 가능 형태로 정규화 */
