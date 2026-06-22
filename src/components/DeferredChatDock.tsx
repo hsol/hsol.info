@@ -17,7 +17,14 @@ type Props = ComponentProps<typeof ChatDock>;
  * Ask Hansol — ChatDock 청크(react-markdown 등)는 FAB 클릭·페르소나 인라인·openSignal 때만 로드.
  * 홈 초기 방문에서 미사용 JS ~100KiB+ 절감.
  */
-export function DeferredChatDock({ defaultOpen, inline, openSignal, jdOpenSignal, ...rest }: Props) {
+export function DeferredChatDock({
+  defaultOpen,
+  inline,
+  openSignal,
+  jdOpenSignal,
+  adviceOpenSignal,
+  ...rest
+}: Props) {
   const [ready, setReady] = useState(false);
   const [openAfterLoad, setOpenAfterLoad] = useState(false);
 
@@ -37,6 +44,10 @@ export function DeferredChatDock({ defaultOpen, inline, openSignal, jdOpenSignal
   useEffect(() => {
     if (jdOpenSignal && jdOpenSignal > 0) mountDock(true);
   }, [jdOpenSignal, mountDock]);
+
+  useEffect(() => {
+    if (adviceOpenSignal && adviceOpenSignal > 0) mountDock(true);
+  }, [adviceOpenSignal, mountDock]);
 
   // 드래그→질문 전역 브리지: 선택 질문이 오면 도크를 띄운다(FAB 상태인 /about 등 포함).
   useEffect(() => onSelectionAsk(() => mountDock(true)), [mountDock]);
@@ -63,6 +74,7 @@ export function DeferredChatDock({ defaultOpen, inline, openSignal, jdOpenSignal
       inline={inline}
       openSignal={openSignal}
       jdOpenSignal={jdOpenSignal}
+      adviceOpenSignal={adviceOpenSignal}
       {...rest}
     />
   );

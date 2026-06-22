@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSiteData } from "@/components/portfolio/Atoms";
 import {
   analyzeJobDescriptionViaApi,
+  askHansolAdviceViaApi,
   askHansolSelectionViaApi,
   askHansolViaApi,
   type AskHansolPageContext,
@@ -24,6 +25,7 @@ export function ChatDock({
   openSignal,
   draftToAsk,
   jdOpenSignal,
+  adviceOpenSignal,
 }: {
   defaultOpen?: boolean;
   inline?: boolean;
@@ -31,6 +33,7 @@ export function ChatDock({
   openSignal?: number;
   draftToAsk?: AskDraft | null;
   jdOpenSignal?: number;
+  adviceOpenSignal?: number;
 }) {
   const D = useSiteData();
   const [open, setOpen] = useState(defaultOpen);
@@ -41,13 +44,18 @@ export function ChatDock({
   const [historyReady, setHistoryReady] = useState(false);
   const [jdMode, setJdMode] = useState(false);
   const [jdText, setJdText] = useState("");
+  const [adviceMode, setAdviceMode] = useState(false);
+  const [adviceText, setAdviceText] = useState("");
   const [selectionDraft, setSelectionDraft] = useState<AskDraft | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const handledDraftIdRef = useRef<string | null>(null);
   const handledJdSignalRef = useRef(0);
+  const handledAdviceSignalRef = useRef(0);
 
   /** JD 적합도 분석 기능은 채용 검토(Hire) 상세 화면에서만 노출한다. */
   const jdFeatureEnabled = pageContext?.view === "hire";
+  /** 임한솔 시각 자문 기능은 협업 검토(Collab) 상세 화면에서만 노출한다. */
+  const adviceFeatureEnabled = pageContext?.view === "collab";
 
   const suggestions = ASK_HANSOL_SUGGESTIONS;
 
@@ -205,6 +213,55 @@ export function ChatDock({
     );
   }, [jdText, loading, sessionId, historyReady, pageContext]);
 
+  // Collab 상세의 "임한솔 시각 자문" 진입점 — 도크를 열고 이슈 작성 패널을 펼친다.
+  useEffect(() => {
+    if (typeof adviceOpenSignal !== "number" || adviceOpenSignal <= 0) return;
+    if (handledAdviceSignalRef.current === adviceOpenSignal) return;
+    if (!adviceFeatureEnabled) return;
+    handledAdviceSignalRef.current = adviceOpenSignal;
+    setOpen(true);
+    setAdviceMode(true);
+  }, [adviceOpenSignal, adviceFeatureEnabled]);
+
+  const askAdvice = useCallback(async () => {
+    const finalIssue = adviceText.trim();
+    if (finalIssue.length < 20 || loading || !historyReady) return;
+    const sid = sessionId || getOrCreateAskHansolSessionId();
+    if (!sessionId && sid) setSessionId(sid);
+    setAdviceText("");
+    setAdviceMode(false);
+    setLoading(true);
+
+    const preview = finalIssue.length > 180 ? `${finalIssue.slice(0, 180)}…` : finalIssue;
+    const userText = `임한솔이라면 이 이슈를 어떻게 볼까요?\n\n> ${preview.replace(/\n+/g, " ")}`;
+    const botKey = `local-h-${crypto.randomUUID()}`;
+    setMessages((prev) => [
+      ...prev,
+      { key: `local-u-${crypto.randomUUID()}`, role: "user", text: userText },
+      { key: botKey, role: "hansol", text: "", streaming: true },
+    ]);
+
+    let answerText;
+    try {
+      answerText = await askHansolAdviceViaApi(finalIssue, sid, pageContext);
+    } catch {
+      answerText = ASK_HANSOL_FALLBACK_MESSAGE;
+    }
+
+    streamAnswerText(
+      answerText,
+      (text, streaming) => {
+        setMessages((prev) => {
+          const next = [...prev];
+          const idx = next.findIndex((m) => m.key === botKey);
+          if (idx >= 0) next[idx] = { ...next[idx], text, streaming };
+          return next;
+        });
+      },
+      () => setLoading(false),
+    );
+  }, [adviceText, loading, sessionId, historyReady, pageContext]);
+
   return (
     <>
       {!open && (
@@ -251,6 +308,15 @@ export function ChatDock({
                   onClick={() => setJdMode(true)}
                 >
                   채용 공고(JD) 붙여넣고 적합도 보기
+                </button>
+              )}
+              {adviceFeatureEnabled && (
+                <button
+                  type="button"
+                  className="chatdock-jd-cta"
+                  onClick={() => setAdviceMode(true)}
+                >
+                  이슈를 적고 “임한솔이라면?” 묻기
                 </button>
               )}
             </div>
@@ -302,6 +368,48 @@ export function ChatDock({
             onClick={() => setJdMode(true)}
           >
             채용 공고(JD) 적합도 분석
+          </button>
+        )}
+        {adviceFeatureEnabled && adviceMode && (
+          <div className="chatdock-jd-panel">
+            <div className="chatdock-jd-head">
+              <span className="chatdock-jd-title">임한솔이라면? — 이슈 자문</span>
+              <button
+                type="button"
+                className="chatdock-jd-close"
+                onClick={() => {
+                  setAdviceMode(false);
+                  setAdviceText("");
+                }}
+                aria-label="자문 닫기"
+              >
+                취소
+              </button>
+            </div>
+            <textarea
+              className="chatdock-jd-textarea"
+              placeholder="고민 중인 이슈를 적어주세요. 배경·제약·목표·지금까지 시도한 것을 함께 적으면 더 깊이 짚어드려요. (예: 초기 팀에 PM을 따로 둬야 할까요? 상황은…)"
+              value={adviceText}
+              onChange={(e) => setAdviceText(e.target.value)}
+              rows={6}
+            />
+            <button
+              type="button"
+              className="chatdock-jd-submit"
+              onClick={() => askAdvice()}
+              disabled={loading || adviceText.trim().length < 20 || !historyReady}
+            >
+              {loading ? "생각 중…" : "임한솔 시각으로 보기"}
+            </button>
+          </div>
+        )}
+        {adviceFeatureEnabled && !adviceMode && (
+          <button
+            type="button"
+            className="chatdock-jd-toggle"
+            onClick={() => setAdviceMode(true)}
+          >
+            임한솔이라면? — 이슈 자문
           </button>
         )}
         <form

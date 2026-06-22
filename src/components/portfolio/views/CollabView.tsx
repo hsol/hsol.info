@@ -3,7 +3,13 @@
 import { Back, CareerList, CoffeeCTA, SecHead, useSiteData } from "@/components/portfolio/Atoms";
 import { PersonaTimelineIntro, renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
 
-export function CollabView({ onBack }: { onBack: () => void }) {
+export function CollabView({
+  onBack,
+  onAskAdvice,
+}: {
+  onBack: () => void;
+  onAskAdvice?: () => void;
+}) {
   const D = useSiteData();
   const collabTiers = D.career.map((c) => c.tier.collab);
   const tier1Count = collabTiers.filter((t) => t === 1).length;
@@ -16,6 +22,20 @@ export function CollabView({ onBack }: { onBack: () => void }) {
         title={renderTitleLines(D.viewHeaders.collab.titleLines)}
         lede={D.viewHeaders.collab.lede}
       />
+
+      {onAskAdvice && (
+        <div className="hire-jd-callout" data-ask-section="collab/advice">
+          <div className="hire-jd-callout-eyebrow">임한솔이라면? · AI 자문</div>
+          <p className="hire-jd-callout-body">
+            지금 풀고 있는 이슈를 적어 주시면, 임한솔의 의사결정 방식(문제 재정의 · 작은 검증 ·
+            구체화)을 그 상황에 적용해 “임한솔이라면 어떻게 볼지”를 같이 짚어 드립니다. 정해진
+            정답이 아니라 그의 사고 틀을 빌린 관점입니다.
+          </p>
+          <button type="button" className="hire-jd-callout-btn" onClick={onAskAdvice}>
+            이슈 적고 임한솔 시각 받기 →
+          </button>
+        </div>
+      )}
 
       <div className="sec" data-ask-section="collab/methods">
         <SecHead title="How I work" num="01" meta="approach" />
