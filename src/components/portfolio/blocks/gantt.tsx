@@ -34,6 +34,26 @@ export function GanttTimeline({
   accent?: string;
 }) {
   const [active, setActive] = useState<number | null>(null);
+  /**
+   * 말풍선은 스크롤 컨테이너(.gantt-scroll) 안에 absolute로 두면 아래로 펼쳐질 때
+   * 차트 높이를 넘겨 세로 스크롤을 만든다(overflow-x:auto면 overflow-y:visible이 auto로 계산됨).
+   * 그래서 fixed 레이어로 띄우고, 실제 화면 여백을 보고 위/아래를 정한다.
+   */
+  const [pop, setPop] = useState<{ left: number; top: number; below: boolean } | null>(null);
+
+  const openPop = (i: number, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const below = spaceBelow > 200 || spaceBelow >= r.top;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - 340));
+    setActive(i);
+    setPop({ left, top: below ? r.bottom : r.top, below });
+  };
+  const closePop = () => {
+    setActive(null);
+    setPop(null);
+  };
+
   const ranges = items.map(parseTimelineRange);
   const minY = Math.floor(Math.min(...ranges.map((r) => r.start)));
   const lastY = Math.ceil(Math.max(...ranges.map((r) => r.end)));
@@ -93,28 +113,28 @@ export function GanttTimeline({
           return (
             <div
               key={i}
-              className={
-                "gantt-bar" + (p.row >= rowCount - 2 ? " bottom" : "") + (active === i ? " active" : "")
-              }
+              className={"gantt-bar" + (active === i ? " active" : "")}
               style={{ left: `${left}%`, width: `${width}%`, top }}
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
+              onMouseEnter={(e) => openPop(i, e.currentTarget)}
+              onMouseLeave={closePop}
             >
               <div className="gantt-bar-inner" style={{ borderColor: accent || "#5e93b1" }}>
                 <div className="gantt-bar-title">{p.title}</div>
                 <div className="gantt-bar-year">{p.year}</div>
               </div>
-              {active === i && (
-                <div className="gantt-pop">
-                  <div className="gantt-pop-year">{p.year}</div>
-                  <div className="gantt-pop-title">{p.title}</div>
-                  <div className="gantt-pop-desc">{p.desc}</div>
-                </div>
-              )}
             </div>
           );
         })}
       </div>
+      {active !== null && pop && placed[active] && (
+        <div className="gantt-pop-anchor" style={{ left: pop.left, top: pop.top }}>
+          <div className={"gantt-pop" + (pop.below ? "" : " is-above")}>
+            <div className="gantt-pop-year">{placed[active].year}</div>
+            <div className="gantt-pop-title">{placed[active].title}</div>
+            <div className="gantt-pop-desc">{placed[active].desc}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

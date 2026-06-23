@@ -153,11 +153,20 @@
 }
 .gantt-bar:hover .gantt-bar-inner { background: rgba(244,201,119,0.10); }
 
-/* Popover — sits relative to the clicked bar, not the whole page */
+/* Popover — floats on a fixed layer above the timeline so it never adds to
+   the .gantt-scroll overflow (which would otherwise create a scrollbar when
+   the bubble opens downward past the chart's height). */
+.gantt-pop-anchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
 .gantt-pop {
   position: absolute;
   left: 0;
-  top: calc(100% + 8px);
+  top: 8px;
   width: 320px;
   max-width: 76vw;
   background: #14384f;
@@ -178,11 +187,11 @@
   border-top: 1px solid #3d7a9c;
   transform: rotate(45deg);
 }
-.gantt-bar.bottom .gantt-pop {
+.gantt-pop.is-above {
   top: auto;
-  bottom: calc(100% + 8px);
+  bottom: 8px;
 }
-.gantt-bar.bottom .gantt-pop::before {
+.gantt-pop.is-above::before {
   top: auto; bottom: -7px;
   border-left: 0; border-top: 0;
   border-right: 1px solid #3d7a9c;
