@@ -634,69 +634,107 @@ function isEmitToolUseBlock(
   return item.type === "tool_use" && item.name === EMIT_TOOL_NAME;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Anthropic Messages 단발 호출(raw HTTP) + 일시적 오류 재시도.
+ * 429/5xx 와 네트워크 오류는 지수 백오프로 재시도하고, 그 외 4xx 는 즉시 실패한다.
+ * 무인 CI 파이프라인이 일시적 API 블립(예: 500 Internal server error)에 죽지 않게 한다.
+ */
+async function anthropicFetchJson(
+  apiKey: string,
+  body: Record<string, unknown>,
+  opts?: { maxRetries?: number },
+): Promise<{ content?: AnthropicContent[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }> {
+  const maxRetries = opts?.maxRetries ?? Number(process.env.ANTHROPIC_MAX_RETRIES ?? 4);
+  let lastErr: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (networkErr) {
+      lastErr = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
+      if (attempt < maxRetries) {
+        const delay = Math.min(2000 * 2 ** attempt, 30000);
+        logStep(`Anthropic network error (attempt ${attempt + 1}/${maxRetries + 1}): ${lastErr.message}; retry in ${delay}ms.`);
+        await sleep(delay);
+        continue;
+      }
+      throw lastErr;
+    }
+
+    if (response.ok) {
+      return (await response.json()) as Awaited<ReturnType<typeof anthropicFetchJson>>;
+    }
+    const text = await response.text();
+    lastErr = new Error(`Anthropic request failed (${response.status}): ${text}`);
+    const retryable = response.status === 429 || response.status >= 500;
+    if (retryable && attempt < maxRetries) {
+      const delay = Math.min(2000 * 2 ** attempt, 30000);
+      logStep(`Anthropic ${response.status} (attempt ${attempt + 1}/${maxRetries + 1}); retry in ${delay}ms.`);
+      await sleep(delay);
+      continue;
+    }
+    throw lastErr;
+  }
+  throw lastErr ?? new Error("Anthropic request failed");
+}
+
 async function requestAnthropicStructured(
   apiKey: string,
   prompt: string,
 ): Promise<{ text: string; toolInput: unknown | null; stopReason: string | undefined }> {
   logStep(`Requesting Anthropic (${MODEL}, max_tokens=${MAX_TOKENS})...`);
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      messages: [{ role: "user", content: prompt }],
-      tools: [
-        {
-          name: EMIT_TOOL_NAME,
-          description:
-            "Return ONLY final site-data JSON object. Never include markdown/prose.",
-          input_schema: {
-            type: "object",
-            additionalProperties: true,
-            properties: {
-              identity: { type: "object" },
-              pillars: { type: "array" },
-              personas: { type: "array" },
-              viewHeaders: { type: "object" },
-              portfolioCopy: { type: "object" },
-              career: { type: "array" },
-              education: { type: "array" },
-              certifications: { type: "array" },
-              languages: { type: "array" },
-              publications: { type: "array" },
-              faq: { type: "array" },
-            },
-            required: [
-              "identity",
-              "pillars",
-              "personas",
-              "viewHeaders",
-              "portfolioCopy",
-              "career",
-              "education",
-              "certifications",
-              "languages",
-              "publications",
-              "faq",
-            ],
+  const data = await anthropicFetchJson(apiKey, {
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    messages: [{ role: "user", content: prompt }],
+    tools: [
+      {
+        name: EMIT_TOOL_NAME,
+        description: "Return ONLY final site-data JSON object. Never include markdown/prose.",
+        input_schema: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            identity: { type: "object" },
+            pillars: { type: "array" },
+            personas: { type: "array" },
+            viewHeaders: { type: "object" },
+            portfolioCopy: { type: "object" },
+            career: { type: "array" },
+            education: { type: "array" },
+            certifications: { type: "array" },
+            languages: { type: "array" },
+            publications: { type: "array" },
+            faq: { type: "array" },
           },
+          required: [
+            "identity",
+            "pillars",
+            "personas",
+            "viewHeaders",
+            "portfolioCopy",
+            "career",
+            "education",
+            "certifications",
+            "languages",
+            "publications",
+            "faq",
+          ],
         },
-      ],
-      tool_choice: { type: "tool", name: EMIT_TOOL_NAME },
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Anthropic request failed (${response.status}): ${body}`);
-  }
-
-  const data = (await response.json()) as {
+      },
+    ],
+    tool_choice: { type: "tool", name: EMIT_TOOL_NAME },
+  }) as {
     content?: AnthropicContent[];
     stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number };
@@ -723,25 +761,13 @@ async function requestAnthropicStructured(
   return { text, toolInput, stopReason: data.stop_reason };
 }
 
-/** Anthropic Messages 단발 호출(raw HTTP). 서버툴 응답 그대로 반환. */
+/** Anthropic Messages 단발 호출(raw HTTP) + 일시적 오류 재시도. 서버툴 응답 그대로 반환. */
 async function anthropicMessages(
   apiKey: string,
   body: Record<string, unknown>,
 ): Promise<{ content: AnthropicContent[]; stop_reason?: string }> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Anthropic request failed (${response.status}): ${text}`);
-  }
-  return (await response.json()) as { content: AnthropicContent[]; stop_reason?: string };
+  const data = await anthropicFetchJson(apiKey, body);
+  return { content: data.content ?? [], stop_reason: data.stop_reason };
 }
 
 /**
