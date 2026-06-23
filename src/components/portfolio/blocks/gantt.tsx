@@ -3,6 +3,7 @@
 import "@/styles/legacy/gantt.css";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 /** CuriousView 에서 그대로 옮긴 간트 타임라인. 동작·마크업 불변. */
 
@@ -126,15 +127,20 @@ export function GanttTimeline({
           );
         })}
       </div>
-      {active !== null && pop && placed[active] && (
-        <div className="gantt-pop-anchor" style={{ left: pop.left, top: pop.top }}>
-          <div className={"gantt-pop" + (pop.below ? "" : " is-above")}>
-            <div className="gantt-pop-year">{placed[active].year}</div>
-            <div className="gantt-pop-title">{placed[active].title}</div>
-            <div className="gantt-pop-desc">{placed[active].desc}</div>
-          </div>
-        </div>
-      )}
+      {active !== null &&
+        pop &&
+        placed[active] &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="gantt-pop-anchor" style={{ left: pop.left, top: pop.top }}>
+            <div className={"gantt-pop" + (pop.below ? "" : " is-above")}>
+              <div className="gantt-pop-year">{placed[active].year}</div>
+              <div className="gantt-pop-title">{placed[active].title}</div>
+              <div className="gantt-pop-desc">{placed[active].desc}</div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
