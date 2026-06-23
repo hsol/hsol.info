@@ -29,6 +29,14 @@ export function onSelectionAsk(listener: Listener): () => void {
   };
 }
 
+/**
+ * 지금 라우트에 답할 Ask 도크가 마운트돼 있는지(=구독자 존재).
+ * 도크가 없는 페이지(/architecture, /build-log 등)에서는 넛지를 띄우지 않기 위해 본다.
+ */
+export function hasSelectionAskSubscriber(): boolean {
+  return listeners.size > 0;
+}
+
 export function takePendingSelectionAsk(): AskDraft | null {
   const draft = pending;
   pending = null;
