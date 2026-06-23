@@ -234,6 +234,11 @@ export function HireFactsSectionBlock({ props }: BlockRenderProps) {
           </div>
         </div>
       </div>
+      <div className="facts-resume-cta">
+        <Link className="facts-resume-link" href="/resume">
+          이력서·포트폴리오 한 장으로 보기 (PDF 다운로드) →
+        </Link>
+      </div>
     </div>
   );
 }

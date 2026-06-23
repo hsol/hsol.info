@@ -51,9 +51,17 @@ function locFor(route: string): string {
   return route === "/" ? SITE_URL : `${SITE_URL}${route}`;
 }
 
+/**
+ * PAGE_KEYS(잠긴 레이아웃 페이지) 밖의 standalone 라우트. 레이아웃 빌더가 건드리지 않으므로
+ * SITE_STRUCTURE 에 넣지 않고 여기서만 sitemap 에 노출한다.
+ */
+const EXTRA_ROUTES: Array<{ route: string; changefreq: ChangeFreq; priority: number }> = [
+  { route: "/resume", changefreq: "weekly", priority: 0.7 },
+];
+
 function buildEntries(now: string): UrlEntry[] {
-  return PAGE_KEYS.filter((key) => SITE_STRUCTURE[key].inSitemap)
-    .map((key): UrlEntry => {
+  const pageEntries = PAGE_KEYS.filter((key) => SITE_STRUCTURE[key].inSitemap).map(
+    (key): UrlEntry => {
       const weight = SEO_WEIGHTS[key] ?? { changefreq: "weekly" as ChangeFreq, priority: 0.7 };
       return {
         loc: locFor(SITE_STRUCTURE[key].route),
@@ -61,8 +69,14 @@ function buildEntries(now: string): UrlEntry[] {
         changefreq: weight.changefreq,
         priority: weight.priority,
       };
-    })
-    .sort((a, b) => b.priority - a.priority || a.loc.localeCompare(b.loc));
+    },
+  );
+  const extraEntries = EXTRA_ROUTES.map(
+    (e): UrlEntry => ({ loc: locFor(e.route), lastmod: now, changefreq: e.changefreq, priority: e.priority }),
+  );
+  return [...pageEntries, ...extraEntries].sort(
+    (a, b) => b.priority - a.priority || a.loc.localeCompare(b.loc),
+  );
 }
 
 function renderXml(entries: UrlEntry[]): string {

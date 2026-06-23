@@ -56,6 +56,7 @@ jobs:
           set -euo pipefail
           SITE_FILE="vault/object-views/site-data.json"
           REF_FILE="vault/object-views/hsol-info-parent-ref.json"
+          ONEPAGER_FILE="vault/object-views/onepager-ko.html"
           cd hsol-info-blob
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/hsol/hsol-info-blob.git"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -63,8 +64,8 @@ jobs:
           git fetch origin "${SUBMODULE_BRANCH}"
           # refresh 등으로 작업 트리가 더러우면 switch 전에 stash(미추적 ref 포함). 그렇지 않으면 checkout 거부됨.
           STASHED=0
-          if [ -n "$(git status --porcelain --untracked-files=all -- "$SITE_FILE" "$REF_FILE" 2>/dev/null || true)" ]; then
-            git stash push -u -m "hsol.info-ci pre-sync" -- "$SITE_FILE" "$REF_FILE"
+          if [ -n "$(git status --porcelain --untracked-files=all -- "$SITE_FILE" "$REF_FILE" "$ONEPAGER_FILE" 2>/dev/null || true)" ]; then
+            git stash push -u -m "hsol.info-ci pre-sync" -- "$SITE_FILE" "$REF_FILE" "$ONEPAGER_FILE"
             STASHED=1
           fi
           git switch -C ci-sync "origin/${SUBMODULE_BRANCH}"
@@ -78,7 +79,7 @@ jobs:
             --argjson run ${{ github.run_id }} \
             --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{parentSha:$sha, parentRef:$ref, workflowRunId:$run, recordedAt:$at}' > "$REF_FILE"
-          git add "$SITE_FILE" "$REF_FILE"
+          git add "$SITE_FILE" "$REF_FILE" "$ONEPAGER_FILE"
           if git diff --cached --quiet; then
             echo "No staged vault changes; skip submodule push."
             exit 0
@@ -101,6 +102,16 @@ jobs:
 
       - name: Generate site.ts from vault
         run: npm run content:generate:site-ts
+
+      - name: Generate one-pager PDF (html -> pdf -> Blob)
+        env:
+          # 없으면 로컬 PDF만 만들고 업로드는 graceful skip(빌드 실패 안 함).
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          npx playwright install --with-deps chromium
+          # PDF 한글 깨짐 방지용 CJK 폰트.
+          sudo apt-get install -y fonts-noto-cjk
+          npm run content:generate:onepager-pdf
 
       - name: Lint
         run: npm run lint
