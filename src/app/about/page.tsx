@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { SiteDataProvider } from "@/components/portfolio/Atoms";
-import { EntityProfilePage } from "@/components/portfolio/EntityProfilePage";
+import PortfolioApp from "@/components/portfolio/PortfolioApp";
 import { getSiteData } from "@/lib/content/site-data";
 
 const SITE_URL = "https://hsol.info";
@@ -54,9 +53,7 @@ export default async function AboutRoutePage() {
         // JSON.stringify 결과는 안전하게 직렬화된 JSON 문자열
         dangerouslySetInnerHTML={{ __html: JSON.stringify(PROFILE_JSON_LD) }}
       />
-      <SiteDataProvider data={siteData}>
-        <EntityProfilePage />
-      </SiteDataProvider>
+      <PortfolioApp siteData={siteData} />
     </>
   );
 }

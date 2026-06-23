@@ -39,6 +39,8 @@ jobs:
           ANTHROPIC_MAX_TOKENS: "64000"
           GIT_DIFF_BASE_SHA: ${{ github.event.before }}
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
+          # 빌드 로그(build_log 테이블) 적층용. 없으면 로그 적층만 건너뛰고 리프레시는 정상.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run content:refresh:claude
 
       - name: Commit and push vault updates to hsol-info-blob submodule

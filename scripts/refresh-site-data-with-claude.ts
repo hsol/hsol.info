@@ -2,11 +2,23 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { siteDataSchema } from "../src/content/schema";
+import { siteDataSchema, type SiteData } from "../src/content/schema";
 import { stripAiTypographyDeep } from "../src/lib/ai-typography";
 import { HSOL_DATA } from "../src/data/site";
+import { layoutSchema, type SiteLayout } from "../src/content/layout-types";
+import { DEFAULT_LAYOUT } from "../src/content/default-layout";
+import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
+import { PAGE_KEYS } from "../src/content/site-structure";
+import { renderCatalogForPrompt } from "../src/content/layout-catalog";
+import { recordBuildLog } from "../src/lib/db/build-log";
 
 const execFileAsync = promisify(execFile);
+
+/** footer 에 띄울 빌드 버전(UTC 기준 YYYYMMDD.HHmmss). 매 실행 달라져 "실제로 돌았는지"를 알린다. */
+function buildVersion(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}.${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`;
+}
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
@@ -28,7 +40,26 @@ const MAX_TOKENS = (() => {
 const FAILURE_LOG_DIR =
   process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
 const EMIT_TOOL_NAME = "emit_site_data";
+const EMIT_LAYOUT_TOOL_NAME = "emit_layout";
 const SITE_DATA_TEMPLATE = JSON.stringify(HSOL_DATA, null, 2);
+
+/** 레이아웃 빌더 비활성화: LAYOUT_RESEARCH=0 또는 LAYOUT_BUILDER=0 이면 레이아웃 생성/리서치를 건너뛴다. */
+const LAYOUT_BUILDER_ENABLED = (() => {
+  const v = (process.env.LAYOUT_BUILDER ?? process.env.LAYOUT_RESEARCH ?? "1").trim().toLowerCase();
+  return v !== "0" && v !== "false" && v !== "no";
+})();
+const RESEARCH_MAX_ROUNDS = Number(process.env.LAYOUT_RESEARCH_MAX_ROUNDS ?? 6);
+const RESEARCH_MAX_TOKENS = Number(process.env.LAYOUT_RESEARCH_MAX_TOKENS ?? 6000);
+const LAYOUT_MAX_TOKENS = Number(process.env.LAYOUT_EMIT_MAX_TOKENS ?? 16000);
+/** 매 실행 다른 포트폴리오를 보도록 회전하는 리서치 렌즈(날짜 기반으로 고른다). */
+const RESEARCH_LENSES = [
+  "엔지니어·개발자 개인 포트폴리오(personal developer/engineer portfolio sites)",
+  "디자이너·아트디렉터 포트폴리오(designer/art-director portfolios)",
+  "스튜디오·에이전시 소개 사이트(creative studio/agency sites)",
+  "Awwwards·FWA 수상 1인 포트폴리오(award-winning solo portfolios)",
+  "창업가·메이커 about/소개 페이지(founder/maker about pages)",
+  "프로덕트 매니저·빌더 이력형 사이트(PM/builder résumé-style sites)",
+];
 const REQUIRED_TOP_LEVEL_KEYS = [
   "identity",
   "pillars",
@@ -640,6 +671,187 @@ async function requestAnthropicStructured(
   return { text, toolInput, stopReason: data.stop_reason };
 }
 
+/** Anthropic Messages 단발 호출(raw HTTP). 서버툴 응답 그대로 반환. */
+async function anthropicMessages(
+  apiKey: string,
+  body: Record<string, unknown>,
+): Promise<{ content: AnthropicContent[]; stop_reason?: string }> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Anthropic request failed (${response.status}): ${text}`);
+  }
+  return (await response.json()) as { content: AnthropicContent[]; stop_reason?: string };
+}
+
+/**
+ * 매 실행 다른 "잘 만든 포트폴리오"를 web_search/web_fetch 로 리서치해,
+ * 우리 블록 카탈로그로 적용 가능한 레이아웃·섹션 아이디어를 한국어 메모로 정리한다.
+ * 네트워크/모델 오류는 빈 문자열로 흡수한다(레이아웃 단계가 죽지 않게).
+ */
+async function researchPortfolioReferences(apiKey: string, lens: string): Promise<string> {
+  const prompt = `너는 포트폴리오 웹사이트 디자인 리서처다. 지금 주제는 "${lens}".
+web_search/web_fetch 로 **이번 회차에 새로 볼 만한, 잘 만든 실제 사례 2~3곳**을 찾아 살펴보고,
+그 사이트들이 잘한 점 중 **우리가 가진 블록 시스템으로 적용 가능한 레이아웃·섹션 구성·정보 순서 아이디어**만 한국어로 5~9개 불릿으로 정리하라.
+우리 사이트 제약: 페이지는 home/hire/collab/builder/curious/about/architecture 로 고정이고, 새 비주얼/컴포넌트는 못 만들며 기존 블록(섹션)들의 "순서·포함 여부·강조"만 바꿀 수 있다.
+따라서 "이 섹션을 위로", "이 관점에선 X를 먼저", "Y 섹션은 접어도 됨" 같은 **구성 차원의 실천 가능한 제안** 위주로 적어라. 추상적 미사여구·색/폰트 얘기는 빼라.
+마지막 줄에 "참고: <사이트1>, <사이트2>" 형식으로 본 사이트를 적어라.`;
+
+  const tools = [
+    { type: "web_search_20260209", name: "web_search" },
+    { type: "web_fetch_20260209", name: "web_fetch" },
+  ];
+  let messages: Array<{ role: string; content: unknown }> = [{ role: "user", content: prompt }];
+  const texts: string[] = [];
+
+  try {
+    for (let round = 0; round < RESEARCH_MAX_ROUNDS; round += 1) {
+      const data = await anthropicMessages(apiKey, {
+        model: MODEL,
+        max_tokens: RESEARCH_MAX_TOKENS,
+        messages,
+        tools,
+      });
+      const content = data.content ?? [];
+      for (const block of content) {
+        if (isTextBlock(block) && block.text) texts.push(block.text);
+      }
+      if (data.stop_reason === "pause_turn") {
+        messages = [...messages, { role: "assistant", content }];
+        continue;
+      }
+      break;
+    }
+  } catch (error) {
+    logStep(`Portfolio research skipped (${error instanceof Error ? error.message : String(error)}).`);
+    return "";
+  }
+  return texts.join("\n").trim();
+}
+
+function isEmitLayoutToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_LAYOUT_TOOL_NAME;
+}
+
+/**
+ * 현재 레이아웃을 앵커로 두고, 리서치 메모를 참고해 **점진적으로 개선된** layout 을 생성한다.
+ * 실패하면 null(호출부에서 기존/DEFAULT 로 폴백). layoutSchema 로 가드레일 검증.
+ */
+async function generateLayout(
+  apiKey: string,
+  args: { currentLayout: SiteLayout | undefined; researchNotes: string; lens: string },
+): Promise<{ layout: SiteLayout; changes: string[] } | null> {
+  const catalog = renderCatalogForPrompt(args.currentLayout ?? DEFAULT_LAYOUT);
+  const basePrompt = `너는 hsol.info 포트폴리오의 **레이아웃 빌더**다. 페이지별 블록 배열(layout)을 만든다.
+
+원칙(중요):
+1) **앵커 후 진화**: 위 "현재 레이아웃"을 기준으로 삼아 **통째로 새로 만들지 말고**, 근거 있는 1~3가지 개선만 적용한다. 검증된 골격은 유지한다.
+2) **변경은 반드시 있어야 한다**: 이번 회차 리서치에서 얻은 인사이트를 최소 1곳 이상 실제 구성에 반영하라(섹션 순서 조정, 관점별 강조 변경, 선택 블록 포함/제외 등). "사실상 동일"은 실패로 본다. 단, 의미 없는 뒤섞기도 금지 — 개선 이유를 댈 수 있어야 한다.
+3) **가드레일**: 위 [조합 규칙]을 어기지 마라. 페이지 키 고정, 등록된 block type 만, 'raw' 금지, 각 블록은 해당 pages 에서만.
+4) props 는 현재 레이아웃의 값을 기본 유지하되, 순서/포함을 바꾸면서 num(§번호)은 보이는 순서에 맞춰 갱신하라.
+
+[이번 회차 리서치 메모 — 주제: ${args.lens}]
+${args.researchNotes || "(리서치 결과 없음 — 현재 레이아웃을 기준으로 작은 개선만 적용)"}
+
+반드시 ${EMIT_LAYOUT_TOOL_NAME} tool_use 로만 반환한다. layout.pages 의 각 페이지는 { blocks: [{ type, props? }] } 형태다.
+changes 에는 무엇을·왜 바꿨는지(어떤 레퍼런스에서 얻었는지) 1~3개를 한국어 한 줄씩 적는다.
+
+${catalog}`;
+
+  let validationHint = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const prompt = validationHint
+      ? `${basePrompt}\n\n이전 시도 검증 오류:\n${validationHint}\n오류를 고쳐 다시 생성하라.`
+      : basePrompt;
+    let data;
+    try {
+      data = await anthropicMessages(apiKey, {
+        model: MODEL,
+        max_tokens: LAYOUT_MAX_TOKENS,
+        messages: [{ role: "user", content: prompt }],
+        tools: [
+          {
+            name: EMIT_LAYOUT_TOOL_NAME,
+            description: "현재 레이아웃을 앵커로 점진 개선한 layout 을 반환한다. 일반 텍스트 금지.",
+            input_schema: {
+              type: "object",
+              additionalProperties: true,
+              properties: {
+                layout: { type: "object" },
+                changes: { type: "array", items: { type: "string" } },
+              },
+              required: ["layout"],
+            },
+          },
+        ],
+        tool_choice: { type: "tool", name: EMIT_LAYOUT_TOOL_NAME },
+      });
+    } catch (error) {
+      logStep(`Layout generation request failed (attempt ${attempt}): ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+
+    const blocks = data.content ?? [];
+    const toolInput = blocks.find(isEmitLayoutToolUseBlock)?.input as
+      | { layout?: unknown; changes?: unknown }
+      | undefined;
+    const rawLayout = normalizeNestedJsonLikeStrings(toolInput?.layout);
+    const parsed = layoutSchema.safeParse(rawLayout);
+    if (parsed.success) {
+      const changes = (Array.isArray(toolInput?.changes) ? (toolInput?.changes as unknown[]) : [])
+        .map((c) => String(c).trim())
+        .filter(Boolean);
+      logStep(`Layout generated (attempt ${attempt}). changes: ${changes.join(" | ") || "(none stated)"}`);
+      return { layout: parsed.data, changes };
+    }
+    validationHint = parsed.error.issues
+      .slice(0, 10)
+      .map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`)
+      .join("\n");
+    logStep(`Layout schema validation failed on attempt ${attempt}: ${validationHint}`);
+  }
+  return null;
+}
+
+/** 앵커(기존/DEFAULT) 위에 생성 레이아웃을 페이지 단위로 얹고, 모든 페이지 보장 + 사람 오버라이드 우선. */
+function buildFinalLayout(existing: SiteLayout | undefined, generated: SiteLayout | null): SiteLayout {
+  const base = existing ?? DEFAULT_LAYOUT;
+  const pages: SiteLayout["pages"] = { ...base.pages };
+  if (generated?.pages) {
+    for (const [key, page] of Object.entries(generated.pages)) {
+      if (page) (pages as Record<string, unknown>)[key] = page;
+    }
+  }
+  // 잠긴 페이지가 비면 DEFAULT 로 메운다(폴백 보장).
+  for (const key of PAGE_KEYS) {
+    if (!pages[key]) pages[key] = DEFAULT_LAYOUT.pages[key];
+  }
+  const merged = mergeLayout({ pages }, LAYOUT_OVERRIDES);
+  return layoutSchema.parse(merged);
+}
+
+/** 현재 site-data 텍스트에서 유효한 layout 만 뽑는다(없거나 깨졌으면 undefined). */
+function extractExistingLayout(siteDataText: string): SiteLayout | undefined {
+  if (!siteDataText) return undefined;
+  try {
+    const obj = JSON.parse(siteDataText) as { layout?: unknown };
+    const parsed = layoutSchema.safeParse(obj.layout);
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function main() {
   logStep("Refresh started.");
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -705,6 +917,7 @@ ${contextText}
   let initialResponse = "";
   let lastCandidate = "";
   let validationHint = "";
+  let siteData: SiteData | null = null;
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const prompt = validationHint
@@ -746,17 +959,10 @@ ${contextText}
       }
     }
     if (validated.success) {
-      logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
       // AI 티 나는 특수문자(엠대시·말줄임표 문자·곡선따옴표·줄머리 불릿)를 평문으로 정리.
-      const cleaned = stripAiTypographyDeep(validated.data);
-      await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
-      await writeFile(
-        SITE_DATA_PATH,
-        `${JSON.stringify(cleaned, null, 2)}\n`,
-        "utf8",
-      );
-      logStep(`Updated ${SITE_DATA_PATH} using ${MODEL} (attempt ${attempt})`);
-      return;
+      siteData = stripAiTypographyDeep(validated.data);
+      logStep(`Content generated (attempt ${attempt}).`);
+      break;
     }
 
     validationHint = validated.error.issues
@@ -766,14 +972,54 @@ ${contextText}
     logStep(`Schema validation failed on attempt ${attempt}: ${validationHint}`);
   }
 
-  const err = new Error("Failed to produce schema-valid site-data after 3 attempts.");
-  await writeFailureDump({
-    stage: "schema-failed-regenerate",
-    initialResponse: initialResponse || "[EMPTY]",
-    lastCandidate: lastCandidate || "[EMPTY]",
-    error: err,
-  });
-  throw err;
+  if (!siteData) {
+    const err = new Error("Failed to produce schema-valid site-data after 3 attempts.");
+    await writeFailureDump({
+      stage: "schema-failed-regenerate",
+      initialResponse: initialResponse || "[EMPTY]",
+      lastCandidate: lastCandidate || "[EMPTY]",
+      error: err,
+    });
+    throw err;
+  }
+
+  // --- 레이아웃 빌더: 현재 레이아웃을 앵커로, 매 회차 다른 포트폴리오를 리서치해 점진 개선 ---
+  const existingLayout = extractExistingLayout(currentSiteDataText);
+  let buildLens: string | undefined;
+  let buildChanges: string[] = [];
+  if (LAYOUT_BUILDER_ENABLED) {
+    const lens = RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
+    buildLens = lens;
+    logStep(`Researching portfolio references (lens: ${lens})...`);
+    const researchNotes = await researchPortfolioReferences(apiKey, lens);
+    logStep(researchNotes ? `Research notes collected (${researchNotes.length} chars).` : "Research notes empty.");
+    logStep("Generating layout (anchor + evolve)...");
+    const generated = await generateLayout(apiKey, { currentLayout: existingLayout, researchNotes, lens });
+    siteData.layout = stripAiTypographyDeep(buildFinalLayout(existingLayout, generated?.layout ?? null));
+    buildChanges = generated?.changes ?? [];
+    logStep(generated ? "Layout updated from builder." : "Layout builder yielded nothing — kept anchor/DEFAULT layout.");
+  } else if (existingLayout) {
+    // 빌더 비활성화: 기존 layout 을 보존(떨구지 않음).
+    siteData.layout = buildFinalLayout(existingLayout, null);
+    logStep("Layout builder disabled — preserved existing layout.");
+  }
+
+  // --- 빌드 버전 스탬프(footer) + 개선 의도 로그를 DB(build_log)에 적층 ---
+  const now = new Date();
+  const version = buildVersion(now);
+  siteData.build = { version, refreshedAt: now.toISOString() };
+  const logChanges = buildChanges.length > 0 ? buildChanges : ["콘텐츠 리프레시(레이아웃 변경 없음)"];
+  try {
+    await recordBuildLog({ version, lens: buildLens ?? null, changes: logChanges });
+    logStep(`Build log recorded to DB (version ${version}, ${logChanges.length} change(s)).`);
+  } catch (error) {
+    logStep(`Build log DB write skipped (${error instanceof Error ? error.message : String(error)}).`);
+  }
+
+  logStep(`Writing refreshed site-data: ${SITE_DATA_PATH}`);
+  await mkdir(path.dirname(SITE_DATA_PATH), { recursive: true });
+  await writeFile(SITE_DATA_PATH, `${JSON.stringify(siteData, null, 2)}\n`, "utf8");
+  logStep(`Updated ${SITE_DATA_PATH} using ${MODEL}`);
 }
 
 main().catch((error) => {

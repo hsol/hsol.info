@@ -886,6 +886,8 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .foot-links { display: flex; gap: 18px; flex-wrap: wrap; justify-content: flex-end; }
 .foot-links a { transition: color 180ms ease; }
 .foot-links a:hover { color: var(--accent); }
+.foot-build { color: var(--ink-faint); text-decoration: none; transition: color 180ms ease; }
+.foot-build:hover { color: var(--accent); }
 
 /* 언어 전환(KO / EN) — 브라우저/구글 번역으로 영문 보기 */
 .lang-toggle {

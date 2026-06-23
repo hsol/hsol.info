@@ -23,6 +23,9 @@ const BuilderView = lazy(() =>
 const CuriousView = lazy(() =>
   import("@/components/portfolio/views/CuriousView").then((m) => ({ default: m.CuriousView })),
 );
+const AboutView = lazy(() =>
+  import("@/components/portfolio/views/AboutView").then((m) => ({ default: m.AboutView })),
+);
 
 const DEFAULT_ACCENT = "#287099";
 
@@ -30,6 +33,9 @@ function PortfolioAppBody() {
   const pathname = usePathname();
   const router = useRouter();
   const persona = useMemo(() => personaFromPathname(pathname), [pathname]);
+  // /about 도 같은 app 셸 안에서 렌더한다(standalone 셸 중복 제거). persona 가 아니므로 별도 판별.
+  const isAbout = pathname === "/about";
+  const isHome = persona === null && !isAbout;
 
   const [isMobileViewport, setIsMobileViewport] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
@@ -86,13 +92,16 @@ function PortfolioAppBody() {
   }, []);
 
   const pageContext: AskHansolPageContext = useMemo(
-    () => ({
-      view: persona ?? "home",
-      section: persona === null ? "home" : "detail",
-      hash: pathname || "/",
-      detail: askVisibleSection,
-    }),
-    [persona, askVisibleSection, pathname],
+    () =>
+      isAbout
+        ? { view: "home", section: "about", hash: "/about", detail: "about/profile" }
+        : {
+            view: persona ?? "home",
+            section: persona === null ? "home" : "detail",
+            hash: pathname || "/",
+            detail: askVisibleSection,
+          },
+    [isAbout, persona, askVisibleSection, pathname],
   );
 
   let body;
@@ -101,13 +110,14 @@ function PortfolioAppBody() {
   else if (persona === "builder") body = <BuilderView onBack={back} />;
   else if (persona === "curious")
     body = <CuriousView onBack={back} accent={DEFAULT_ACCENT} />;
+  else if (isAbout) body = <AboutView onBack={back} />;
   else body = <HomeView onPick={pick} />;
 
   return (
     <div className={"app-layout" + (persona !== null ? " has-dock" : "")}>
       <div className="shell" ref={shellRef}>
         {/* 사이트 신원 바를 <main> 밖에 두어 banner 랜드마크로 인식되게 한다(홈에서만 노출). */}
-        {persona === null && <Plate />}
+        {isHome && <Plate />}
         <main id="main-content">{body}</main>
         <Foot />
       </div>

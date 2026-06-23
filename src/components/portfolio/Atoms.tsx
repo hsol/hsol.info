@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   createContext,
   useCallback,
@@ -363,11 +364,20 @@ export function LangToggle({ className = "" }: { className?: string }) {
 }
 
 export function Foot() {
-  const d = useSiteData().identity;
+  const data = useSiteData();
+  const d = data.identity;
   return (
     <footer className="foot">
       <div>
         © {new Date().getFullYear()} · {d.location}
+        {data.build && (
+          <>
+            {" · "}
+            <Link className="foot-build" href="/build-log" aria-label="빌드 로그 보기">
+              build {data.build.version}
+            </Link>
+          </>
+        )}
       </div>
       <div className="foot-mid">— hsol.info — a living portfolio —</div>
       <div className="foot-links">

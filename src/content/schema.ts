@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { layoutSchema } from "@/content/layout-types";
 
 const IdentitySchema = z.object({
   name: z.string().min(1),
@@ -110,6 +111,15 @@ const HomeBuiltPerspectiveSchema = z.object({
   summary: z.string().min(1),
 });
 
+/**
+ * 빌드/리프레시 메타(가벼움). footer 에 버전을 띄워 "이번에 실제로 돌았는지"를 알게 한다.
+ * 상세 개선 로그(개선 의도 내역)는 site-data 가 아니라 DB(build_log 테이블)에 누적한다.
+ */
+const BuildInfoSchema = z.object({
+  version: z.string().min(1),
+  refreshedAt: z.string().min(1),
+});
+
 export const siteDataSchema = z
   .object({
   identity: IdentitySchema,
@@ -202,6 +212,13 @@ export const siteDataSchema = z
   languages: z.array(LanguageSchema).min(1),
   publications: z.array(PublicationSchema).min(1),
   faq: z.array(FaqItemSchema).min(1),
+  /**
+   * 페이지별 블록 조합(레이아웃). 선택 필드 — 없거나 일부만 있으면
+   * 코드의 DEFAULT_LAYOUT 으로 폴백한다. 빌더/사람이 여기서 레이아웃을 바꾼다.
+   */
+  layout: layoutSchema.optional(),
+  /** 빌드 버전 메타(footer 표시용). 상세 개선 로그는 DB. */
+  build: BuildInfoSchema.optional(),
 })
   .superRefine((data, ctx) => {
     const personaKeys = data.personas.map((p) => p.key);
