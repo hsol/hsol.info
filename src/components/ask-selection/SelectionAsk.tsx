@@ -1,5 +1,7 @@
 "use client";
 
+import "@/components/ask-selection/selection-ask.css";
+
 import { useCallback, useEffect, useState } from "react";
 import { requestSelectionAsk } from "@/components/ask-selection/selection-bridge";
 

@@ -1,0 +1,61 @@
+/*
+ * SelectionAsk 넛지 스타일 — 컴포넌트와 함께 패키징한다.
+ * SelectionAsk 는 루트 레이아웃에 떠서 어느 라우트에서든 동작하므로,
+ * 스타일도 ChatDock(chatdock.css) 의존 없이 이 모듈이 직접 들고 있어야 한다
+ * (Dock 이 없는 /build-log, /architecture 등에서도 깨지지 않도록).
+ */
+
+.selection-ask-nudge {
+  position: fixed;
+  z-index: 91;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid var(--bp-line, #1f4861);
+  border-radius: 999px;
+  background: rgba(8, 24, 36, 0.96);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
+}
+
+.selection-ask-nudge.is-below {
+  transform: translate(-50%, 0);
+}
+
+.selection-ask-nudge-text {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink-2, #c8d8e0);
+  white-space: nowrap;
+}
+
+.selection-ask-nudge-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: var(--accent, #287099);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 7px 10px;
+}
+
+.selection-ask-nudge-btn:hover {
+  background: var(--bp-glow, #7fb4d0);
+}
+
+@media (max-width: 720px) {
+  .selection-ask-nudge {
+    max-width: calc(100vw - 20px);
+    padding: 8px 9px 8px 10px;
+    gap: 8px;
+  }
+  .selection-ask-nudge-text {
+    font-size: 12px;
+    white-space: normal;
+    line-height: 1.35;
+  }
+}
