@@ -747,9 +747,71 @@ function isEmitLayoutToolUseBlock(
  * 현재 레이아웃을 앵커로 두고, 리서치 메모를 참고해 **점진적으로 개선된** layout 을 생성한다.
  * 실패하면 null(호출부에서 기존/DEFAULT 로 폴백). layoutSchema 로 가드레일 검증.
  */
+/**
+ * submodule git 에서 최근 N개 커밋의 site-data.json 을 복원해, 페이지별 "블록 순서" 변화만
+ * 컴팩트하게 뽑는다(레이아웃 diff 궤적). 전체 changelog 를 읽는 것보다 컨텍스트가 작고,
+ * 어떤 페이지가 회차마다 왕복(A→B→A)했는지 구조적으로 드러나 핑퐁 방지에 강하다.
+ * 변하지 않은 페이지(home/about/architecture 등)는 노이즈라 생략한다.
+ */
+async function getLayoutOrderTimeline(maxCommits = 8): Promise<string> {
+  const firstSlash = SITE_DATA_PATH.indexOf("/");
+  if (firstSlash < 0) return "(git 레이아웃 히스토리 없음)";
+  const subDir = SITE_DATA_PATH.slice(0, firstSlash);
+  const relPath = SITE_DATA_PATH.slice(firstSlash + 1);
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", subDir, "log", "-n", String(maxCommits), "--format=%H", "--", relPath],
+      { cwd: process.cwd() },
+    );
+    const shas = stdout.split("\n").map((s) => s.trim()).filter(Boolean).reverse(); // 과거→현재
+    if (!shas.length) return "(git 레이아웃 히스토리 없음 — 첫 진화)";
+
+    const perPage: Record<string, string[]> = {};
+    for (const sha of shas) {
+      let parsed: { layout?: { pages?: Record<string, { blocks?: { type?: string }[] }> } };
+      try {
+        const { stdout: content } = await execFileAsync(
+          "git",
+          ["-C", subDir, "show", `${sha}:${relPath}`],
+          { cwd: process.cwd(), maxBuffer: 32 * 1024 * 1024 },
+        );
+        parsed = JSON.parse(content);
+      } catch {
+        continue; // 해당 커밋에 파일이 없거나 파싱 실패 → 건너뜀
+      }
+      const pages = parsed.layout?.pages;
+      if (!pages) continue;
+      for (const key of PAGE_KEYS) {
+        const blocks = pages[key]?.blocks;
+        const seq = Array.isArray(blocks) ? blocks.map((b) => b.type ?? "?").join(",") : "(none)";
+        (perPage[key] ??= []).push(seq);
+      }
+    }
+
+    const lines: string[] = [];
+    for (const key of PAGE_KEYS) {
+      const seqs = perPage[key] ?? [];
+      if (seqs.length < 2) continue;
+      const varied = new Set(seqs).size > 1;
+      if (!varied) continue; // 한 번도 안 바뀐 페이지는 생략
+      lines.push(`${key} (과거→현재):`);
+      seqs.forEach((s, i) => lines.push(`  ${i === seqs.length - 1 ? "현재" : "c" + (i + 1)}: ${s}`));
+    }
+    return lines.length ? lines.join("\n") : "(레이아웃이 아직 변한 적 없음)";
+  } catch {
+    return "(git 레이아웃 히스토리 조회 실패 — 현재 상태 기준으로 보수적으로 개선)";
+  }
+}
+
 async function generateLayout(
   apiKey: string,
-  args: { currentLayout: SiteLayout | undefined; researchNotes: string; lens: string },
+  args: {
+    currentLayout: SiteLayout | undefined;
+    researchNotes: string;
+    lens: string;
+    layoutHistory: string;
+  },
 ): Promise<{ layout: SiteLayout; changes: string[] } | null> {
   const catalog = renderCatalogForPrompt(args.currentLayout ?? DEFAULT_LAYOUT);
   const basePrompt = `너는 hsol.info 포트폴리오의 **레이아웃 빌더**다. 페이지별 블록 배열(layout)을 만든다.
@@ -757,8 +819,12 @@ async function generateLayout(
 원칙(중요):
 1) **앵커 후 진화**: 위 "현재 레이아웃"을 기준으로 삼아 **통째로 새로 만들지 말고**, 근거 있는 1~3가지 개선만 적용한다. 검증된 골격은 유지한다.
 2) **변경은 반드시 있어야 한다**: 이번 회차 리서치에서 얻은 인사이트를 최소 1곳 이상 실제 구성에 반영하라(섹션 순서 조정, 관점별 강조 변경, 선택 블록 포함/제외 등). "사실상 동일"은 실패로 본다. 단, 의미 없는 뒤섞기도 금지 — 개선 이유를 댈 수 있어야 한다.
-3) **가드레일**: 위 [조합 규칙]을 어기지 마라. 페이지 키 고정, 등록된 block type 만, 'raw' 금지, 각 블록은 해당 pages 에서만.
-4) props 는 현재 레이아웃의 값을 기본 유지하되, 순서/포함을 바꾸면서 num(§번호)은 보이는 순서에 맞춰 갱신하라.
+3) **히스토리 존중(핑퐁 금지·가장 중요)**: 아래 "레이아웃 변화 이력"은 회차별 페이지 블록 순서다(과거→현재, git 기준). 현재 레이아웃은 그 누적 결과다. **이미 과거에 나왔던 순서로 되돌아가지 마라.** 예: c1=[A,B], c2=[B,A], 라면 이번에 다시 [A,B]로 되돌리는 건 왕복(핑퐁)이라 금지. 어떤 페이지가 회차마다 두 배열 사이를 오갔다면 그 페이지는 **이번엔 손대지 말고** 아직 안정적이거나 한 번도 안 바뀐 페이지를 개선하라. 항상 **새로운 전진**(과거에 없던 배열·아직 시도 안 한 방향)만 한다.
+4) **가드레일**: 위 [조합 규칙]을 어기지 마라. 페이지 키 고정, 등록된 block type 만, 'raw' 금지, 각 블록은 해당 pages 에서만.
+5) props 는 현재 레이아웃의 값을 기본 유지하되, 순서/포함을 바꾸면서 num(§번호)은 보이는 순서에 맞춰 갱신하라.
+
+[레이아웃 변화 이력 — 회차별 블록 순서(과거→현재). 이미 나온 배열로 되돌아가지 말 것]
+${args.layoutHistory}
 
 [이번 회차 리서치 메모 — 주제: ${args.lens}]
 ${args.researchNotes || "(리서치 결과 없음 — 현재 레이아웃을 기준으로 작은 개선만 적용)"}
@@ -993,8 +1059,11 @@ ${contextText}
     logStep(`Researching portfolio references (lens: ${lens})...`);
     const researchNotes = await researchPortfolioReferences(apiKey, lens);
     logStep(researchNotes ? `Research notes collected (${researchNotes.length} chars).` : "Research notes empty.");
+    // git 으로 회차별 레이아웃 변화 이력을 컴팩트하게 뽑아 넣어 핑퐁(반복·되돌리기)을 막는다.
+    const layoutHistory = await getLayoutOrderTimeline(8);
+    logStep("Loaded layout change history from git for context.");
     logStep("Generating layout (anchor + evolve)...");
-    const generated = await generateLayout(apiKey, { currentLayout: existingLayout, researchNotes, lens });
+    const generated = await generateLayout(apiKey, { currentLayout: existingLayout, researchNotes, lens, layoutHistory });
     siteData.layout = stripAiTypographyDeep(buildFinalLayout(existingLayout, generated?.layout ?? null));
     buildChanges = generated?.changes ?? [];
     logStep(generated ? "Layout updated from builder." : "Layout builder yielded nothing — kept anchor/DEFAULT layout.");
