@@ -3,9 +3,51 @@
 import { Back, CareerList, CoffeeCTA, SecHead, useSiteData } from "@/components/portfolio/Atoms";
 import { PersonaTimelineIntro, renderTitleLines, ViewHead } from "@/components/portfolio/view-primitives";
 
+/**
+ * Writing 카드 한 장. href가 있으면 새 탭 링크(.pillar-link)로, 없으면 일반 카드로 렌더한다.
+ * 항목에 href만 채우면 링크가 자동으로 걸린다.
+ */
+function WritingPillar({
+  no,
+  name,
+  en,
+  blurb,
+  href,
+}: {
+  no: string;
+  name: string;
+  en: string;
+  blurb: string;
+  href?: string;
+}) {
+  const body = (
+    <>
+      <div className="pillar-no">{no}</div>
+      <div className="pillar-name">{href ? `${name} ↗` : name}</div>
+      <div className="pillar-en">{en}</div>
+      <div className="pillar-blurb">{blurb}</div>
+    </>
+  );
+  return href ? (
+    <a className="pillar pillar-link" href={href} target="_blank" rel="noopener noreferrer">
+      {body}
+    </a>
+  ) : (
+    <div className="pillar">{body}</div>
+  );
+}
+
 export function BuilderView({ onBack }: { onBack: () => void }) {
   const D = useSiteData();
   const builderTiers = D.career.map((c) => c.tier.builder);
+  // Writing 카드 = 블로그 + 출판물 + 그 외 글. 배열 순서대로 PIECE 번호가 매겨지고,
+  // 각 항목에 href가 있으면 자동으로 새 탭 링크가 된다.
+  const { blog, extraWritings } = D.portfolioCopy.builder;
+  const writingCards = [
+    blog,
+    ...D.publications.map((p) => ({ name: p.title, en: "Publication", blurb: p.desc, href: p.href })),
+    ...extraWritings,
+  ];
   return (
     <div className="view">
       <Back onBack={onBack} />
@@ -43,21 +85,15 @@ export function BuilderView({ onBack }: { onBack: () => void }) {
       <div className="sec" data-ask-section="builder/writing">
         <SecHead title="Writing" num="03" meta="publications" />
         <div className="pillars">
-          {D.publications.map((p, i) => (
-            <div className="pillar" key={i}>
-              <div className="pillar-no">PIECE · 0{i + 1}</div>
-              <div className="pillar-name">{p.title}</div>
-              <div className="pillar-en">Publication</div>
-              <div className="pillar-blurb">{p.desc}</div>
-            </div>
-          ))}
-          {D.portfolioCopy.builder.extraWritings.map((piece) => (
-            <div className="pillar" key={piece.no}>
-              <div className="pillar-no">{piece.no}</div>
-              <div className="pillar-name">{piece.name}</div>
-              <div className="pillar-en">{piece.en}</div>
-              <div className="pillar-blurb">{piece.blurb}</div>
-            </div>
+          {writingCards.map((card, i) => (
+            <WritingPillar
+              key={i}
+              no={`PIECE · 0${i + 1}`}
+              name={card.name}
+              en={card.en}
+              blurb={card.blurb}
+              href={card.href}
+            />
           ))}
         </div>
       </div>

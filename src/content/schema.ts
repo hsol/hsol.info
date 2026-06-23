@@ -57,6 +57,8 @@ const LanguageSchema = z.object({
 const PublicationSchema = z.object({
   title: z.string().min(1),
   desc: z.string().min(1),
+  /** 있으면 Writing 카드가 새 탭 링크로 렌더된다. */
+  href: z.string().url().optional(),
 });
 
 const FaqItemSchema = z.object({
@@ -79,6 +81,8 @@ const MethodItemSchema = z.object({
   name: z.string().min(1),
   en: z.string().min(1),
   blurb: z.string().min(1),
+  /** 있으면 카드가 새 탭 링크로 렌더된다(Writing 등). */
+  href: z.string().url().optional(),
 });
 
 const FactItemSchema = z.object({
@@ -165,6 +169,8 @@ export const siteDataSchema = z
     builder: z.object({
       facts: z.array(FactItemSchema).min(1),
       certificationLabel: z.string().min(1),
+      /** Writing 섹션 맨 앞 카드(블로그). 나머지 글과 동일하게 데이터로 관리한다. */
+      blog: MethodItemSchema,
       extraWritings: z.array(MethodItemSchema).min(1),
       /** 풀 경력 타임라인 직전, 빌더 관점 자기소개 줄글 */
       timelineIntro: z.string().min(1),

@@ -109,6 +109,7 @@ const STRUCTURED_DATA = {
         { "@type": "Organization", name: "PPB Studios" },
       ],
       sameAs: [
+        "https://blog.hsol.info",
         "https://www.linkedin.com/in/hsolim/",
         "https://github.com/hsol",
         "https://medium.com/@hsol",

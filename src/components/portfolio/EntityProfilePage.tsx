@@ -33,9 +33,9 @@ const BODY: string[] = [
 
 /** 구조화 데이터 sameAs와 일치시키는 외부 프로필(좌측). */
 const EXTERNAL_PROFILES = [
+  { label: "Blog", href: "https://blog.hsol.info" },
   { label: "LinkedIn", href: "https://www.linkedin.com/in/hsolim/" },
   { label: "GitHub", href: "https://github.com/hsol" },
-  { label: "Medium", href: "https://medium.com/@hsol" },
   { label: "Gravatar", href: "https://gravatar.com/hsolim" },
 ];
 
