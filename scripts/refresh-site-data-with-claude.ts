@@ -498,39 +498,68 @@ function toVaultContextPath(relativeVaultPath: string): string {
   return path.posix.join(VAULT_ROOT, normalized);
 }
 
-async function listChangedVaultFilesFromGit(): Promise<string[]> {
-  const baseSha = process.env.GIT_DIFF_BASE_SHA;
-  const headSha = process.env.GIT_DIFF_HEAD_SHA;
-  if (!baseSha || !headSha || /^0+$/.test(baseSha)) return [];
-
-  const { stdout } = await execFileAsync(
-    "git",
-    ["diff", "--name-only", baseSha, headSha, "--", "hsol-info-blob/vault"],
-    { cwd: process.cwd() },
-  );
-
-  return stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((filePath) => toPosixPath(filePath))
-    .filter((filePath) => filePath.startsWith("hsol-info-blob/vault/"))
-    .map((filePath) => filePath.slice("hsol-info-blob/vault/".length));
+/** 부모 커밋에서 서브모듈(hsol-info-blob) 포인터 gitlink SHA 를 읽는다(서브모듈 객체 불필요). */
+async function submodulePointerAt(commit: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync("git", ["rev-parse", `${commit}:hsol-info-blob`], {
+      cwd: process.cwd(),
+    });
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
-async function detectChangedVaultFiles(): Promise<string[]> {
+/**
+ * "vault 가 수정됐는가" = 부모 dev 푸시에서 **서브모듈(hsol-info-blob=vault) 포인터가 바뀌었는가**.
+ * hsol-info-blob 은 통째로 vault 저장소라, 포인터가 움직였으면 vault 내용이 바뀐 것이다.
+ * (CI 의 vault 자동 커밋은 부모 포인터를 안 바꾸므로 자기 자신을 오탐하지 않는다.)
+ * files 는 가능하면 서브모듈 내부 diff 로 채우는 best-effort(없으면 [] → legacy 컨텍스트).
+ *
+ * 주의: 부모 checkout 이 shallow 면 BASE 커밋이 없어 감지가 안 되므로 워크플로에서 fetch-depth: 0 필요.
+ */
+async function detectVaultChangeFromGit(): Promise<{ changed: boolean; files: string[] }> {
+  const baseSha = process.env.GIT_DIFF_BASE_SHA;
+  const headSha = process.env.GIT_DIFF_HEAD_SHA;
+  if (!baseSha || !headSha || /^0+$/.test(baseSha)) return { changed: false, files: [] };
+
+  const oldSub = await submodulePointerAt(baseSha);
+  const newSub = await submodulePointerAt(headSha);
+  if (!oldSub || !newSub) return { changed: false, files: [] };
+  if (oldSub === newSub) return { changed: false, files: [] }; // 포인터 그대로 → vault 미수정
+
+  // 포인터가 바뀜 → vault 수정됨. 변경 파일 목록은 서브모듈 내부 diff 로(객체 없으면 생략).
+  let files: string[] = [];
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["-C", "hsol-info-blob", "diff", "--name-only", oldSub, newSub, "--", "vault"],
+      { cwd: process.cwd() },
+    );
+    files = stdout
+      .split("\n")
+      .map((line) => toPosixPath(line.trim()))
+      .filter(Boolean)
+      .map((filePath) => filePath.replace(/^vault\//, "")); // vault 루트 상대 경로로
+  } catch {
+    files = [];
+  }
+  return { changed: true, files };
+}
+
+async function detectVaultChange(): Promise<{ changed: boolean; files: string[] }> {
   const fromEnv = process.env.VAULT_CHANGED_FILES;
   if (fromEnv && fromEnv.trim()) {
-    return fromEnv
+    const files = fromEnv
       .split(/\r?\n|,/)
       .map((s) => s.trim())
       .filter(Boolean);
+    return { changed: files.length > 0, files };
   }
-
   try {
-    return await listChangedVaultFilesFromGit();
+    return await detectVaultChangeFromGit();
   } catch {
-    return [];
+    return { changed: false, files: [] };
   }
 }
 
@@ -926,20 +955,22 @@ async function main() {
   }
 
   const { text: currentSiteDataText, exists: hasExistingSiteData } = await getExistingSiteDataText();
-  const changedVaultFiles = await detectChangedVaultFiles();
+  const vaultChange = await detectVaultChange();
+  const changedVaultFiles = vaultChange.files;
   const forceRefresh = isForceRefresh();
   if (forceRefresh) {
-    logStep("Force refresh: vault diff empty guard skipped.");
+    logStep("Force refresh: vault change guard skipped.");
   }
-  if (hasExistingSiteData && changedVaultFiles.length === 0 && !forceRefresh) {
-    logStep("No vault file changes detected for this deployment. Keep existing site-data as-is.");
+  // vault(서브모듈 hsol-info-blob) 포인터가 안 바뀐 코드-only 푸시에선 스킵 → site-data 유지.
+  if (hasExistingSiteData && !vaultChange.changed && !forceRefresh) {
+    logStep("No vault change (hsol-info-blob submodule pointer unchanged). Keep existing site-data as-is.");
     return;
   }
 
   if (!hasExistingSiteData) {
     logStep("site-data.json not found. Rebuilding from vault README baseline.");
   } else {
-    logStep(`Detected changed vault files: ${changedVaultFiles.length}`);
+    logStep(`Vault changed. Changed file hints: ${changedVaultFiles.length}`);
   }
 
   const contextText = !hasExistingSiteData
