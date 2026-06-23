@@ -1,7 +1,12 @@
 "use client";
 
+import "@/components/ask-selection/selection-ask.css";
+
 import { useCallback, useEffect, useState } from "react";
-import { requestSelectionAsk } from "@/components/ask-selection/selection-bridge";
+import {
+  hasSelectionAskSubscriber,
+  requestSelectionAsk,
+} from "@/components/ask-selection/selection-bridge";
 
 type Nudge = { text: string; x: number; y: number; placeAbove: boolean };
 
@@ -20,6 +25,11 @@ export function SelectionAsk() {
     };
 
     const update = () => {
+      // 이 라우트에 답할 Ask 도크가 없으면(/architecture·/build-log 등) 넛지를 띄우지 않는다.
+      if (!hasSelectionAskSubscriber()) {
+        setNudge(null);
+        return;
+      }
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
         setNudge(null);

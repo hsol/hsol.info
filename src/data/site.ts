@@ -231,18 +231,19 @@ export const HSOL_DATA = siteDataSchema.parse({
         }
       ],
       "certificationLabel": "자격",
+      "blog": {
+        "no": "PIECE · 01",
+        "name": "블로그 — blog.hsol.info",
+        "en": "Blog",
+        "blurb": "개발과 일하는 방식, 만들고 겪은 것들에 대한 생각을 틈틈이 적어 두는 곳입니다.",
+        "href": "https://blog.hsol.info"
+      },
       "extraWritings": [
         {
-          "no": "PIECE · 02",
+          "no": "PIECE · 03",
           "name": "Measurable Developer",
           "en": "Newsletter",
           "blurb": "개발자 생산성을 측정 가능한 형태로 다루는 뉴스레터. 프루퍼 CTO 시절부터 발행해 왔습니다."
-        },
-        {
-          "no": "PIECE · 03",
-          "name": "Claude Code + Linear 프로토콜",
-          "en": "Internal playbook",
-          "blurb": "PPB에 도입한 바이브 코딩 프로토콜 - 요구사항 분석부터 태스크 관리·구현까지의 워크플로우를 재정의합니다."
         }
       ],
       "timelineIntro": "스택과 도구는 바뀌었지만 \"무엇을 만들지 먼저 고르고, 코드로 답을 내는\" 태도는 12년 동안 비슷합니다. 풀스택 외주에서 시작해 인터널 툴·측정 가능한 개발자 경험·AI 네이티브 워크플로까지 관심의 초점만 조금씩 옮겨 왔습니다.\n\n이어지는 목록은 전체 커리어를 빌더의 눈으로 시간순에 맞춰 둔 것입니다.",

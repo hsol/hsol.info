@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { layoutSchema } from "@/content/layout-types";
 
 const IdentitySchema = z.object({
   name: z.string().min(1),
@@ -57,6 +58,8 @@ const LanguageSchema = z.object({
 const PublicationSchema = z.object({
   title: z.string().min(1),
   desc: z.string().min(1),
+  /** 있으면 Writing 카드가 새 탭 링크로 렌더된다. */
+  href: z.string().url().optional(),
 });
 
 const FaqItemSchema = z.object({
@@ -79,6 +82,8 @@ const MethodItemSchema = z.object({
   name: z.string().min(1),
   en: z.string().min(1),
   blurb: z.string().min(1),
+  /** 있으면 카드가 새 탭 링크로 렌더된다(Writing 등). */
+  href: z.string().url().optional(),
 });
 
 const FactItemSchema = z.object({
@@ -104,6 +109,15 @@ const HomeBuiltFlowStepSchema = z.object({
 const HomeBuiltPerspectiveSchema = z.object({
   title: z.string().min(1),
   summary: z.string().min(1),
+});
+
+/**
+ * 빌드/리프레시 메타(가벼움). footer 에 버전을 띄워 "이번에 실제로 돌았는지"를 알게 한다.
+ * 상세 개선 로그(개선 의도 내역)는 site-data 가 아니라 DB(build_log 테이블)에 누적한다.
+ */
+const BuildInfoSchema = z.object({
+  version: z.string().min(1),
+  refreshedAt: z.string().min(1),
 });
 
 export const siteDataSchema = z
@@ -165,6 +179,8 @@ export const siteDataSchema = z
     builder: z.object({
       facts: z.array(FactItemSchema).min(1),
       certificationLabel: z.string().min(1),
+      /** Writing 섹션 맨 앞 카드(블로그). 나머지 글과 동일하게 데이터로 관리한다. */
+      blog: MethodItemSchema,
       extraWritings: z.array(MethodItemSchema).min(1),
       /** 풀 경력 타임라인 직전, 빌더 관점 자기소개 줄글 */
       timelineIntro: z.string().min(1),
@@ -196,6 +212,13 @@ export const siteDataSchema = z
   languages: z.array(LanguageSchema).min(1),
   publications: z.array(PublicationSchema).min(1),
   faq: z.array(FaqItemSchema).min(1),
+  /**
+   * 페이지별 블록 조합(레이아웃). 선택 필드 — 없거나 일부만 있으면
+   * 코드의 DEFAULT_LAYOUT 으로 폴백한다. 빌더/사람이 여기서 레이아웃을 바꾼다.
+   */
+  layout: layoutSchema.optional(),
+  /** 빌드 버전 메타(footer 표시용). 상세 개선 로그는 DB. */
+  build: BuildInfoSchema.optional(),
 })
   .superRefine((data, ctx) => {
     const personaKeys = data.personas.map((p) => p.key);

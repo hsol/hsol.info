@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { PERSONA_PATH_KEYS } from "../src/components/portfolio/portfolio-types";
+import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
 
 /**
  * 직접 작성한 sitemap 빌더.
@@ -32,34 +32,37 @@ type UrlEntry = {
   priority: number;
 };
 
+/**
+ * 페이지별 SEO 가중치. **어떤 페이지를 넣을지는 SITE_STRUCTURE.inSitemap(SSOT)가 결정**하고,
+ * 여기서는 노출되는 페이지의 priority/changefreq 만 정한다. 매핑이 없으면 기본값 사용.
+ */
+const SEO_WEIGHTS: Partial<Record<PageKey, { changefreq: ChangeFreq; priority: number }>> = {
+  home: { changefreq: "weekly", priority: 1.0 },
+  about: { changefreq: "weekly", priority: 0.9 },
+  hire: { changefreq: "weekly", priority: 0.8 },
+  collab: { changefreq: "weekly", priority: 0.8 },
+  builder: { changefreq: "weekly", priority: 0.8 },
+  curious: { changefreq: "weekly", priority: 0.8 },
+  architecture: { changefreq: "monthly", priority: 0.5 },
+};
+
+function locFor(route: string): string {
+  // 루트는 trailing slash 없이(canonical 일치), 나머지는 SITE_URL + route.
+  return route === "/" ? SITE_URL : `${SITE_URL}${route}`;
+}
+
 function buildEntries(now: string): UrlEntry[] {
-  const personaEntries: UrlEntry[] = PERSONA_PATH_KEYS.map((slug) => ({
-    loc: `${SITE_URL}/${slug}`,
-    lastmod: now,
-    changefreq: "weekly",
-    priority: 0.8,
-  }));
-  return [
-    {
-      loc: SITE_URL,
-      lastmod: now,
-      changefreq: "weekly",
-      priority: 1.0,
-    },
-    ...personaEntries,
-    {
-      loc: `${SITE_URL}/about`,
-      lastmod: now,
-      changefreq: "weekly",
-      priority: 0.9,
-    },
-    {
-      loc: `${SITE_URL}/architecture`,
-      lastmod: now,
-      changefreq: "monthly",
-      priority: 0.5,
-    },
-  ];
+  return PAGE_KEYS.filter((key) => SITE_STRUCTURE[key].inSitemap)
+    .map((key): UrlEntry => {
+      const weight = SEO_WEIGHTS[key] ?? { changefreq: "weekly" as ChangeFreq, priority: 0.7 };
+      return {
+        loc: locFor(SITE_STRUCTURE[key].route),
+        lastmod: now,
+        changefreq: weight.changefreq,
+        priority: weight.priority,
+      };
+    })
+    .sort((a, b) => b.priority - a.priority || a.loc.localeCompare(b.loc));
 }
 
 function renderXml(entries: UrlEntry[]): string {

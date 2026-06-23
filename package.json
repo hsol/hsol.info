@@ -10,6 +10,7 @@
     "lint": "next lint",
     "content:refresh:claude": "tsx scripts/refresh-site-data-with-claude.ts",
     "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts",
+    "content:layout:snapshot": "tsx scripts/snapshot-layout-to-site-data.ts",
     "sitemap:build": "tsx scripts/build-sitemap.ts",
     "assets:hansol-photo": "cwebp -q 82 public/hansol.png -o public/hansol.webp && avifenc -q 50 -s 6 public/hansol.png public/hansol.avif && cp public/hansol.webp public/hansol.avif assets/"
   },

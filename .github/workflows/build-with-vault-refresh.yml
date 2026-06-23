@@ -22,6 +22,8 @@ jobs:
         with:
           submodules: recursive
           token: ${{ secrets.SUBMODULES_PAT }}
+          # vault 변경 감지(부모 BASE 커밋의 서브모듈 포인터 비교)를 위해 전체 히스토리 필요.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,6 +41,10 @@ jobs:
           ANTHROPIC_MAX_TOKENS: "64000"
           GIT_DIFF_BASE_SHA: ${{ github.event.before }}
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
+          # vault(서브모듈) 수정이 있을 때만 자동 실행. 수동 실행(workflow_dispatch)은 명시적 의도라 강제.
+          CONTENT_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+          # 빌드 로그(build_log 테이블) 적층용. 없으면 로그 적층만 건너뛰고 리프레시는 정상.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: npm run content:refresh:claude
 
       - name: Commit and push vault updates to hsol-info-blob submodule
