@@ -4,6 +4,9 @@ import { OnePagerPage } from "@/components/portfolio/OnePagerPage";
 import { getSiteData } from "@/lib/content/site-data";
 import { getOnePagerHtml } from "@/lib/content/onepager";
 
+// 정적 프리렌더 대신 요청 시 렌더 — Blob의 최신 원페이저를 리빌드 없이 반영한다.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "이력서·포트폴리오 — 임한솔 | hsol.info",
   description:
