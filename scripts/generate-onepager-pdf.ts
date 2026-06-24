@@ -46,7 +46,7 @@ async function main() {
     return;
   }
   const pdfResult = await put(BLOB_PDF_PATH, pdf, {
-    access: "public",
+    access: "private",
     token,
     allowOverwrite: true,
     addRandomSuffix: false,
@@ -55,7 +55,7 @@ async function main() {
   console.log(`[onepager-pdf] Uploaded PDF to Blob: ${pdfResult.url}`);
 
   const htmlResult = await put(BLOB_HTML_PATH, fragment, {
-    access: "public",
+    access: "private",
     token,
     allowOverwrite: true,
     addRandomSuffix: false,
