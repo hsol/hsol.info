@@ -63,9 +63,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git fetch origin "${SUBMODULE_BRANCH}"
           # refresh 등으로 작업 트리가 더러우면 switch 전에 stash(미추적 ref 포함). 그렇지 않으면 checkout 거부됨.
+          # onepager-ko.html 은 첫 회차나 vault 무변경(refresh skip) 시 없을 수 있다 → 존재할 때만 대상에 포함.
+          SYNC_FILES="$SITE_FILE $REF_FILE"
+          if [ -f "$ONEPAGER_FILE" ]; then SYNC_FILES="$SYNC_FILES $ONEPAGER_FILE"; fi
           STASHED=0
-          if [ -n "$(git status --porcelain --untracked-files=all -- "$SITE_FILE" "$REF_FILE" "$ONEPAGER_FILE" 2>/dev/null || true)" ]; then
-            git stash push -u -m "hsol.info-ci pre-sync" -- "$SITE_FILE" "$REF_FILE" "$ONEPAGER_FILE"
+          if [ -n "$(git status --porcelain --untracked-files=all -- $SYNC_FILES 2>/dev/null || true)" ]; then
+            git stash push -u -m "hsol.info-ci pre-sync" -- $SYNC_FILES
             STASHED=1
           fi
           git switch -C ci-sync "origin/${SUBMODULE_BRANCH}"
@@ -79,7 +82,7 @@ jobs:
             --argjson run ${{ github.run_id }} \
             --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             '{parentSha:$sha, parentRef:$ref, workflowRunId:$run, recordedAt:$at}' > "$REF_FILE"
-          git add "$SITE_FILE" "$REF_FILE" "$ONEPAGER_FILE"
+          git add $SYNC_FILES
           if git diff --cached --quiet; then
             echo "No staged vault changes; skip submodule push."
             exit 0
