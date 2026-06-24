@@ -25,7 +25,6 @@ const STYLE = `
 .onepager-floatnav {
   position: fixed; left: 18px; top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 10px; z-index: 60;
-  animation: op-nav-in 600ms 720ms ease both;
 }
 .op-fab {
   display: inline-flex; align-items: center; gap: 7px;
@@ -45,25 +44,16 @@ const STYLE = `
   max-width: 210mm; margin: 0 auto;
   box-shadow: 0 6px 40px rgba(0, 0, 0, 0.4);
   border-radius: 4px; overflow: hidden;
-  animation: op-sheet-in 700ms 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-@keyframes op-sheet-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-/* 전체 화면 흰 레이어가 가운데서 화면 전체로 쫙 퍼졌다가 사라지며 원페이저를 드러냄 */
+/* 흰 패널 하나가 화면 전체를 덮은 채 좌→우로 훑고 지나가며, 그 자리에서 원페이저가 드러남(단일 와이프). */
 .onepager-reveal {
   position: fixed; inset: 0; background: #ffffff; z-index: 200; pointer-events: none;
-  animation: op-fullspread 1100ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: -24px 0 60px -10px rgba(0, 0, 0, 0.22);
+  animation: op-wipe 950ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
 }
-@keyframes op-fullspread {
-  0%   { clip-path: inset(48% 48% 48% 48%); opacity: 1; }
-  55%  { clip-path: inset(0 0 0 0); opacity: 1; }
-  100% { clip-path: inset(0 0 0 0); opacity: 0; }
-}
-@keyframes op-nav-in {
-  from { opacity: 0; transform: translateY(-50%) translateX(-12px); }
-  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+@keyframes op-wipe {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(102%); }
 }
 
 .onepager-empty {
