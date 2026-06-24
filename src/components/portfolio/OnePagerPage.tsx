@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { Foot } from "@/components/portfolio/Atoms";
 import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
@@ -45,15 +46,11 @@ const STYLE = `
   box-shadow: 0 6px 40px rgba(0, 0, 0, 0.4);
   border-radius: 4px; overflow: hidden;
 }
-/* 흰 패널 하나가 화면 전체를 덮은 채 좌→우로 훑고 지나가며, 그 자리에서 원페이저가 드러남(단일 와이프). */
+/* 흰 패널 하나가 화면 전체를 덮은 채 좌→우로 훑고 지나가며 원페이저를 드러냄.
+   모션은 framer-motion 이 구동(아래 motion.div). 여기선 정적 스타일만. */
 .onepager-reveal {
   position: fixed; inset: 0; background: #ffffff; z-index: 200; pointer-events: none;
   box-shadow: -24px 0 60px -10px rgba(0, 0, 0, 0.22);
-  animation: op-wipe 950ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
-}
-@keyframes op-wipe {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(102%); }
 }
 
 .onepager-empty {
@@ -80,10 +77,19 @@ const STYLE = `
 
 export function OnePagerPage({ html }: { html: string | null }) {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   return (
     <div className="app-layout">
       <style>{STYLE}</style>
-      <div className="onepager-reveal" aria-hidden="true" />
+      {!reduceMotion && html ? (
+        <motion.div
+          className="onepager-reveal"
+          aria-hidden="true"
+          initial={{ x: 0 }}
+          animate={{ x: "102%" }}
+          transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
+        />
+      ) : null}
 
       <div className="shell">
         <main id="main-content">
