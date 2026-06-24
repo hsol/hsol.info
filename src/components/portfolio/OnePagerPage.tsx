@@ -47,6 +47,9 @@ const STYLE = `
   box-shadow: 0 6px 40px rgba(0, 0, 0, 0.4);
   border-radius: 4px; overflow: hidden;
 }
+/* entrance 전: 첫 페인트부터 블록을 숨겨 FOUC(보였다 사라졌다)를 막는다.
+   JS가 framer-motion 으로 드러내고, no-JS 는 아래 <noscript> 가 즉시 노출. */
+.onepager-sheet.preanim .onepager > *:not(style) { opacity: 0; }
 
 .onepager-empty {
   max-width: 210mm; margin: 0 auto; padding: 48px 24px;
@@ -72,7 +75,7 @@ export function OnePagerPage({ html }: { html: string | null }) {
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (reduceMotion || !html) return;
+    if (!html) return;
     const root = sheetRef.current?.querySelector(".onepager");
     if (!root) return;
     // 원페이저 최상위 블록(헤더·섹션 등)만 대상. inline <style> 는 제외.
@@ -81,7 +84,13 @@ export function OnePagerPage({ html }: { html: string | null }) {
     );
     if (blocks.length === 0) return;
 
-    // 깜빡임 방지를 위해 시작 상태를 먼저 적용한 뒤 스태거로 차오르게 한다.
+    // 모션 최소화 설정: 애니메이션 없이 즉시 노출(.preanim 의 opacity:0 을 덮어씀).
+    if (reduceMotion) {
+      for (const el of blocks) el.style.opacity = "1";
+      return;
+    }
+
+    // .preanim 이 이미 opacity:0 으로 첫 페인트부터 숨김. 시작 상태 보강 후 스태거로 차오르게.
     for (const el of blocks) {
       el.style.opacity = "0";
       el.style.transform = "translateY(18px)";
@@ -94,18 +103,15 @@ export function OnePagerPage({ html }: { html: string | null }) {
     );
     return () => {
       controls.stop();
-      // 정리: 애니메이션 잔여 인라인 스타일 제거(인쇄·재실행 안전)
-      for (const el of blocks) {
-        el.style.opacity = "";
-        el.style.transform = "";
-        el.style.filter = "";
-      }
     };
   }, [html, reduceMotion]);
 
   return (
     <div className="app-layout">
       <style>{STYLE}</style>
+      <noscript>
+        <style>{`.onepager-sheet.preanim .onepager > *:not(style){opacity:1!important}`}</style>
+      </noscript>
 
       <div className="shell">
         <main id="main-content">
@@ -113,7 +119,7 @@ export function OnePagerPage({ html }: { html: string | null }) {
             {html ? (
               <div
                 ref={sheetRef}
-                className="onepager-sheet"
+                className="onepager-sheet preanim"
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             ) : (
