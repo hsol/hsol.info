@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -73,6 +73,29 @@ const REQUIRED_TOP_LEVEL_KEYS = [
   "publications",
   "faq",
 ] as const;
+/** 원페이저(이력서/포트폴리오 한 장) 빌더 설정. */
+const EMIT_ONEPAGER_TOOL_NAME = "emit_one_pager";
+const ONEPAGER_HTML_PATH =
+  process.env.VAULT_ONEPAGER_HTML_PATH ??
+  "hsol-info-blob/vault/object-views/onepager-ko.html";
+/** 원페이저 빌더 비활성화: ONEPAGER_BUILDER=0 이면 건너뛴다(기존 파일 보존). */
+const ONEPAGER_BUILDER_ENABLED = (() => {
+  const v = (process.env.ONEPAGER_BUILDER ?? "1").trim().toLowerCase();
+  return v !== "0" && v !== "false" && v !== "no";
+})();
+const ONEPAGER_MAX_TOKENS = Number(process.env.ONEPAGER_EMIT_MAX_TOKENS ?? 20000);
+/** 원페이저 근거 = vault 온톨로지 원본. 척추(큐레이트 뷰) + objects/* 글롭. */
+const ONEPAGER_SPINE_FILES = [
+  `${VAULT_ROOT}/object-views/포트폴리오-요약.md`,
+  `${VAULT_ROOT}/object-sets/경력-타임라인.md`,
+  `${VAULT_ROOT}/object-sets/현재-역할.md`,
+  `${VAULT_ROOT}/object-views/타임라인.md`,
+  `${VAULT_ROOT}/object-views/hsol-info-소개-백데이터.md`,
+  `${VAULT_ROOT}/object-views/작문-가이드.md`,
+  `${VAULT_ROOT}/objects/people/임한솔.md`,
+];
+const ONEPAGER_OBJECT_DIRS = ["projects", "organizations", "concepts", "artifacts"];
+
 const VAULT_README_PATH = `${VAULT_ROOT}/README.md`;
 const HOME_BUILT_SOURCE_PATH = `${VAULT_ROOT}/objects/projects/hsol-info.md`;
 const BASE_CONTEXT_FILES = [
@@ -611,69 +634,107 @@ function isEmitToolUseBlock(
   return item.type === "tool_use" && item.name === EMIT_TOOL_NAME;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Anthropic Messages 단발 호출(raw HTTP) + 일시적 오류 재시도.
+ * 429/5xx 와 네트워크 오류는 지수 백오프로 재시도하고, 그 외 4xx 는 즉시 실패한다.
+ * 무인 CI 파이프라인이 일시적 API 블립(예: 500 Internal server error)에 죽지 않게 한다.
+ */
+async function anthropicFetchJson(
+  apiKey: string,
+  body: Record<string, unknown>,
+  opts?: { maxRetries?: number },
+): Promise<{ content?: AnthropicContent[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }> {
+  const maxRetries = opts?.maxRetries ?? Number(process.env.ANTHROPIC_MAX_RETRIES ?? 4);
+  let lastErr: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (networkErr) {
+      lastErr = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
+      if (attempt < maxRetries) {
+        const delay = Math.min(2000 * 2 ** attempt, 30000);
+        logStep(`Anthropic network error (attempt ${attempt + 1}/${maxRetries + 1}): ${lastErr.message}; retry in ${delay}ms.`);
+        await sleep(delay);
+        continue;
+      }
+      throw lastErr;
+    }
+
+    if (response.ok) {
+      return (await response.json()) as Awaited<ReturnType<typeof anthropicFetchJson>>;
+    }
+    const text = await response.text();
+    lastErr = new Error(`Anthropic request failed (${response.status}): ${text}`);
+    const retryable = response.status === 429 || response.status >= 500;
+    if (retryable && attempt < maxRetries) {
+      const delay = Math.min(2000 * 2 ** attempt, 30000);
+      logStep(`Anthropic ${response.status} (attempt ${attempt + 1}/${maxRetries + 1}); retry in ${delay}ms.`);
+      await sleep(delay);
+      continue;
+    }
+    throw lastErr;
+  }
+  throw lastErr ?? new Error("Anthropic request failed");
+}
+
 async function requestAnthropicStructured(
   apiKey: string,
   prompt: string,
 ): Promise<{ text: string; toolInput: unknown | null; stopReason: string | undefined }> {
   logStep(`Requesting Anthropic (${MODEL}, max_tokens=${MAX_TOKENS})...`);
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      messages: [{ role: "user", content: prompt }],
-      tools: [
-        {
-          name: EMIT_TOOL_NAME,
-          description:
-            "Return ONLY final site-data JSON object. Never include markdown/prose.",
-          input_schema: {
-            type: "object",
-            additionalProperties: true,
-            properties: {
-              identity: { type: "object" },
-              pillars: { type: "array" },
-              personas: { type: "array" },
-              viewHeaders: { type: "object" },
-              portfolioCopy: { type: "object" },
-              career: { type: "array" },
-              education: { type: "array" },
-              certifications: { type: "array" },
-              languages: { type: "array" },
-              publications: { type: "array" },
-              faq: { type: "array" },
-            },
-            required: [
-              "identity",
-              "pillars",
-              "personas",
-              "viewHeaders",
-              "portfolioCopy",
-              "career",
-              "education",
-              "certifications",
-              "languages",
-              "publications",
-              "faq",
-            ],
+  const data = await anthropicFetchJson(apiKey, {
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    messages: [{ role: "user", content: prompt }],
+    tools: [
+      {
+        name: EMIT_TOOL_NAME,
+        description: "Return ONLY final site-data JSON object. Never include markdown/prose.",
+        input_schema: {
+          type: "object",
+          additionalProperties: true,
+          properties: {
+            identity: { type: "object" },
+            pillars: { type: "array" },
+            personas: { type: "array" },
+            viewHeaders: { type: "object" },
+            portfolioCopy: { type: "object" },
+            career: { type: "array" },
+            education: { type: "array" },
+            certifications: { type: "array" },
+            languages: { type: "array" },
+            publications: { type: "array" },
+            faq: { type: "array" },
           },
+          required: [
+            "identity",
+            "pillars",
+            "personas",
+            "viewHeaders",
+            "portfolioCopy",
+            "career",
+            "education",
+            "certifications",
+            "languages",
+            "publications",
+            "faq",
+          ],
         },
-      ],
-      tool_choice: { type: "tool", name: EMIT_TOOL_NAME },
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Anthropic request failed (${response.status}): ${body}`);
-  }
-
-  const data = (await response.json()) as {
+      },
+    ],
+    tool_choice: { type: "tool", name: EMIT_TOOL_NAME },
+  }) as {
     content?: AnthropicContent[];
     stop_reason?: string;
     usage?: { input_tokens?: number; output_tokens?: number };
@@ -700,25 +761,13 @@ async function requestAnthropicStructured(
   return { text, toolInput, stopReason: data.stop_reason };
 }
 
-/** Anthropic Messages 단발 호출(raw HTTP). 서버툴 응답 그대로 반환. */
+/** Anthropic Messages 단발 호출(raw HTTP) + 일시적 오류 재시도. 서버툴 응답 그대로 반환. */
 async function anthropicMessages(
   apiKey: string,
   body: Record<string, unknown>,
 ): Promise<{ content: AnthropicContent[]; stop_reason?: string }> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Anthropic request failed (${response.status}): ${text}`);
-  }
-  return (await response.json()) as { content: AnthropicContent[]; stop_reason?: string };
+  const data = await anthropicFetchJson(apiKey, body);
+  return { content: data.content ?? [], stop_reason: data.stop_reason };
 }
 
 /**
@@ -947,6 +996,174 @@ function extractExistingLayout(siteDataText: string): SiteLayout | undefined {
   }
 }
 
+/** 원페이저 디자인·콘텐츠 지침(리서치 근거: Harvard FAS / MIT CAPD / Laszlo Bock / NN-g / MDN). */
+const ONEPAGER_DESIGN_SPEC = `
+[원페이저 산출물 정의]
+임한솔의 "이력서 + 포트폴리오 한 장(원페이저)"을 자기완결형 HTML 조각으로 만든다. 한국어.
+채용 담당자·잠재 협업자가 약 7초 안에 핵심을 파악하도록 설계한다.
+
+[출력 형식 — 반드시 지킬 것]
+- 최상위 단일 루트 <article class="onepager"> ... </article> 하나만 반환한다. 앞뒤에 <!doctype>·<html>·<head>·<body> 를 붙이지 않는다(조각이다).
+- 그 안 맨 앞에 <style> 블록 하나를 둔다. 모든 셀렉터는 반드시 .onepager 하위로 스코프한다(전역 오염 금지).
+- <style> 안에 인쇄 페이지 규칙을 포함한다: @page { size: A4; margin: 14mm; } 그리고 .onepager 에 print-color-adjust: exact; -webkit-print-color-adjust: exact; 를 준다.
+- 외부 리소스 금지(웹폰트 <link>, <img src>, <script> 등 금지). 폰트는 시스템 한글 스택만: font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Noto Sans CJK KR", sans-serif;
+- 사진·생년월일·주민번호·상세 주소는 넣지 않는다(글로벌·블라인드 안전 기본값).
+
+[레이아웃·타이포(리서치 근거)]
+- A4 한 장(210x297mm)에 정확히 맞춘다. 단일 컬럼(ATS 안전). 여백 13~19mm.
+- 본문 10~12pt, 이름/섹션 헤딩 16~20pt. 10pt 미만 금지. 폰트를 줄여 욱여넣지 말고 내용을 추려 1장 유지(경력 10년당 1쪽 감각).
+- F자 스캔: 상단에 이름·직함·한 줄 포지셔닝. 직무 타이틀 bold. 헤딩 좌측 정렬. 불릿은 정량 임팩트를 앞에.
+- 인쇄용 흰 배경 + 짙은 잉크 텍스트. 액센트는 절제된 블루(#287099)·골드(#b9842f). 색 포인트는 한두 곳만.
+
+[내용 구조(중요도 순)]
+1) 헤더: 이름(임한솔 / Hansol Lim), 현재 직함, 연락 수단(이메일·LinkedIn·hsol.info·회사 링크).
+2) 2~4문장 요약/포지셔닝: 한 줄 정의 + 강점 + 타깃 독자.
+3) 핵심 성과(정량) 3~5개.
+4) 선별 경력(역시간순, 경력-타임라인 근거: CNT-Tech -> RIDI -> Toss(5년) -> Antler/라이트형제 -> Proofer/PPB-Studios). 각 항목 조직·직함·기간 + 1~3개 임팩트 불릿.
+5) 핵심 역량/스킬(concepts: Strategic/Design/Product-Thinking, Customer-Centricity + 현재/과거 스택).
+6) 대표 프로젝트 3~5개(projects 의 결과·정량 중심).
+7) 학력·자격·언어.
+
+[문장 규칙]
+- 불릿은 동사로 시작, 1인칭 대명사 금지, 1~2줄. XYZ("X를 Y만큼, Z로 달성")/PAR 패턴. 가능하면 정량화.
+- vault 컨텍스트에 실제로 있는 사실·고유명사·기간·수치만 쓴다. 문서 밖 추측·새 수치·과장 금지. 애매하면 보수적으로 기존을 유지.
+- AI 티 특수문자(엠대시 — 말줄임표 ... 곡선따옴표) 금지. 하이픈·마침표·곧은따옴표만 쓴다.
+`.trim();
+
+function isEmitOnePagerToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_ONEPAGER_TOOL_NAME;
+}
+
+async function getExistingOnePagerHtml(): Promise<string> {
+  try {
+    return await readFile(ONEPAGER_HTML_PATH, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+/** 원페이저 근거 컨텍스트: 척추(큐레이트 뷰) + objects/{projects,organizations,concepts,artifacts}/*.md 글롭. */
+async function loadOnePagerContext(changedVaultFiles: string[]): Promise<string> {
+  const objectFiles: string[] = [];
+  for (const dir of ONEPAGER_OBJECT_DIRS) {
+    const absDir = `${VAULT_ROOT}/objects/${dir}`;
+    try {
+      const entries = await readdir(absDir);
+      for (const entry of entries) {
+        if (entry.endsWith(".md")) objectFiles.push(`${absDir}/${entry}`);
+      }
+    } catch {
+      // 디렉터리 없음 → 건너뜀
+    }
+  }
+  const highPriorityFiles = [
+    ...ONEPAGER_SPINE_FILES,
+    ...changedVaultFiles.map((relativePath) => toVaultContextPath(relativePath)),
+  ];
+  return loadContextFiles({ highPriorityFiles, regularFiles: objectFiles });
+}
+
+/**
+ * 원페이저 HTML 을 생성한다. 기존 버전이 있으면 **먼저 KEEP/PATCH/OVERHAUL 을 판단**(안정성 우선),
+ * 기본 편향은 KEEP/PATCH. 실패 시 null(호출부에서 기존 보존).
+ */
+async function generateOnePager(
+  apiKey: string,
+  args: { contextText: string; currentHtml: string; researchNotes: string; lens: string },
+): Promise<{ html: string; mode: string; changes: string[] } | null> {
+  const hasCurrent = args.currentHtml.trim().length > 0;
+  const stabilityRule = hasCurrent
+    ? `[안정성 우선 판단 — 가장 중요]
+이미 발행된 원페이저가 아래 "현재 원페이저 HTML"에 있다. 채용 담당·협업자가 볼 때마다 문서가 달라지면 신뢰가 떨어진다. 먼저 mode 를 정하라.
+- KEEP: 이번 vault 변경이 원페이저에 영향이 없음. 현재 HTML 을 그대로 둔다(html 필드는 무시되니 현재 내용을 그대로 넣어도 된다). changes 에 유지 이유 한 줄.
+- PATCH(기본): 바뀐 사실·중대한 결함만 국소 수정한다. 구조·섹션 순서·문체·전체 톤·나머지 마크업은 그대로 보존하고, 불필요한 재배열·재작성은 하지 않는다.
+- OVERHAUL: 구조적 재작성. vault 사실이 대폭 바뀌었거나 현재 버전에 중대한 결함이 있을 때만. 사유를 changes 에 분명히 적는다.
+의심스러우면 PATCH 다.
+
+현재 원페이저 HTML:
+${args.currentHtml}`
+    : `[첫 생성] 기존 원페이저가 없다. 위 정의·근거로 처음부터 작성하라. mode 는 "NEW".`;
+
+  const basePrompt = `너는 임한솔의 이력서/포트폴리오 원페이저를 만드는 빌더다.
+
+${ONEPAGER_DESIGN_SPEC}
+
+${stabilityRule}
+
+[이번 회차 디자인 참고 메모(선택)]
+${args.researchNotes || "(없음 — 위 지침과 현재 버전을 기준으로)"}
+
+[근거가 되는 vault 온톨로지 컨텍스트 — 이 안의 사실만 쓴다]
+${args.contextText}
+
+반드시 ${EMIT_ONEPAGER_TOOL_NAME} tool_use 로만 반환한다. html 은 <article class="onepager">로 시작하는 자기완결형 조각, mode 는 KEEP/PATCH/OVERHAUL/NEW 중 하나, changes 는 무엇을·왜 바꿨는지 한국어 한 줄씩.`;
+
+  let validationHint = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const prompt = validationHint
+      ? `${basePrompt}\n\n이전 시도 문제:\n${validationHint}\n위 문제를 고쳐 다시 생성하라.`
+      : basePrompt;
+    let data;
+    try {
+      data = await anthropicMessages(apiKey, {
+        model: MODEL,
+        max_tokens: ONEPAGER_MAX_TOKENS,
+        messages: [{ role: "user", content: prompt }],
+        tools: [
+          {
+            name: EMIT_ONEPAGER_TOOL_NAME,
+            description: "원페이저 HTML 조각을 반환한다(안정성 우선 판단 포함). 일반 텍스트 금지.",
+            input_schema: {
+              type: "object",
+              additionalProperties: true,
+              properties: {
+                html: { type: "string" },
+                mode: { type: "string", enum: ["KEEP", "PATCH", "OVERHAUL", "NEW"] },
+                changes: { type: "array", items: { type: "string" } },
+              },
+              required: ["html", "mode"],
+            },
+          },
+        ],
+        tool_choice: { type: "tool", name: EMIT_ONEPAGER_TOOL_NAME },
+      });
+    } catch (error) {
+      logStep(`One-pager request failed (attempt ${attempt}): ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+
+    const toolInput = (data.content ?? []).find(isEmitOnePagerToolUseBlock)?.input as
+      | { html?: unknown; mode?: unknown; changes?: unknown }
+      | undefined;
+    const html = typeof toolInput?.html === "string" ? toolInput.html : "";
+    const mode = typeof toolInput?.mode === "string" ? toolInput.mode : hasCurrent ? "PATCH" : "NEW";
+    const changes = (Array.isArray(toolInput?.changes) ? (toolInput?.changes as unknown[]) : [])
+      .map((c) => String(c).trim())
+      .filter(Boolean);
+
+    if (mode === "KEEP" && hasCurrent) {
+      logStep(`One-pager KEEP (attempt ${attempt}): ${changes.join(" | ") || "(이유 없음)"}`);
+      return { html: args.currentHtml, mode, changes: changes.length ? changes : ["변경 없음(KEEP)"] };
+    }
+
+    const problems: string[] = [];
+    if (html.length < 800) problems.push("html 이 비었거나 너무 짧다(800자 미만).");
+    if (!html.includes("임한솔")) problems.push("html 에 '임한솔' 이 없다.");
+    if (!/<style[\s>]/i.test(html)) problems.push("inline <style> 가 없다.");
+    if (!/@page/i.test(html)) problems.push("@page A4 규칙이 없다.");
+    if (!/class\s*=\s*["']onepager/i.test(html)) problems.push('루트가 <article class="onepager"> 가 아니다.');
+    if (problems.length === 0) {
+      logStep(`One-pager generated (attempt ${attempt}, mode=${mode}). changes: ${changes.join(" | ") || "(none)"}`);
+      return { html, mode, changes };
+    }
+    validationHint = problems.join("\n");
+    logStep(`One-pager validation failed on attempt ${attempt}: ${validationHint}`);
+  }
+  return null;
+}
+
 async function main() {
   logStep("Refresh started.");
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -1104,11 +1321,42 @@ ${contextText}
     logStep("Layout builder disabled — preserved existing layout.");
   }
 
+  // --- 원페이저 빌더: vault 온톨로지 근거로 이력서/포트폴리오 한 장(HTML). 안정성 우선(KEEP/PATCH/OVERHAUL). ---
+  // site-data.json 에는 넣지 않고 별도 아티팩트(onepager-ko.html)로 분리한다(비대화 방지).
+  const onePagerChanges: string[] = [];
+  if (ONEPAGER_BUILDER_ENABLED) {
+    const currentHtml = await getExistingOnePagerHtml();
+    const onePagerContext = await loadOnePagerContext(changedVaultFiles);
+    logStep("Loaded one-pager ontology context.");
+    const lens = buildLens ?? RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
+    // 첫 생성일 때만 디자인 리서치(기존이 있으면 안정성 우선이라 생략, 비용·핑퐁 방지).
+    const researchNotes = currentHtml ? "" : await researchPortfolioReferences(apiKey, lens);
+    logStep("Generating one-pager (vault ontology grounded)...");
+    const onePager = await generateOnePager(apiKey, {
+      contextText: onePagerContext,
+      currentHtml,
+      researchNotes,
+      lens,
+    });
+    if (onePager && onePager.mode !== "KEEP") {
+      await mkdir(path.dirname(ONEPAGER_HTML_PATH), { recursive: true });
+      await writeFile(ONEPAGER_HTML_PATH, `${stripAiTypographyDeep(onePager.html)}\n`, "utf8");
+      onePagerChanges.push(...onePager.changes.map((c) => `원페이저(${onePager.mode}): ${c}`));
+      logStep(`Wrote one-pager: ${ONEPAGER_HTML_PATH} (mode=${onePager.mode}).`);
+    } else if (onePager) {
+      onePagerChanges.push("원페이저: 변경 없음(KEEP, 독자 안정 유지)");
+      logStep("One-pager KEEP — existing file preserved.");
+    } else {
+      logStep("One-pager builder yielded nothing — existing file preserved.");
+    }
+  }
+
   // --- 빌드 버전 스탬프(footer) + 개선 의도 로그를 DB(build_log)에 적층 ---
   const now = new Date();
   const version = buildVersion(now);
   siteData.build = { version, refreshedAt: now.toISOString() };
-  const logChanges = buildChanges.length > 0 ? buildChanges : ["콘텐츠 리프레시(레이아웃 변경 없음)"];
+  const layoutAndContentChanges = buildChanges.length > 0 ? buildChanges : ["콘텐츠 리프레시(레이아웃 변경 없음)"];
+  const logChanges = [...layoutAndContentChanges, ...onePagerChanges];
   try {
     await recordBuildLog({ version, lens: buildLens ?? null, changes: logChanges });
     logStep(`Build log recorded to DB (version ${version}, ${logChanges.length} change(s)).`);

@@ -381,6 +381,7 @@ export function Foot() {
       </div>
       <div className="foot-mid">— hsol.info — a living portfolio —</div>
       <div className="foot-links">
+        <Link href="/resume">이력서</Link>
         <a href={d.linkedin} target="_blank" rel="noopener noreferrer">
           LinkedIn
         </a>

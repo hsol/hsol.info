@@ -1442,6 +1442,27 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   color: var(--ink);
 }
 
+.facts-resume-cta {
+  margin-top: 18px;
+  text-align: right;
+}
+a.facts-resume-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  background: rgba(244, 201, 119, 0.08);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 9px 14px;
+  transition: background 160ms ease, color 160ms ease;
+}
+a.facts-resume-link:hover {
+  background: var(--accent);
+  color: var(--bp-deep);
+}
+
 /* CTA — Calendly inline widget */
 .cta {
   margin-top: 64px;
