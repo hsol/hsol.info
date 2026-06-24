@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { animate, stagger, useReducedMotion } from "framer-motion";
-import { Foot } from "@/components/portfolio/Atoms";
+import { Foot, useSiteData } from "@/components/portfolio/Atoms";
 import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
 
@@ -55,6 +55,11 @@ const STYLE = `
   max-width: 210mm; margin: 0 auto; padding: 48px 24px;
   text-align: center; color: var(--ink-mute);
 }
+/* SEO·접근성용 시각 비표시 제목(원페이저 본문은 LLM HTML 이라 h1 보장이 어려움) */
+.onepager-srtitle {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 @media (max-width: 920px) {
   /* 좁은 화면에선 시트와 겹치므로 하단 가로 배치로 */
@@ -73,6 +78,7 @@ export function OnePagerPage({ html }: { html: string | null }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const sheetRef = useRef<HTMLDivElement>(null);
+  const { name, nameEn } = useSiteData().identity;
 
   useEffect(() => {
     if (!html) return;
@@ -116,6 +122,9 @@ export function OnePagerPage({ html }: { html: string | null }) {
       <div className="shell">
         <main id="main-content">
           <div className="view onepager-screen">
+            <h1 className="onepager-srtitle">
+              {name} 이력서·포트폴리오 — {nameEn} Resume & Portfolio
+            </h1>
             {html ? (
               <div
                 ref={sheetRef}
