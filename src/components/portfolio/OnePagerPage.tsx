@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { animate, stagger, useReducedMotion } from "framer-motion";
 import { Foot } from "@/components/portfolio/Atoms";
 import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
@@ -16,8 +17,8 @@ const ASK_CONTEXT: AskHansolPageContext = {
 
 /**
  * /resume — vault 온톨로지로 생성된 이력서/포트폴리오 원페이저(자기완결형 HTML 조각)를 렌더.
- * 좌측에 홈·PDF 플로팅 버튼, 진입 시 흰 시트가 가운데서 쫙 퍼지며 열리는 reveal 애니메이션.
- * 인쇄 시 블루프린트 배경·플로팅 UI·푸터를 숨겨 흰 종이만 출력한다.
+ * 진입 시 원페이저의 각 블록이 차분히 떠오르며(fade + 미세 상승 + blur→선명) 스태거로 드러나는
+ * 절제된 entrance(framer-motion). 좌측 홈·PDF 플로팅. 인쇄 시 크롬·애니메이션 제외.
  */
 const STYLE = `
 .onepager-screen { padding: 40px 0 64px; }
@@ -46,67 +47,75 @@ const STYLE = `
   box-shadow: 0 6px 40px rgba(0, 0, 0, 0.4);
   border-radius: 4px; overflow: hidden;
 }
-/* 인터로킹 셔터 reveal: 화면을 덮은 세로 흰 패널들이 번갈아(위/아래)로 스태거 retract 하며
-   원페이저를 드러냄. 모션은 framer-motion stagger 가 구동(아래 motion.div). 여기선 정적 스타일만. */
-.onepager-shutter {
-  position: fixed; inset: 0; z-index: 200; pointer-events: none;
-  display: flex;
-}
-.op-stripe { flex: 1 1 0; height: 100%; background: #ffffff; will-change: transform; }
 
 .onepager-empty {
   max-width: 210mm; margin: 0 auto; padding: 48px 24px;
   text-align: center; color: var(--ink-mute);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .onepager-shutter { display: none; }
-}
 @media (max-width: 920px) {
   /* 좁은 화면에선 시트와 겹치므로 하단 가로 배치로 */
-  .onepager-floatnav { top: auto; bottom: 18px; left: 18px; transform: none; flex-direction: row; animation: none; }
+  .onepager-floatnav { top: auto; bottom: 18px; left: 18px; transform: none; flex-direction: row; }
 }
 @media print {
   html, body { background: #ffffff !important; }
   body::before, body::after { display: none !important; }
-  .onepager-floatnav, .foot, footer.foot, .resume-ask, .onepager-shutter { display: none !important; }
+  .onepager-floatnav, .foot, footer.foot, .resume-ask { display: none !important; }
   .onepager-screen { padding: 0; }
-  .onepager-sheet { box-shadow: none; max-width: none; margin: 0; border-radius: 0; animation: none; }
+  .onepager-sheet { box-shadow: none; max-width: none; margin: 0; border-radius: 0; }
 }
 `;
-
-const SHUTTER_STRIPES = 9;
 
 export function OnePagerPage({ html }: { html: string | null }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (reduceMotion || !html) return;
+    const root = sheetRef.current?.querySelector(".onepager");
+    if (!root) return;
+    // 원페이저 최상위 블록(헤더·섹션 등)만 대상. inline <style> 는 제외.
+    const blocks = (Array.from(root.children) as HTMLElement[]).filter(
+      (el) => el.tagName !== "STYLE",
+    );
+    if (blocks.length === 0) return;
+
+    // 깜빡임 방지를 위해 시작 상태를 먼저 적용한 뒤 스태거로 차오르게 한다.
+    for (const el of blocks) {
+      el.style.opacity = "0";
+      el.style.transform = "translateY(18px)";
+      el.style.filter = "blur(5px)";
+    }
+    const controls = animate(
+      blocks,
+      { opacity: [0, 1], transform: ["translateY(18px)", "translateY(0px)"], filter: ["blur(5px)", "blur(0px)"] },
+      { delay: stagger(0.07, { startDelay: 0.1 }), duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+    );
+    return () => {
+      controls.stop();
+      // 정리: 애니메이션 잔여 인라인 스타일 제거(인쇄·재실행 안전)
+      for (const el of blocks) {
+        el.style.opacity = "";
+        el.style.transform = "";
+        el.style.filter = "";
+      }
+    };
+  }, [html, reduceMotion]);
+
   return (
     <div className="app-layout">
       <style>{STYLE}</style>
-      {!reduceMotion && html ? (
-        <div className="onepager-shutter" aria-hidden="true">
-          {Array.from({ length: SHUTTER_STRIPES }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="op-stripe"
-              style={{ transformOrigin: i % 2 === 0 ? "top" : "bottom" }}
-              initial={{ scaleY: 1 }}
-              animate={{ scaleY: 0 }}
-              transition={{
-                duration: 0.62,
-                ease: [0.83, 0, 0.17, 1],
-                delay: 0.08 + i * 0.05,
-              }}
-            />
-          ))}
-        </div>
-      ) : null}
 
       <div className="shell">
         <main id="main-content">
           <div className="view onepager-screen">
             {html ? (
-              <div className="onepager-sheet" dangerouslySetInnerHTML={{ __html: html }} />
+              <div
+                ref={sheetRef}
+                className="onepager-sheet"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
             ) : (
               <div className="onepager-empty">
                 원페이저가 아직 준비되지 않았습니다. 다음 갱신에서 생성됩니다.
