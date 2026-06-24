@@ -2,6 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { Foot } from "@/components/portfolio/Atoms";
+import { DeferredChatDock } from "@/components/DeferredChatDock";
+import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
+
+// 이력서 독자는 채용·협업 평가 맥락이라 Ask Hansol 을 hire 관점으로 띄운다.
+const ASK_CONTEXT: AskHansolPageContext = {
+  view: "hire",
+  section: "resume",
+  hash: "/resume",
+  detail: "onepager",
+};
 
 /**
  * /resume — vault 온톨로지로 생성된 이력서/포트폴리오 원페이저(자기완결형 HTML 조각)를 렌더.
@@ -39,7 +49,7 @@ const STYLE = `
 @media print {
   html, body { background: #ffffff !important; }
   body::before, body::after { display: none !important; }
-  .onepager-toolbar, .foot, footer.foot { display: none !important; }
+  .onepager-toolbar, .foot, footer.foot, .resume-ask { display: none !important; }
   .onepager-screen { padding: 0; }
   .onepager-sheet { box-shadow: none; max-width: none; margin: 0; border-radius: 0; }
 }
@@ -76,6 +86,9 @@ export function OnePagerPage({ html }: { html: string | null }) {
           </div>
         </main>
         <Foot />
+      </div>
+      <div className="resume-ask">
+        <DeferredChatDock pageContext={ASK_CONTEXT} />
       </div>
     </div>
   );
