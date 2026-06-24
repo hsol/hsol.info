@@ -46,12 +46,13 @@ const STYLE = `
   box-shadow: 0 6px 40px rgba(0, 0, 0, 0.4);
   border-radius: 4px; overflow: hidden;
 }
-/* 흰 패널 하나가 화면 전체를 덮은 채 좌→우로 훑고 지나가며 원페이저를 드러냄.
-   모션은 framer-motion 이 구동(아래 motion.div). 여기선 정적 스타일만. */
-.onepager-reveal {
-  position: fixed; inset: 0; background: #ffffff; z-index: 200; pointer-events: none;
-  box-shadow: -24px 0 60px -10px rgba(0, 0, 0, 0.22);
+/* 인터로킹 셔터 reveal: 화면을 덮은 세로 흰 패널들이 번갈아(위/아래)로 스태거 retract 하며
+   원페이저를 드러냄. 모션은 framer-motion stagger 가 구동(아래 motion.div). 여기선 정적 스타일만. */
+.onepager-shutter {
+  position: fixed; inset: 0; z-index: 200; pointer-events: none;
+  display: flex;
 }
+.op-stripe { flex: 1 1 0; height: 100%; background: #ffffff; will-change: transform; }
 
 .onepager-empty {
   max-width: 210mm; margin: 0 auto; padding: 48px 24px;
@@ -59,8 +60,7 @@ const STYLE = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .onepager-sheet, .onepager-floatnav { animation: none; }
-  .onepager-reveal { display: none; }
+  .onepager-shutter { display: none; }
 }
 @media (max-width: 920px) {
   /* 좁은 화면에선 시트와 겹치므로 하단 가로 배치로 */
@@ -69,11 +69,13 @@ const STYLE = `
 @media print {
   html, body { background: #ffffff !important; }
   body::before, body::after { display: none !important; }
-  .onepager-floatnav, .foot, footer.foot, .resume-ask, .onepager-reveal { display: none !important; }
+  .onepager-floatnav, .foot, footer.foot, .resume-ask, .onepager-shutter { display: none !important; }
   .onepager-screen { padding: 0; }
   .onepager-sheet { box-shadow: none; max-width: none; margin: 0; border-radius: 0; animation: none; }
 }
 `;
+
+const SHUTTER_STRIPES = 9;
 
 export function OnePagerPage({ html }: { html: string | null }) {
   const router = useRouter();
@@ -82,13 +84,22 @@ export function OnePagerPage({ html }: { html: string | null }) {
     <div className="app-layout">
       <style>{STYLE}</style>
       {!reduceMotion && html ? (
-        <motion.div
-          className="onepager-reveal"
-          aria-hidden="true"
-          initial={{ x: 0 }}
-          animate={{ x: "102%" }}
-          transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
-        />
+        <div className="onepager-shutter" aria-hidden="true">
+          {Array.from({ length: SHUTTER_STRIPES }).map((_, i) => (
+            <motion.div
+              key={i}
+              className="op-stripe"
+              style={{ transformOrigin: i % 2 === 0 ? "top" : "bottom" }}
+              initial={{ scaleY: 1 }}
+              animate={{ scaleY: 0 }}
+              transition={{
+                duration: 0.62,
+                ease: [0.83, 0, 0.17, 1],
+                delay: 0.08 + i * 0.05,
+              }}
+            />
+          ))}
+        </div>
       ) : null}
 
       <div className="shell">
