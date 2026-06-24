@@ -25,7 +25,7 @@ const STYLE = `
 .onepager-floatnav {
   position: fixed; left: 18px; top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 10px; z-index: 60;
-  animation: op-nav-in 600ms 320ms ease both;
+  animation: op-nav-in 600ms 720ms ease both;
 }
 .op-fab {
   display: inline-flex; align-items: center; gap: 7px;
@@ -45,13 +45,21 @@ const STYLE = `
   max-width: 210mm; margin: 0 auto;
   box-shadow: 0 6px 40px rgba(0, 0, 0, 0.4);
   border-radius: 4px; overflow: hidden;
-  animation: op-reveal 820ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: op-sheet-in 700ms 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-/* 가운데 작은 흰 띠에서 사방으로 쫙 퍼지며 원페이저가 드러남 */
-@keyframes op-reveal {
-  0%   { clip-path: inset(47% 46% 47% 46% round 4px); opacity: 0.45; }
-  55%  { opacity: 1; }
-  100% { clip-path: inset(0 0 0 0 round 4px); opacity: 1; }
+@keyframes op-sheet-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* 전체 화면 흰 레이어가 가운데서 화면 전체로 쫙 퍼졌다가 사라지며 원페이저를 드러냄 */
+.onepager-reveal {
+  position: fixed; inset: 0; background: #ffffff; z-index: 200; pointer-events: none;
+  animation: op-fullspread 1100ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes op-fullspread {
+  0%   { clip-path: inset(48% 48% 48% 48%); opacity: 1; }
+  55%  { clip-path: inset(0 0 0 0); opacity: 1; }
+  100% { clip-path: inset(0 0 0 0); opacity: 0; }
 }
 @keyframes op-nav-in {
   from { opacity: 0; transform: translateY(-50%) translateX(-12px); }
@@ -65,6 +73,7 @@ const STYLE = `
 
 @media (prefers-reduced-motion: reduce) {
   .onepager-sheet, .onepager-floatnav { animation: none; }
+  .onepager-reveal { display: none; }
 }
 @media (max-width: 920px) {
   /* 좁은 화면에선 시트와 겹치므로 하단 가로 배치로 */
@@ -73,7 +82,7 @@ const STYLE = `
 @media print {
   html, body { background: #ffffff !important; }
   body::before, body::after { display: none !important; }
-  .onepager-floatnav, .foot, footer.foot, .resume-ask { display: none !important; }
+  .onepager-floatnav, .foot, footer.foot, .resume-ask, .onepager-reveal { display: none !important; }
   .onepager-screen { padding: 0; }
   .onepager-sheet { box-shadow: none; max-width: none; margin: 0; border-radius: 0; animation: none; }
 }
@@ -84,6 +93,8 @@ export function OnePagerPage({ html }: { html: string | null }) {
   return (
     <div className="app-layout">
       <style>{STYLE}</style>
+      <div className="onepager-reveal" aria-hidden="true" />
+
       <div className="shell">
         <main id="main-content">
           <div className="view onepager-screen">
