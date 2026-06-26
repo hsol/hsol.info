@@ -254,6 +254,15 @@ export const COMPOSE_MANIFEST = {
     propsHint: "title?, sub?. 캘린더 위젯 포함.",
     propsSchema: z.object({ title: z.string().optional(), sub: z.string().optional() }).strict(),
   },
+  ResumeCTA: {
+    name: "ResumeCTA",
+    purpose: "이력서·포트폴리오 원페이저(/resume) 진입 + PDF 다운로드 CTA. 채용·평가 독자에게 유용.",
+    shape: "좌측 안내 + 우측 '한 장으로 보기'/'PDF 다운로드' 버튼 카드",
+    container: false,
+    dataBound: true,
+    propsHint: "title?, sub?. 링크(/resume, /resume/pdf)는 고정.",
+    propsSchema: z.object({ title: z.string().optional(), sub: z.string().optional() }).strict(),
+  },
   Back: {
     name: "Back",
     purpose: "뒤로가기 바. 페이지 시작 골격.",

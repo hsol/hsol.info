@@ -47,5 +47,7 @@ function renderNode(node: ComposeNode, key: string): ReactNode {
 }
 
 export function ComposeRenderer({ nodes }: { nodes: ComposeNode[] }) {
-  return <>{nodes.map((node, i) => renderNode(node, `n${i}`))}</>;
+  // .cz-page: 최상위 노드(섹션·ResumeCTA·divider·CTA 등)에 일관된 세로 리듬을 준다
+  // (개별 블록이 자기 여백을 안 가져도 붙지 않게 — 최상위 배치 여백 누락 방지).
+  return <div className="cz-page">{nodes.map((node, i) => renderNode(node, `n${i}`))}</div>;
 }

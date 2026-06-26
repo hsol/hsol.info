@@ -31,6 +31,7 @@ import {
   PillarsBound,
   Prose,
   Quote,
+  ResumeCTABound,
   Section,
   SkillsBound,
   Split,
@@ -68,6 +69,7 @@ export const COMPOSE_COMPONENTS: Record<ComposeComponentName, ComposeComponent> 
   PillarGrid: PillarGridBound,
   Pillars: PillarsBound,
   CoffeeCTA: CoffeeCTABound,
+  ResumeCTA: ResumeCTABound,
   Back: BackBound,
 };
 
