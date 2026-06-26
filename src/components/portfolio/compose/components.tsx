@@ -11,6 +11,7 @@
  * cz- 프리픽스 클래스로 표현한다.
  */
 
+import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   Back,
@@ -313,6 +314,31 @@ export function CoffeeCTABound({
 export function BackBound(_: { props: Record<string, never> }) {
   const cb = useBlockCallbacks();
   return <Back onBack={cb.onBack ?? (() => {})} />;
+}
+
+/** 이력서·포트폴리오 원페이저(/resume) 진입 CTA + PDF 다운로드. 어느 페이지에서나 공용. */
+export function ResumeCTABound({
+  props,
+}: {
+  props: { title?: string; sub?: string };
+}) {
+  return (
+    <div className="cz-resume">
+      <div className="cz-resume-text">
+        <div className="cz-resume-eyebrow">RESUME · ONE-PAGER</div>
+        <div className="cz-resume-title">{props.title ?? "이력서·포트폴리오, 한 장으로 보기"}</div>
+        {props.sub && <p className="cz-resume-sub">{props.sub}</p>}
+      </div>
+      <div className="cz-resume-actions">
+        <Link className="cz-resume-btn" href="/resume">
+          한 장으로 보기 →
+        </Link>
+        <a className="cz-resume-btn cz-resume-btn-ghost" href="/resume/pdf" download>
+          PDF 다운로드 ↓
+        </a>
+      </div>
+    </div>
+  );
 }
 
 /** 기본 팩트(연차·거점·학력·언어) + 이력서 링크. 어느 페이지에서나 공용. */

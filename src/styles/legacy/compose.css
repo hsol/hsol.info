@@ -6,6 +6,15 @@
  * 컨테이너(Section/Stack/Split/Grid)는 레이아웃만, 콘텐츠 원자는 표현을 담당.
  */
 
+/* ===== 페이지 세로 리듬 ===================================== */
+/* 최상위 노드(섹션·ResumeCTA·divider·CTA 등) 사이 간격을 flex gap 으로 일괄 부여한다.
+   margin 이 아니라 gap 으로 규칙성을 확보하고, 내부 블록의 자체 margin 은 gap 과
+   중복되지 않게 0 으로 정리한다(필요한 곳만 margin 을 보조로 추가). */
+.cz-page { display: flex; flex-direction: column; gap: 56px; }
+.cz-page > .sec { margin-top: 0; }
+.cz-page > .back-row { margin-bottom: 0; }
+.cz-page > .cz-divider { margin: 0; }
+
 /* ===== Section 본문 ========================================= */
 /* 섹션 헤더(.sec-head, margin-bottom 24) 아래 본문. 자식들이 붙지 않게 세로 간격을 준다. */
 .cz-sec-body { display: flex; flex-direction: column; gap: 24px; }
@@ -251,6 +260,59 @@ h3.cz-heading-text { font-size: 15px; }
 .cz-link:hover { color: var(--bp-glow); padding-left: 10px; }
 .cz-link-arrow { font-family: var(--mono); color: var(--bp-soft); }
 .cz-link:hover .cz-link-arrow { color: var(--bp-glow); }
+
+/* ===== ResumeCTA =========================================== */
+.cz-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border: 1px solid var(--bp-line-2);
+  border-radius: 8px;
+  background: rgba(20, 56, 79, 0.6);
+}
+.cz-resume-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin-bottom: 6px;
+}
+.cz-resume-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.cz-resume-sub { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink-2); }
+.cz-resume-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.cz-resume-btn {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--bp-glow);
+  color: var(--bp-deep);
+  background: var(--bp-glow);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.cz-resume-btn:hover { transform: translateY(-1px); }
+.cz-resume-btn-ghost {
+  color: var(--bp-glow);
+  background: transparent;
+}
+.cz-resume-btn-ghost:hover { background: rgba(127, 180, 208, 0.12); }
+@media (max-width: 560px) {
+  .cz-resume { flex-direction: column; align-items: flex-start; }
+}
 
 /* ===== Divider ============================================= */
 /* 여백을 충분히 줘 테두리 있는 요소(카드·facts·pillars)와 붙어 겹선처럼 보이지 않게. */
