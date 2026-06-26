@@ -8,8 +8,17 @@ import { HSOL_DATA } from "../src/data/site";
 import { layoutSchema, type SiteLayout } from "../src/content/layout-types";
 import { DEFAULT_LAYOUT } from "../src/content/default-layout";
 import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
-import { PAGE_KEYS } from "../src/content/site-structure";
+import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
 import { renderCatalogForPrompt } from "../src/content/layout-catalog";
+import {
+  pageCompositionSchema,
+  siteCompositionSchema,
+  type ComposeNode,
+  type PageComposition,
+  type SiteComposition,
+} from "../src/content/compose/schema";
+import { COMPOSE_MANIFEST } from "../src/content/compose/manifest";
+import { renderComposeCatalog } from "../src/content/compose/catalog";
 import { recordBuildLog } from "../src/lib/db/build-log";
 
 const execFileAsync = promisify(execFile);
@@ -41,7 +50,29 @@ const FAILURE_LOG_DIR =
   process.env.CONTENT_REFRESH_FAILURE_LOG_DIR ?? "generated/content-refresh-failures";
 const EMIT_TOOL_NAME = "emit_site_data";
 const EMIT_LAYOUT_TOOL_NAME = "emit_layout";
+const EMIT_COMPOSITION_TOOL_NAME = "emit_composition";
 const SITE_DATA_TEMPLATE = JSON.stringify(HSOL_DATA, null, 2);
+
+/**
+ * 컴포지션(생성형 컴포넌트-트리) 빌더 게이트. **기본 비활성(점진 도입)**.
+ * COMPOSITION_BUILDER=1 일 때만 동작하고, 대상 페이지는 COMPOSITION_PAGES(CSV)로 제한(기본 curious 파일럿).
+ */
+const COMPOSITION_BUILDER_ENABLED = (() => {
+  const v = (process.env.COMPOSITION_BUILDER ?? "0").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+})();
+/** 컴포지션 빌더 대상 = 네 관점(persona) 페이지 전부. COMPOSITION_PAGES(CSV)로 좁힐 수 있다. */
+const DEFAULT_COMPOSITION_PAGES: PageKey[] = ["hire", "collab", "builder", "curious"];
+const COMPOSITION_PAGES: PageKey[] = (() => {
+  const raw = (process.env.COMPOSITION_PAGES ?? "").trim();
+  if (!raw) return DEFAULT_COMPOSITION_PAGES;
+  const keys = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s): s is PageKey => (PAGE_KEYS as readonly string[]).includes(s));
+  return keys.length ? keys : DEFAULT_COMPOSITION_PAGES;
+})();
+const COMPOSITION_MAX_TOKENS = Number(process.env.COMPOSITION_EMIT_MAX_TOKENS ?? 16000);
 
 /** 레이아웃 빌더 비활성화: LAYOUT_RESEARCH=0 또는 LAYOUT_BUILDER=0 이면 레이아웃 생성/리서치를 건너뛴다. */
 const LAYOUT_BUILDER_ENABLED = (() => {
@@ -996,6 +1027,263 @@ function extractExistingLayout(siteDataText: string): SiteLayout | undefined {
   }
 }
 
+/* ================================================================ */
+/* 컴포지션(생성형 컴포넌트-트리) 빌더                                */
+/* ================================================================ */
+
+function isEmitCompositionToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_COMPOSITION_TOOL_NAME;
+}
+
+/** 현재 site-data 텍스트에서 특정 페이지의 유효한 composition 만 뽑는다(없거나 깨졌으면 undefined). */
+function extractExistingComposition(siteDataText: string, page: PageKey): PageComposition | undefined {
+  if (!siteDataText) return undefined;
+  try {
+    const obj = JSON.parse(siteDataText) as { composition?: unknown };
+    const parsed = siteCompositionSchema.safeParse(obj.composition);
+    if (!parsed.success) return undefined;
+    return parsed.data.pages?.[page];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 트리 노드를 매니페스트의 component·propsSchema 로 재귀 검증한다.
+ * 렌더러는 "잘못된 노드만 스킵"하지만, 빌더 단계에선 어긋남을 모아 재시도 힌트로 돌려준다
+ * (생성 품질을 끌어올림). 반환: "path: 이유" 문자열 배열(비면 통과).
+ */
+function validateCompositionNodes(nodes: ComposeNode[], pathPrefix = ""): string[] {
+  const errors: string[] = [];
+  nodes.forEach((node, i) => {
+    const at = `${pathPrefix}[${i}]${node?.component ? `(${node.component})` : ""}`;
+    const entry = COMPOSE_MANIFEST[node.component as keyof typeof COMPOSE_MANIFEST];
+    if (!entry) {
+      errors.push(`${at}: 미등록 component '${node.component}'`);
+      return;
+    }
+    const parsed = entry.propsSchema.safeParse(node.props ?? {});
+    if (!parsed.success) {
+      errors.push(
+        `${at}: props 오류 — ${parsed.error.issues.map((iss) => `${iss.path.join(".") || "<root>"} ${iss.message}`).join("; ")}`,
+      );
+    }
+    if (node.children?.length) {
+      if (!entry.container) {
+        errors.push(`${at}: '${node.component}' 는 container 가 아니라 children 을 가질 수 없다`);
+      } else {
+        errors.push(...validateCompositionNodes(node.children, `${at}.children`));
+      }
+    }
+  });
+  return errors;
+}
+
+/**
+ * 골격 가드레일(강제): persona 페이지는 항상 [Back → ViewHead → ...본문... → CoffeeCTA] 순서.
+ * 빌더가 골격 컴포넌트(Back/ViewHead/CoffeeCTA)를 어디에 두든 제거하고 정해진 위치에 다시 박는다.
+ * ViewHead 는 페이지의 persona 로 자동 바인딩한다(모든 관점 페이지 맨 앞 고정). 본문 순서는 빌더 자유.
+ * CoffeeCTA 는 빌더가 작성한 title/sub 가 있으면 보존한다.
+ */
+function enforceCompositionSkeleton(page: PageKey, comp: PageComposition): PageComposition {
+  const isPersona = ["hire", "collab", "builder", "curious"].includes(page);
+  if (!isPersona) return comp;
+  // 골격 컴포넌트(Back/ViewHead/CoffeeCTA)는 페이지 프레임이라 트리 어디에 있든(중첩 포함) 떼어내
+  // 정해진 위치에만 다시 박는다. CoffeeCTA 는 빌더가 쓴 첫 props(title/sub)를 보존한다.
+  let coffee: ComposeNode | undefined;
+  const strip = (list: ComposeNode[]): ComposeNode[] => {
+    const out: ComposeNode[] = [];
+    for (const n of list) {
+      if (n.component === "CoffeeCTA") {
+        if (!coffee) coffee = n;
+        continue;
+      }
+      if (n.component === "Back" || n.component === "ViewHead") continue;
+      out.push(n.children ? { ...n, children: strip(n.children) } : n);
+    }
+    return out;
+  };
+  const body = strip(comp.nodes);
+  return {
+    nodes: [
+      { component: "Back" },
+      { component: "ViewHead", props: { persona: page } },
+      ...body,
+      coffee ?? { component: "CoffeeCTA" },
+    ],
+  };
+}
+
+/** 트리의 모든 노드 컴포넌트 이름(중첩 포함, 중복 제거). */
+function allComposeComponents(nodes: ComposeNode[]): string[] {
+  const out: string[] = [];
+  const rec = (list: ComposeNode[]) => {
+    for (const n of list) {
+      out.push(n.component);
+      if (n.children) rec(n.children);
+    }
+  };
+  rec(nodes);
+  return [...new Set(out)];
+}
+
+/** 형제 관점들의 현재 구성 요약(헤더 + 컴포넌트 팔레트). 빌더가 서로의 존재를 알고 한 사이트처럼 맞추게. */
+function siblingCompositionDigest(
+  pages: Partial<Record<PageKey, PageComposition>>,
+  exclude: PageKey,
+): string {
+  const others = (Object.keys(pages) as PageKey[]).filter((p) => p !== exclude && pages[p]?.nodes?.length);
+  if (!others.length) {
+    return "(아직 형제 관점이 없다 — 네가 첫 번째다. 뒤따를 형제들이 맞출 수 있게 명확하고 일관된 헤더 표준을 세워라.)";
+  }
+  return others
+    .map((p) => {
+      const comp = pages[p]!;
+      const heads = comp.nodes
+        .filter((n) => n.component === "Section")
+        .map((n) => {
+          const x = (n.props ?? {}) as { num?: unknown; title?: unknown; eyebrow?: unknown; meta?: unknown };
+          const label = x.title ?? x.eyebrow ?? "";
+          return `§${x.num ?? "-"} ${label}${x.meta ? ` (${x.meta})` : ""}`;
+        });
+      return `[${p}]\n    섹션 헤더: ${heads.join(" / ") || "(없음)"}\n    쓴 컴포넌트: ${allComposeComponents(comp.nodes).join(", ")}`;
+    })
+    .join("\n");
+}
+
+/**
+ * 한 페이지의 컴포넌트-트리(composition)를 생성한다 — 앵커 후 진화 + vault 그라운딩 + 골격 가드레일
+ * + 형제 관점 인식(서로의 구성을 보고 한 사이트처럼 맞춤).
+ * 실패하면 null(호출부에서 기존/blocks 로 폴백). 트리 Zod + 노드별 propsSchema 로 3회까지 재검증.
+ */
+async function generateComposition(
+  apiKey: string,
+  args: {
+    page: PageKey;
+    currentComposition: PageComposition | undefined;
+    contextText: string;
+    lens: string;
+    researchNotes: string;
+    siblings: string;
+  },
+): Promise<{ composition: PageComposition; changes: string[] } | null> {
+  const catalog = renderComposeCatalog();
+  const anchor = args.currentComposition
+    ? JSON.stringify(args.currentComposition, null, 2)
+    : "(아직 이 페이지의 composition 이 없음 — 처음 만든다)";
+  const personaRole = SITE_STRUCTURE[args.page]?.role ?? `'${args.page}' 페이지`;
+  /** 관점별로 특히 잘 맞는 data-bound 컴포넌트 힌트(강제는 아님 — 빌더가 본문 구성을 주도). */
+  const DATABOUND_HINT: Partial<Record<PageKey, string>> = {
+    hire: "Facts(기본 팩트), Pillars(강점), CareerTimeline(persona:hire), Skills 등이 잘 맞는다.",
+    collab: "PillarGrid(source:collab.methods, 일하는 방식), CareerTimeline(persona:collab), Pillars 등이 잘 맞는다.",
+    builder: "Skills(스택·도메인), CareerTimeline(persona:builder), Writing(글) 등이 잘 맞는다.",
+    curious: "Gantt(인간적 궤적), PillarGrid(source:curious.notes) 등이 잘 맞는다. 따뜻하고 담백하게.",
+  };
+  const databoundHint = DATABOUND_HINT[args.page] ? `\n이 관점에 잘 맞는 data-bound: ${DATABOUND_HINT[args.page]}` : "";
+
+  const basePrompt = `너는 hsol.info 포트폴리오의 **컴포지션 빌더**다. '${args.page}' 페이지를 디자인시스템 컴포넌트의 **트리**로 조합하고, content 컴포넌트의 내용을 **vault 근거로 직접 작성**한다.
+
+페이지 성격: ${personaRole}${databoundHint}
+
+원칙(중요):
+1) **앵커 후 진화**: 아래 "현재 composition"이 있으면 그것을 기준으로 통째로 갈아엎지 말고 근거 있는 1~3가지 개선만 적용한다. 없으면 페이지 성격에 맞게 새로 구성한다.
+2) **카탈로그 안에서만**: [컴포넌트 카탈로그]의 component 만 쓴다. container 만 children 을 가진다. data-bound 컴포넌트는 배치만(내용은 site-data 에서 자동) — props 로 내용을 지어내지 마라.
+3) **vault 그라운딩(필수)**: content 컴포넌트(Prose/Callout/CardGrid/MetricGrid/ChipList/Quote/KeyValueList/LinkList/Heading)의 내용은 아래 [참조 vault 컨텍스트]에 실제로 있는 사실·고유명사·기간·수치로만 쓴다. 문서 밖 추측·새 수치·과장 금지. 애매하면 항목 수를 줄인다.
+   - **"블로그" 용어 규칙**: 그냥 "블로그"는 **현행 Medium(medium.com/@hsol)**을 가리킨다. 한솔닷컴(Tistory)은 **deprecated 아카이브**다. 블로그를 한 항목으로 보여줄 때는 현행 Medium 을 대표로 쓰고, 티스토리는 "아카이브"로만 표기한다(현행처럼 쓰지 마라). Medium 을 빠뜨리지 마라.
+4) **고정 골격(시스템이 자동 배치 — 다시 만들지 마라)**: 이 페이지엔 네 본문 말고도 다음이 **이미 고정으로** 들어간다. 인지하고 중복하지 마라.
+   - 맨 위 **Back 바**(뒤로가기 + 언어 토글).
+   - 그다음 **ViewHead**: GRID 좌표 + 페이지 **큰 제목**과 **lede 한두 줄 소개**(viewHeaders[persona]에서 자동). → 본문 첫 섹션에서 같은 제목·자기소개를 되풀이하지 마라.
+   - 맨 끝 **CoffeeCTA**: 'Coffee chat — 30 min' **커피챗 예약 카드(Calendly)**. 즉 연락·마무리 CTA가 이미 끝에 있다. → **'연락 / Contact / 커피챗 / 대화 나눠요' 같은 마무리·연락 섹션을 따로 만들지 마라(중복이다).**
+   너는 ViewHead 와 CoffeeCTA **사이의 본문만** 짠다.
+5) **문체(한국어)**: 서술형 줄글은 존댓말(~합니다/~입니다). 첫 문장을 "저는/임한솔은" 같은 1인칭·이름 고정 템플릿으로 시작하지 않는다. AI 티 특수문자(엠대시 —, 말줄임표 …, 곡선따옴표) 금지 — 하이픈·마침표·곧은따옴표만.
+6) **형제 관점과 협업(매우 중요)**: 너는 혼자가 아니다. 아래 [형제 관점들의 현재 구성]에 다른 관점 페이지들이 어떻게 만들어졌는지 있다. **한 사람이 만든 한 사이트**처럼 보이도록 형제들과 맞춰라 — 섹션 헤더의 워딩·형식(한국어/영문 제목 여부, 번호, 영문 kicker 등), 컴포넌트 쓰는 습관, 톤. 한쪽은 영문 제목·다른 쪽은 한글 제목처럼 따로 노는 건 금지. 단 베끼지 말고 내용·강조·순서는 이 관점에 맞게 다르게. (형제가 아직 없으면 네가 기준이 되어 명확하고 일관된 헤더 표준을 세운다.)
+7) **기술/스택은 '범위 신호'로만(헤드라인 금지)**: 기술 나열이 한 사람을 'X·Y·Z 밖에 못 하는 사람'으로 축소시키면 안 된다(12년차 엔지니어→대표·팀장 포지셔닝과 충돌).
+   - **회사별·시기별로 기술을 쪼개 나열 금지**(예: "토스: Django, Flask, React" 식). 한정돼 보인다.
+   - 스택은 **통합해 한 번만**(프로그래밍 언어 + 핵심 프레임워크), 그것도 **builder 관점에서만** 구체적으로(Skills). hire 는 가볍게, **collab·curious 는 기술 나열 섹션을 두지 말고** 역량·도메인·만든 것으로 대체.
+   - 헤드라인은 **'무엇을 끝까지 책임질 수 있는가'(역량·도메인·임팩트)**. 기술은 그 보조 신호일 뿐.
+8) **변화는 있어야**: 이번 회차 리서치 인사이트를 최소 1곳 구성에 반영하라(섹션 추가/순서/강조). 단 의미 없는 뒤섞기 금지.
+
+[이번 회차 리서치 메모 — 주제: ${args.lens}]
+${args.researchNotes || "(리서치 없음 — 현재 구성을 기준으로 작은 개선만)"}
+
+반드시 ${EMIT_COMPOSITION_TOOL_NAME} tool_use 로만 반환한다.
+- composition: { "nodes": [ ...노드 ] } (이 페이지의 트리)
+- changes: 무엇을·왜 바꿨는지(어떤 근거에서) 1~3개를 한국어 한 줄씩.
+
+${catalog}
+
+[형제 관점들의 현재 구성 — 한 사이트의 다른 방들. 한 사람이 만든 것처럼 형식·워딩·톤을 맞춰라]
+${args.siblings}
+
+[현재 composition — 앵커]
+${anchor}
+
+[참조 vault 컨텍스트]
+${args.contextText}`;
+
+  let validationHint = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const prompt = validationHint
+      ? `${basePrompt}\n\n이전 시도 검증 오류:\n${validationHint}\n오류를 고쳐 다시 생성하라.`
+      : basePrompt;
+    let data;
+    try {
+      data = await anthropicMessages(apiKey, {
+        model: MODEL,
+        max_tokens: COMPOSITION_MAX_TOKENS,
+        messages: [{ role: "user", content: prompt }],
+        tools: [
+          {
+            name: EMIT_COMPOSITION_TOOL_NAME,
+            description: "디자인시스템 컴포넌트 트리(composition)와 changes 를 반환한다. 일반 텍스트 금지.",
+            input_schema: {
+              type: "object",
+              additionalProperties: true,
+              properties: {
+                composition: { type: "object" },
+                changes: { type: "array", items: { type: "string" } },
+              },
+              required: ["composition"],
+            },
+          },
+        ],
+        tool_choice: { type: "tool", name: EMIT_COMPOSITION_TOOL_NAME },
+      });
+    } catch (error) {
+      logStep(`Composition generation request failed (attempt ${attempt}): ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+
+    const blocks = data.content ?? [];
+    const toolInput = blocks.find(isEmitCompositionToolUseBlock)?.input as
+      | { composition?: unknown; changes?: unknown }
+      | undefined;
+    const rawComposition = normalizeNestedJsonLikeStrings(toolInput?.composition);
+    const parsed = pageCompositionSchema.safeParse(rawComposition);
+    if (parsed.success) {
+      const nodeErrors = validateCompositionNodes(parsed.data.nodes);
+      if (nodeErrors.length === 0) {
+        const changes = (Array.isArray(toolInput?.changes) ? (toolInput?.changes as unknown[]) : [])
+          .map((c) => String(c).trim())
+          .filter(Boolean);
+        logStep(`Composition generated for '${args.page}' (attempt ${attempt}). changes: ${changes.join(" | ") || "(none stated)"}`);
+        return { composition: parsed.data, changes };
+      }
+      validationHint = nodeErrors.slice(0, 12).join("\n");
+      logStep(`Composition node validation failed on attempt ${attempt} (${args.page}): ${validationHint}`);
+      continue;
+    }
+    validationHint = parsed.error.issues
+      .slice(0, 10)
+      .map((iss) => `${iss.path.join(".") || "<root>"}: ${iss.message}`)
+      .join("\n");
+    logStep(`Composition schema validation failed on attempt ${attempt} (${args.page}): ${validationHint}`);
+  }
+  return null;
+}
+
 /** 원페이저 디자인·콘텐츠 지침(리서치 근거: Harvard FAS / MIT CAPD / Laszlo Bock / NN-g / MDN). */
 const ONEPAGER_DESIGN_SPEC = `
 [원페이저 산출물 정의]
@@ -1350,6 +1638,70 @@ ${contextText}
     logStep("Layout builder disabled — preserved existing layout.");
   }
 
+  // --- 컴포지션 빌더(점진 도입, 게이트): 디자인시스템 컴포넌트 트리로 페이지를 조합 + 내용 작성 ---
+  const compositionChanges: string[] = [];
+  if (COMPOSITION_BUILDER_ENABLED) {
+    const lens = buildLens ?? RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
+    logStep(`Composition builder enabled. Pages: ${COMPOSITION_PAGES.join(", ")} (lens: ${lens}).`);
+    const researchNotes = await researchPortfolioReferences(apiKey, lens);
+    const compositionContext = await loadOnePagerContext(changedVaultFiles);
+    logStep("Loaded ontology context for composition.");
+
+    // 기존 전체 composition 을 앵커로 보존하고, 대상 페이지만 새로 생성/갱신한다.
+    const existingSiteComposition = (() => {
+      try {
+        const obj = JSON.parse(currentSiteDataText || "{}") as { composition?: unknown };
+        const parsed = siteCompositionSchema.safeParse(obj.composition);
+        return parsed.success ? parsed.data : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    const pages: SiteComposition["pages"] = { ...(existingSiteComposition?.pages ?? {}) };
+
+    for (const page of COMPOSITION_PAGES) {
+      const current = pages[page] ?? extractExistingComposition(currentSiteDataText, page);
+      const gen = await generateComposition(apiKey, {
+        page,
+        currentComposition: current,
+        contextText: compositionContext,
+        lens,
+        researchNotes,
+        siblings: siblingCompositionDigest(pages, page),
+      });
+      if (gen) {
+        pages[page] = enforceCompositionSkeleton(page, gen.composition);
+        compositionChanges.push(...gen.changes.map((c) => `컴포지션(${page}): ${c}`));
+        logStep(`Composition set for '${page}'.`);
+      } else if (current) {
+        pages[page] = current; // 생성 실패 → 기존 보존(폴백)
+        logStep(`Composition builder yielded nothing for '${page}' — preserved existing.`);
+      } else {
+        logStep(`Composition builder yielded nothing for '${page}' — page falls back to blocks.`);
+      }
+    }
+
+    const built = siteCompositionSchema.safeParse({ pages });
+    if (built.success && Object.keys(built.data.pages).length > 0) {
+      siteData.composition = stripAiTypographyDeep(built.data);
+      logStep(`Composition attached (${Object.keys(built.data.pages).length} page(s)).`);
+    } else if (!built.success) {
+      logStep(`Composition assembly failed validation — skipped: ${built.error.issues.slice(0, 5).map((i) => i.message).join("; ")}`);
+    }
+  } else {
+    // 빌더 비활성: 기존 site-data 에 composition 이 있었으면 떨구지 말고 보존.
+    try {
+      const obj = JSON.parse(currentSiteDataText || "{}") as { composition?: unknown };
+      const parsed = siteCompositionSchema.safeParse(obj.composition);
+      if (parsed.success && Object.keys(parsed.data.pages).length > 0) {
+        siteData.composition = parsed.data;
+        logStep("Composition builder disabled — preserved existing composition.");
+      }
+    } catch {
+      /* 무시: composition 없거나 깨짐 → 그대로 blocks 사용 */
+    }
+  }
+
   // --- 원페이저 빌더: vault 온톨로지 근거로 이력서/포트폴리오 한 장(HTML). 안정성 우선(KEEP/PATCH/OVERHAUL). ---
   // site-data.json 에는 넣지 않고 별도 아티팩트(onepager-ko.html)로 분리한다(비대화 방지).
   const onePagerChanges: string[] = [];
@@ -1385,7 +1737,7 @@ ${contextText}
   const version = buildVersion(now);
   siteData.build = { version, refreshedAt: now.toISOString() };
   const layoutAndContentChanges = buildChanges.length > 0 ? buildChanges : ["콘텐츠 리프레시(레이아웃 변경 없음)"];
-  const logChanges = [...layoutAndContentChanges, ...onePagerChanges];
+  const logChanges = [...layoutAndContentChanges, ...compositionChanges, ...onePagerChanges];
   try {
     await recordBuildLog({ version, lens: buildLens ?? null, changes: logChanges });
     logStep(`Build log recorded to DB (version ${version}, ${logChanges.length} change(s)).`);

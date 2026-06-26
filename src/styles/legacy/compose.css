@@ -1,0 +1,263 @@
+/*
+ * compose.css — 컴포지션 엔진 디자인시스템 컴포넌트 스타일.
+ * ------------------------------------------------------------------
+ * 블루프린트 디자인 토큰(main.css 의 --bp-*, --ink-*, --accent, --mono, --sans)을
+ * 재사용한다. 클래스는 cz- 프리픽스로 기존 블록 스타일과 충돌하지 않게 격리.
+ * 컨테이너(Section/Stack/Split/Grid)는 레이아웃만, 콘텐츠 원자는 표현을 담당.
+ */
+
+/* ===== Section 본문 ========================================= */
+/* 섹션 헤더(.sec-head, margin-bottom 24) 아래 본문. 자식들이 붙지 않게 세로 간격을 준다. */
+.cz-sec-body { display: flex; flex-direction: column; gap: 24px; }
+
+/* ===== 컨테이너 ============================================== */
+.cz-stack { display: flex; flex-direction: column; }
+.cz-stack.cz-gap-sm { gap: 14px; }
+.cz-stack.cz-gap-md { gap: 28px; }
+.cz-stack.cz-gap-lg { gap: 48px; }
+
+.cz-split { display: grid; gap: 28px; align-items: start; }
+.cz-split-1-1 { grid-template-columns: 1fr 1fr; }
+.cz-split-2-1 { grid-template-columns: 2fr 1fr; }
+.cz-split-1-2 { grid-template-columns: 1fr 2fr; }
+
+.cz-grid { display: grid; gap: 16px; }
+.cz-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.cz-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.cz-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 760px) {
+  .cz-split { grid-template-columns: 1fr; }
+  .cz-cols-3, .cz-cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .cz-cols-2, .cz-cols-3, .cz-cols-4 { grid-template-columns: 1fr; }
+}
+
+/* ===== Heading ============================================== */
+.cz-heading { margin-bottom: 4px; }
+.cz-heading-eyebrow {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin-bottom: 8px;
+}
+.cz-heading-text {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+h3.cz-heading-text { font-size: 15px; }
+.cz-heading-meta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  margin-top: 6px;
+}
+
+/* ===== Prose ================================================ */
+.cz-prose { display: flex; flex-direction: column; gap: 14px; }
+.cz-prose-p {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  margin: 0;
+}
+.cz-prose-p strong { color: var(--ink); font-weight: 700; }
+
+/* ===== MetricGrid =========================================== */
+.cz-metrics { display: grid; gap: 0; border: 1px solid var(--bp-line); }
+.cz-metric {
+  padding: 22px 20px 24px;
+  border-right: 1px solid var(--bp-line);
+  border-bottom: 1px solid var(--bp-line);
+}
+.cz-metric-value {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--bp-glow);
+  letter-spacing: -0.01em;
+}
+.cz-metric-label {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 8px;
+}
+.cz-metric-note {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  margin-top: 6px;
+}
+
+/* ===== Callout ============================================== */
+.cz-callout {
+  padding: 18px 20px;
+  border-left: 3px solid var(--bp-line-2);
+  background: rgba(20, 56, 79, 0.92);
+  border-radius: 0 6px 6px 0;
+}
+/* 페르소나 페이지에선 --accent 가 짙은 파랑(#287099)으로 덮여 어두운 패널에서 안 읽힌다.
+   강조는 읽히는 톤(밝은 하늘색 --bp-glow / 흰색 --ink)으로 주고, accent 는 테두리에만. */
+.cz-callout-accent { border-left-color: var(--bp-glow); }
+.cz-callout-eyebrow {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin-bottom: 8px;
+}
+.cz-callout-accent .cz-callout-eyebrow { color: var(--bp-glow); }
+.cz-callout-body {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ink);
+  margin: 0;
+}
+.cz-callout-body strong { color: var(--ink); font-weight: 700; }
+
+/* ===== Quote =============================================== */
+.cz-quote {
+  margin: 0;
+  padding-left: 18px;
+  border-left: 2px solid var(--bp-line-2);
+}
+.cz-quote-text {
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  font-style: italic;
+  margin: 0;
+}
+.cz-quote-cite {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  font-style: normal;
+}
+
+/* ===== ChipList ============================================ */
+.cz-chips-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin-bottom: 12px;
+}
+.cz-chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cz-chip {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  padding: 6px 12px;
+  border: 1px solid var(--bp-line-2);
+  border-radius: 999px;
+  background: rgba(20, 56, 79, 0.4);
+}
+
+/* ===== KeyValueList ======================================== */
+.cz-kv { margin: 0; display: flex; flex-direction: column; }
+.cz-kv-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bp-line);
+}
+.cz-kv-row:last-child { border-bottom: none; }
+.cz-kv-k {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin: 0;
+}
+.cz-kv-v { font-size: 14px; color: var(--ink-2); margin: 0; line-height: 1.6; }
+
+/* ===== CardGrid ============================================ */
+.cz-cards { display: grid; gap: 16px; align-items: stretch; }
+/* 항목 수가 가변일 때(예: Writing) 깨지지 않게 자동 채움 그리드. */
+.cz-cards.cz-cols-auto { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.cz-card-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin-bottom: 10px;
+}
+.cz-card-en {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+.cz-card {
+  display: block;
+  padding: 20px 18px;
+  border: 1px solid var(--bp-line);
+  border-radius: 6px;
+  background: rgba(20, 56, 79, 0.35);
+  position: relative;
+  text-decoration: none;
+}
+.cz-card-link { transition: border-color 0.15s ease, background 0.15s ease; }
+.cz-card-link:hover { border-color: var(--bp-glow); background: rgba(29, 72, 102, 0.55); }
+.cz-card-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 8px;
+  letter-spacing: -0.005em;
+}
+.cz-card-body { font-size: 13.5px; line-height: 1.65; color: var(--ink-2); margin: 0; }
+.cz-card-arrow {
+  position: absolute; top: 16px; right: 16px;
+  color: var(--bp-soft); font-family: var(--mono);
+}
+.cz-card-link:hover .cz-card-arrow { color: var(--bp-glow); }
+
+/* ===== LinkList ============================================ */
+.cz-links { list-style: none; margin: 0; padding: 0; }
+.cz-links li { border-bottom: 1px solid var(--bp-line); }
+.cz-link {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 4px;
+  font-size: 14px;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color 0.15s ease, padding 0.15s ease;
+}
+.cz-link:hover { color: var(--bp-glow); padding-left: 10px; }
+.cz-link-arrow { font-family: var(--mono); color: var(--bp-soft); }
+.cz-link:hover .cz-link-arrow { color: var(--bp-glow); }
+
+/* ===== Divider ============================================= */
+/* 여백을 충분히 줘 테두리 있는 요소(카드·facts·pillars)와 붙어 겹선처럼 보이지 않게. */
+.cz-divider {
+  border: none;
+  border-top: 1px solid var(--bp-line);
+  margin: 20px 0;
+}
+/* 섹션 본문 안에서는 .cz-sec-body 의 gap(24)이 간격을 주므로 자체 margin 은 제거(중복 방지). */
+.cz-sec-body > .cz-divider { margin: 0; }

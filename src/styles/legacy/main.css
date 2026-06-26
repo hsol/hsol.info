@@ -1443,6 +1443,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 }
 
 .facts-resume-cta {
+  grid-column: 1 / -1;
   margin-top: 18px;
   text-align: right;
 }

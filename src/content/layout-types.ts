@@ -15,24 +15,27 @@ import { z } from "zod";
 import { PAGE_KEYS } from "@/content/site-structure";
 
 /**
- * 등록된 블록 타입. 새 블록을 만들면 여기 + registry 양쪽에 추가한다.
- * (registry 와 이 enum 의 일치는 dev 런타임에서 assert 한다.)
+ * 정본(canonical) 블록 타입. 새 블록을 만들면 여기 + registry 양쪽에 추가한다.
+ * (registry 와의 일치는 dev 런타임에서 assert 한다.)
+ *
+ * persona 섹션은 **페이지 비종속·범용 이름**으로 둔다(특정 페이지에 묶지 않는다).
+ * 빌더/사람은 어느 persona 페이지에서든 가져다 쓸 수 있다.
  */
-export const BLOCK_TYPES = [
+export const CANONICAL_BLOCK_TYPES = [
   // 프레임/공통
   "back",
   "plate",
   "viewHead",
   "callout",
   "coffeeCta",
-  // persona 섹션
-  "strengthsSection",
-  "pillarGridSection",
-  "careerSection",
-  "hireFactsSection",
-  "builderFactsSection",
-  "builderWritingSection",
-  "ganttSection",
+  // persona 섹션(공용 — 페이지 비종속)
+  "pillarsSection", // 3대 전략 pillars(D.pillars)
+  "pillarGridSection", // 소스 카드 그리드(methods/notes 등)
+  "careerSection", // persona 경력 타임라인
+  "factsSection", // 기본 팩트(연차·거점·학력·언어)
+  "skillsSection", // 스택·도메인 + 자격증
+  "writingSection", // 블로그·출판·글
+  "ganttSection", // 간트 타임라인
   // about
   "aboutProse",
   "aboutLinks",
@@ -45,7 +48,36 @@ export const BLOCK_TYPES = [
   "raw",
 ] as const;
 
+/**
+ * 폐기 예정(deprecated) 별칭 — 과거 페이지명이 박힌 타입.
+ * 기존 site-data.layout(Blob/커밋)이 이 이름을 참조하므로 **스키마는 계속 허용**하고
+ * 렌더 시 정본 컴포넌트로 매핑한다(DEPRECATED_BLOCK_ALIASES). 카탈로그엔 노출하지 않는다.
+ */
+export const DEPRECATED_BLOCK_TYPES = [
+  "strengthsSection",
+  "hireFactsSection",
+  "builderFactsSection",
+  "builderWritingSection",
+] as const;
+
+/** 폐기 예정 별칭 → 정본 타입. */
+export const DEPRECATED_BLOCK_ALIASES = {
+  strengthsSection: "pillarsSection",
+  hireFactsSection: "factsSection",
+  builderFactsSection: "skillsSection",
+  builderWritingSection: "writingSection",
+} as const satisfies Record<(typeof DEPRECATED_BLOCK_TYPES)[number], (typeof CANONICAL_BLOCK_TYPES)[number]>;
+
+/** 스키마용 전체 enum = 정본 + 폐기예정(기존 레이아웃 호환). */
+export const BLOCK_TYPES = [...CANONICAL_BLOCK_TYPES, ...DEPRECATED_BLOCK_TYPES] as const;
+
+export type CanonicalBlockType = (typeof CANONICAL_BLOCK_TYPES)[number];
 export type BlockType = (typeof BLOCK_TYPES)[number];
+
+/** 폐기 예정 별칭이면 정본 타입으로, 아니면 그대로. */
+export function canonicalBlockType(type: BlockType): CanonicalBlockType {
+  return (DEPRECATED_BLOCK_ALIASES as Record<string, CanonicalBlockType>)[type] ?? (type as CanonicalBlockType);
+}
 
 /** 단일 블록. props 는 블록 타입별로 다르지만, Zod 단계에서는 통과(passthrough)시키고 각 블록 컴포넌트가 자기 props 를 해석한다. */
 export const blockSchema = z

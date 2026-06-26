@@ -14,7 +14,12 @@
  */
 
 import type { ComponentType } from "react";
-import { BLOCK_TYPES, type BlockType } from "@/content/layout-types";
+import {
+  CANONICAL_BLOCK_TYPES,
+  DEPRECATED_BLOCK_TYPES,
+  type BlockType,
+  type CanonicalBlockType,
+} from "@/content/layout-types";
 import {
   AboutLinksBlock,
   AboutProseBlock,
@@ -46,12 +51,13 @@ export const COMPONENTS: Record<BlockType, BlockComponent> = {
   viewHead: ViewHeadBlock,
   callout: CalloutBlock,
   coffeeCta: CoffeeCtaBlock,
-  strengthsSection: StrengthsSectionBlock,
+  // persona 섹션(공용)
+  pillarsSection: StrengthsSectionBlock,
   pillarGridSection: PillarGridSectionBlock,
   careerSection: CareerSectionBlock,
-  hireFactsSection: HireFactsSectionBlock,
-  builderFactsSection: BuilderFactsSectionBlock,
-  builderWritingSection: BuilderWritingSectionBlock,
+  factsSection: HireFactsSectionBlock,
+  skillsSection: BuilderFactsSectionBlock,
+  writingSection: BuilderWritingSectionBlock,
   ganttSection: GanttSectionBlock,
   aboutProse: AboutProseBlock,
   aboutLinks: AboutLinksBlock,
@@ -60,6 +66,11 @@ export const COMPONENTS: Record<BlockType, BlockComponent> = {
   homeBuilt: HomeBuiltBlock,
   homeCoffee: HomeCoffeeBlock,
   raw: RawBlock,
+  // 폐기 예정 별칭(기존 레이아웃 호환) — 정본과 같은 컴포넌트로 렌더.
+  strengthsSection: StrengthsSectionBlock,
+  hireFactsSection: HireFactsSectionBlock,
+  builderFactsSection: BuilderFactsSectionBlock,
+  builderWritingSection: BuilderWritingSectionBlock,
 };
 
 /** 빌더용 카탈로그 항목. */
@@ -79,7 +90,7 @@ export interface BlockManifest {
   pages: string[];
 }
 
-export const MANIFESTS: Record<BlockType, BlockManifest> = {
+export const MANIFESTS: Record<CanonicalBlockType, BlockManifest> = {
   back: {
     type: "back",
     name: "뒤로가기 바",
@@ -139,11 +150,11 @@ export const MANIFESTS: Record<BlockType, BlockManifest> = {
     reads: ["identity", "portfolioCopy.*.coffee"],
     pages: ["hire", "collab", "builder", "curious", "about"],
   },
-  strengthsSection: {
-    type: "strengthsSection",
-    name: "강점 섹션",
-    role: "Strengths — 3 pillars 그리드(D.pillars).",
-    whenToUse: "hire 의 강점 소개.",
+  pillarsSection: {
+    type: "pillarsSection",
+    name: "필러 섹션(공용)",
+    role: "3대 전략 pillars 그리드(D.pillars).",
+    whenToUse: "강점·전략 소개. 어느 persona 페이지에서나.",
     props: {
       dataSection: "data-ask-section 값",
       title: "섹션 제목",
@@ -151,13 +162,13 @@ export const MANIFESTS: Record<BlockType, BlockManifest> = {
       meta: "우측 메타",
     },
     reads: ["pillars"],
-    pages: ["hire"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
   pillarGridSection: {
     type: "pillarGridSection",
-    name: "필러 그리드 섹션",
+    name: "필러 그리드 섹션(공용)",
     role: "{no,name,en,blurb} 카드 그리드(방법론·개인 노트 등).",
-    whenToUse: "collab 의 'How I work', curious 의 'A bit personal'.",
+    whenToUse: "방법론('How I work')·개인 노트('A bit personal') 등 카드 그리드.",
     props: {
       dataSection: "data-ask-section 값",
       title: "섹션 제목",
@@ -166,60 +177,60 @@ export const MANIFESTS: Record<BlockType, BlockManifest> = {
       sourceKey: "'collab.methods' | 'curious.notes' 등 portfolioCopy 경로",
     },
     reads: ["portfolioCopy.<group>.<field>"],
-    pages: ["collab", "curious"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
   careerSection: {
     type: "careerSection",
-    name: "경력 타임라인 섹션",
+    name: "경력 타임라인 섹션(공용)",
     role: "persona 별 펼침/접힘 큐레이션이 적용된 풀 경력 타임라인.",
-    whenToUse: "hire/collab/builder 의 경력 섹션.",
+    whenToUse: "경력 섹션. persona 인자로 큐레이션을 고른다.",
     props: {
       dataSection: "data-ask-section 값",
       title: "섹션 제목",
       num: "§ 번호",
-      persona: "tier 큐레이션·intro 를 고를 키(hire|collab|builder)",
+      persona: "tier 큐레이션·intro 를 고를 키(hire|collab|builder|curious)",
       metaTemplate: "'hire' | 'collab' (메타 자동 계산) — 없으면 meta 리터럴 사용",
       meta: "metaTemplate 없을 때 고정 메타(예: 'full timeline')",
       note: "타임라인 위 큐레이션 안내 문단",
     },
     reads: ["career", "portfolioCopy.<persona>.timelineIntro"],
-    pages: ["hire", "collab", "builder"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
-  hireFactsSection: {
-    type: "hireFactsSection",
-    name: "채용 팩트 섹션",
-    role: "연차·거점·학력·언어 4팩트 그리드(hire 전용 합성).",
-    whenToUse: "hire 의 기본 정보 요약.",
+  factsSection: {
+    type: "factsSection",
+    name: "기본 팩트 섹션(공용)",
+    role: "연차·거점·학력·언어 4팩트 그리드 + 이력서 링크.",
+    whenToUse: "기본 정보 요약. 어느 persona 페이지에서나.",
     props: { dataSection: "값", title: "제목", num: "§ 번호", meta: "메타" },
     reads: ["portfolioCopy.hire", "identity.location", "education", "languages"],
-    pages: ["hire"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
-  builderFactsSection: {
-    type: "builderFactsSection",
-    name: "빌더 스택 섹션",
+  skillsSection: {
+    type: "skillsSection",
+    name: "스택·도메인 섹션(공용)",
     role: "Stack & domain 팩트(가변) + 자격증.",
-    whenToUse: "builder 의 스택·도메인 소개.",
+    whenToUse: "스택·도메인·자격 소개. 어느 persona 페이지에서나.",
     props: { dataSection: "값", title: "제목", num: "§ 번호", meta: "메타" },
     reads: ["portfolioCopy.builder.facts", "certifications"],
-    pages: ["builder"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
-  builderWritingSection: {
-    type: "builderWritingSection",
-    name: "글쓰기 섹션",
+  writingSection: {
+    type: "writingSection",
+    name: "글쓰기 섹션(공용)",
     role: "블로그(고정) + publications + extraWritings 카드 그리드.",
-    whenToUse: "builder 의 Writing 섹션.",
+    whenToUse: "글·출판물 소개. 어느 persona 페이지에서나.",
     props: { dataSection: "값", title: "제목", num: "§ 번호", meta: "메타" },
     reads: ["publications", "portfolioCopy.builder.extraWritings"],
-    pages: ["builder"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
   ganttSection: {
     type: "ganttSection",
-    name: "간트 타임라인 섹션",
+    name: "간트 타임라인 섹션(공용)",
     role: "병렬 트랙 간트 차트(연도 파싱·hover 팝업).",
-    whenToUse: "curious 의 인생 궤적 타임라인.",
+    whenToUse: "인생 궤적 타임라인. 어느 persona 페이지에서나.",
     props: { dataSection: "값", title: "제목", num: "§ 번호", meta: "메타" },
     reads: ["portfolioCopy.curious.timeline", "portfolioCopy.curious.timelineIntro"],
-    pages: ["curious"],
+    pages: ["hire", "collab", "builder", "curious"],
   },
   aboutProse: {
     type: "aboutProse",
@@ -290,10 +301,13 @@ export const MANIFESTS: Record<BlockType, BlockManifest> = {
   },
 };
 
-/** dev 가드: BLOCK_TYPES ↔ COMPONENTS ↔ MANIFESTS 일치 검사. */
+/** dev 가드: 정본은 COMPONENTS+MANIFESTS 둘 다, 폐기예정 별칭은 COMPONENTS 만 검사. */
 export function assertRegistryComplete() {
-  for (const t of BLOCK_TYPES) {
+  for (const t of CANONICAL_BLOCK_TYPES) {
     if (!COMPONENTS[t]) console.warn(`[blocks] COMPONENTS 에 '${t}' 누락`);
     if (!MANIFESTS[t]) console.warn(`[blocks] MANIFESTS 에 '${t}' 누락`);
+  }
+  for (const t of DEPRECATED_BLOCK_TYPES) {
+    if (!COMPONENTS[t]) console.warn(`[blocks] COMPONENTS 에 폐기예정 별칭 '${t}' 누락`);
   }
 }

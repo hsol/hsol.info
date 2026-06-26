@@ -30,13 +30,13 @@ export const BLOCK_CATALOG: CatalogEntry[] = [
   },
   { type: "callout", role: "AI 기능 유도 박스(콜백 있을 때만 노출)", props: { dataSection: "값", eyebrow: "윗줄", body: "설명", buttonLabel: "버튼", action: "'jd' | 'advice'" }, pages: ["hire", "collab"] },
   { type: "coffeeCta", role: "Calendly 커피챗 CTA", props: { persona: "있으면 해당 coffee 카피" }, pages: ["hire", "collab", "builder", "curious", "about"] },
-  { type: "strengthsSection", role: "강점 3 pillars(D.pillars)", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire"] },
-  { type: "pillarGridSection", role: "필러 그리드(sourceKey 로 methods/notes)", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타", sourceKey: "'collab.methods' | 'curious.notes'" }, pages: ["collab", "curious"] },
-  { type: "careerSection", role: "persona 별 경력 타임라인", props: { dataSection: "값", title: "제목", num: "§번호", persona: "hire|collab|builder", metaTemplate: "'hire'|'collab' 자동메타", meta: "고정메타", note: "큐레이션 안내" }, pages: ["hire", "collab", "builder"] },
-  { type: "hireFactsSection", role: "채용 팩트 4종(연차·거점·학력·언어)", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire"] },
-  { type: "builderFactsSection", role: "스택·도메인 + 자격증", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["builder"] },
-  { type: "builderWritingSection", role: "블로그+출판물+글 카드", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["builder"] },
-  { type: "ganttSection", role: "간트 타임라인", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["curious"] },
+  { type: "pillarsSection", role: "3대 전략 pillars(D.pillars)", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire", "collab", "builder", "curious"] },
+  { type: "pillarGridSection", role: "필러 그리드(sourceKey 로 methods/notes)", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타", sourceKey: "'collab.methods' | 'curious.notes'" }, pages: ["hire", "collab", "builder", "curious"] },
+  { type: "careerSection", role: "persona 별 경력 타임라인", props: { dataSection: "값", title: "제목", num: "§번호", persona: "hire|collab|builder|curious", metaTemplate: "'hire'|'collab' 자동메타", meta: "고정메타", note: "큐레이션 안내" }, pages: ["hire", "collab", "builder", "curious"] },
+  { type: "factsSection", role: "기본 팩트 4종(연차·거점·학력·언어)", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire", "collab", "builder", "curious"] },
+  { type: "skillsSection", role: "스택·도메인 + 자격증", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire", "collab", "builder", "curious"] },
+  { type: "writingSection", role: "블로그+출판물+글 카드", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire", "collab", "builder", "curious"] },
+  { type: "ganttSection", role: "간트 타임라인", props: { dataSection: "값", title: "제목", num: "§번호", meta: "메타" }, pages: ["hire", "collab", "builder", "curious"] },
   { type: "aboutProse", role: "about 줄글 6문단", pages: ["about"] },
   { type: "aboutLinks", role: "외부 프로필 + 관점 링크", pages: ["about"] },
   { type: "homeHero", role: "히어로 + 평면도", pages: ["home"] },
@@ -51,7 +51,7 @@ export const COMPOSITION_RULES = `
 [조합 규칙 — 반드시 지킬 것]
 - 페이지 키는 다음으로 고정: ${PAGE_KEYS.join(", ")}. 추가/삭제/개명 금지.
 - 블록 type 은 카탈로그에 있는 것만 사용(미등록 type 은 거부됨). 'raw' 는 사람 전용이니 쓰지 말 것.
-- 각 블록은 자기 페이지에서만 의미가 있다(카탈로그 pages 참고). 예: strengthsSection 은 hire 에서만.
+- persona 섹션(pillarsSection·pillarGridSection·careerSection·factsSection·skillsSection·writingSection·ganttSection)은 **공용**이라 어느 persona 페이지에서나 쓸 수 있다. 페이지 성격에 맞게 고르되 카탈로그 pages 를 참고한다.
 - persona 페이지(hire/collab/builder/curious): 보통 back → viewHead(persona) → [callout?] → 섹션들 → coffeeCta(persona) 순.
 - about: back → viewHead(media:about-portrait) → aboutProse → aboutLinks → coffeeCta.
 - architecture: back → plate → viewHead(media:architecture-mermaid).

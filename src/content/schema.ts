@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { layoutSchema } from "@/content/layout-types";
+import { siteCompositionSchema } from "@/content/compose/schema";
 
 const IdentitySchema = z.object({
   name: z.string().min(1),
@@ -217,6 +218,11 @@ export const siteDataSchema = z
    * 코드의 DEFAULT_LAYOUT 으로 폴백한다. 빌더/사람이 여기서 레이아웃을 바꾼다.
    */
   layout: layoutSchema.optional(),
+  /**
+   * 생성형 컴포넌트-트리(디자인시스템) 레이아웃. 선택 필드 — 페이지에 composition 이 있으면
+   * 그걸로 렌더하고, 없으면 layout(blocks) → DEFAULT_LAYOUT 으로 폴백한다(점진 도입).
+   */
+  composition: siteCompositionSchema.optional(),
   /** 빌드 버전 메타(footer 표시용). 상세 개선 로그는 DB. */
   build: BuildInfoSchema.optional(),
 })
