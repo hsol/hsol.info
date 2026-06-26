@@ -96,7 +96,7 @@ export function SelectionAsk() {
       selectedText.length > 220 ? `${selectedText.slice(0, 220)}...` : selectedText;
     requestSelectionAsk({
       id: crypto.randomUUID(),
-      displayQuery: `이 부분을 조금 더 자세히 설명해 주세요: "${preview}"`,
+      displayQuery: `아래 인용문을 현재 페이지 문맥에 맞춰 보강 설명해 주세요.\n\n"${preview}"`,
       selectedText,
     });
     setNudge(null);

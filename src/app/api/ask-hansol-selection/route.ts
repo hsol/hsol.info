@@ -35,6 +35,15 @@ function buildSelectionQuery(selectedText: string): string {
   ].join("\n");
 }
 
+// 채팅·히스토리에 보일 사용자 메시지. 엔지니어링 지시(중요: …)는 빼고
+// 안내 문장과 인용문만 노출한다. 인용문 미리보기는 넛지(SelectionAsk)와 동일하게 220자로 줄여
+// 라이브 메시지와 새로고침 후 히스토리가 같게 보이도록 한다.
+function buildSelectionDisplayText(selectedText: string): string {
+  const preview =
+    selectedText.length > 220 ? `${selectedText.slice(0, 220)}...` : selectedText;
+  return `아래 인용문을 현재 페이지 문맥에 맞춰 보강 설명해 주세요.\n\n"${preview}"`;
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
@@ -69,6 +78,7 @@ export async function POST(req: Request) {
       headers: forwardedHeaders,
       body: JSON.stringify({
         query: buildSelectionQuery(selectedText),
+        displayText: buildSelectionDisplayText(selectedText),
         sessionId,
         pageContext: pageContext ?? undefined,
       }),

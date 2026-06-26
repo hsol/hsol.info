@@ -319,10 +319,17 @@ export async function POST(req: Request) {
     const siteData = await getSiteData();
     const body = (await req.json()) as {
       query?: unknown;
+      displayText?: unknown;
       sessionId?: unknown;
       pageContext?: unknown;
     };
     const query = typeof body.query === "string" ? body.query.trim() : "";
+    // displayText: 채팅·히스토리에 저장/표시할 사용자 메시지. 비면 query를 그대로 쓴다.
+    // (인용문 보강 같은 기능은 LLM에 보내는 엔지니어링 프롬프트를 노출하지 않도록 깔끔한 텍스트를 따로 넘긴다.)
+    const displayText =
+      typeof body.displayText === "string" && body.displayText.trim()
+        ? body.displayText.trim()
+        : query;
     const sessionId =
       typeof body.sessionId === "string" && isValidAskHansolSessionId(body.sessionId)
         ? body.sessionId
@@ -352,7 +359,7 @@ export async function POST(req: Request) {
     if (faqAnswer) {
       const faqPlain = toPlainAnswer(faqAnswer);
       if (sessionId) {
-        await persistAskExchange(sessionId, query, faqPlain);
+        await persistAskExchange(sessionId, displayText, faqPlain);
         await refreshSessionMemoryRollup(sessionId, tailLimit, summarizeMemoryMerge);
       }
       return NextResponse.json({ answer: faqPlain });
@@ -369,7 +376,7 @@ export async function POST(req: Request) {
     const llmAnswer = await askAnthropicChat(systemPrompt, priorForClaude, latestUserText);
     const answer = llmAnswer ?? ASK_HANSOL_FALLBACK_MESSAGE;
     if (sessionId) {
-      await persistAskExchange(sessionId, query, answer);
+      await persistAskExchange(sessionId, displayText, answer);
       await refreshSessionMemoryRollup(sessionId, tailLimit, summarizeMemoryMerge);
     }
     return NextResponse.json({ answer });
