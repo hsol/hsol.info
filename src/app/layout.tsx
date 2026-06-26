@@ -7,6 +7,7 @@ import { DeferredGoogleAnalyticsScripts } from "@/components/DeferredGoogleAnaly
 import { PageTranslateBootstrap } from "@/components/PageTranslateBootstrap";
 import { SelectionAsk } from "@/components/ask-selection/SelectionAsk";
 import "@/styles/legacy/main.css";
+import "@/styles/legacy/compose.css";
 import "./globals.css";
 
 export const viewport = {

@@ -43,7 +43,7 @@ export const DEFAULT_LAYOUT: SiteLayout = {
           },
         },
         {
-          type: "strengthsSection",
+          type: "pillarsSection",
           props: { dataSection: "hire/strengths", title: "Strengths", num: "01", meta: "3 pillars" },
         },
         {
@@ -58,7 +58,7 @@ export const DEFAULT_LAYOUT: SiteLayout = {
           },
         },
         {
-          type: "hireFactsSection",
+          type: "factsSection",
           props: { dataSection: "hire/facts", title: "Facts", num: "03", meta: "basic" },
         },
         { type: "coffeeCta", props: { persona: "hire" } },
@@ -107,7 +107,7 @@ export const DEFAULT_LAYOUT: SiteLayout = {
         { type: "back" },
         { type: "viewHead", props: { room: "03 · BUILDER", coord: "B2", persona: "builder" } },
         {
-          type: "builderFactsSection",
+          type: "skillsSection",
           props: { dataSection: "builder/stack", title: "Stack & domain", num: "01", meta: "practical" },
         },
         {
@@ -122,7 +122,7 @@ export const DEFAULT_LAYOUT: SiteLayout = {
           },
         },
         {
-          type: "builderWritingSection",
+          type: "writingSection",
           props: { dataSection: "builder/writing", title: "Writing", num: "03", meta: "publications" },
         },
         { type: "coffeeCta", props: { persona: "builder" } },

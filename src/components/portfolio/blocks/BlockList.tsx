@@ -12,6 +12,7 @@
 
 import { useSiteData } from "@/components/portfolio/Atoms";
 import { COMPONENTS } from "@/components/portfolio/blocks/registry";
+import { ComposeRenderer } from "@/components/portfolio/compose/ComposeRenderer";
 import { DEFAULT_LAYOUT } from "@/content/default-layout";
 import { LAYOUT_OVERRIDES } from "@/content/layout-overrides";
 import type { Block } from "@/content/layout-types";
@@ -35,6 +36,18 @@ export function resolvePageBlocks(
 
 export function BlockList({ page }: { page: PageKey }) {
   const data = useSiteData();
+
+  /**
+   * 해석 우선순위: LAYOUT_OVERRIDES(사람) > composition(빌더 생성, 컴포넌트 트리)
+   *   > layout blocks(빌더 생성) > DEFAULT_LAYOUT(코드 기본).
+   * 사람이 명시적으로 블록을 고정한 페이지가 아니면, composition 이 있을 때 그걸로 렌더한다.
+   */
+  const hasHumanOverride = (LAYOUT_OVERRIDES.pages?.[page]?.blocks?.length ?? 0) > 0;
+  const composition = data.composition?.pages?.[page];
+  if (!hasHumanOverride && composition && composition.nodes.length > 0) {
+    return <ComposeRenderer nodes={composition.nodes} />;
+  }
+
   const blocks = resolvePageBlocks(page, data.layout);
 
   return (
