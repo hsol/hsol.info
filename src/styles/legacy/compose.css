@@ -6,6 +6,10 @@
  * 컨테이너(Section/Stack/Split/Grid)는 레이아웃만, 콘텐츠 원자는 표현을 담당.
  */
 
+/* ===== Section 본문 ========================================= */
+/* 섹션 헤더(.sec-head, margin-bottom 24) 아래 본문. 자식들이 붙지 않게 세로 간격을 준다. */
+.cz-sec-body { display: flex; flex-direction: column; gap: 24px; }
+
 /* ===== 컨테이너 ============================================== */
 .cz-stack { display: flex; flex-direction: column; }
 .cz-stack.cz-gap-sm { gap: 14px; }
@@ -189,6 +193,24 @@ h3.cz-heading-text { font-size: 15px; }
 
 /* ===== CardGrid ============================================ */
 .cz-cards { display: grid; gap: 16px; align-items: stretch; }
+/* 항목 수가 가변일 때(예: Writing) 깨지지 않게 자동 채움 그리드. */
+.cz-cards.cz-cols-auto { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.cz-card-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bp-soft);
+  margin-bottom: 10px;
+}
+.cz-card-en {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
 .cz-card {
   display: block;
   padding: 20px 18px;
@@ -231,8 +253,11 @@ h3.cz-heading-text { font-size: 15px; }
 .cz-link:hover .cz-link-arrow { color: var(--bp-glow); }
 
 /* ===== Divider ============================================= */
+/* 여백을 충분히 줘 테두리 있는 요소(카드·facts·pillars)와 붙어 겹선처럼 보이지 않게. */
 .cz-divider {
   border: none;
   border-top: 1px solid var(--bp-line);
-  margin: 8px 0;
+  margin: 20px 0;
 }
+/* 섹션 본문 안에서는 .cz-sec-body 의 gap(24)이 간격을 주므로 자체 margin 은 제거(중복 방지). */
+.cz-sec-body > .cz-divider { margin: 0; }

@@ -11,7 +11,6 @@
  * cz- 프리픽스 클래스로 표현한다.
  */
 
-import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   Back,
@@ -49,16 +48,18 @@ export function Section({
   children?: ReactNode;
 }) {
   const hasHead = props.title || props.eyebrow || props.num != null || props.meta;
+  // SecHead 가 "§ " 를 붙이므로, 빌더가 num 에 §/공백을 직접 넣었으면 제거(이중 § 방지).
+  const num = typeof props.num === "string" ? props.num.replace(/^[§\s]+/, "") : props.num;
   return (
     <div className="sec" data-ask-section={props.dataSection || undefined}>
       {hasHead && (
         <SecHead
           title={props.title ?? props.eyebrow ?? ""}
-          num={props.num ?? undefined}
+          num={num ?? undefined}
           meta={props.meta ?? undefined}
         />
       )}
-      {children}
+      {children != null && <div className="cz-sec-body">{children}</div>}
     </div>
   );
 }
@@ -340,11 +341,6 @@ export function FactsBound(_: { props: Record<string, never> }) {
           {D.languages.map((l) => `${l.name}(${l.level.split(" ")[0]})`).join(" · ")}
         </div>
       </div>
-      <div className="facts-resume-cta">
-        <Link className="facts-resume-link" href="/resume">
-          이력서·포트폴리오 한 장으로 보기 (PDF 다운로드) →
-        </Link>
-      </div>
     </div>
   );
 }
@@ -369,25 +365,29 @@ export function SkillsBound(_: { props: Record<string, never> }) {
   );
 }
 
-/** 글쓰기 카드(블로그 + 출판물 + 글). href 있으면 새 탭 링크. 어느 페이지에서나 공용. */
+/** 글쓰기 카드 한 장(compose 카드 스타일). href 있으면 새 탭 링크. */
 function WritingCard({ no, name, en, blurb, href }: { no: string; name: string; en: string; blurb: string; href?: string }) {
-  const body = (
+  const inner = (
     <>
-      <div className="pillar-no">{no}</div>
-      <div className="pillar-name">{href ? `${name} ↗` : name}</div>
-      <div className="pillar-en">{en}</div>
-      <div className="pillar-blurb">{blurb}</div>
+      <div className="cz-card-eyebrow">{no}</div>
+      <div className="cz-card-title">{href ? `${name} ↗` : name}</div>
+      <div className="cz-card-en">{en}</div>
+      <p className="cz-card-body">{blurb}</p>
     </>
   );
   return href ? (
-    <a className="pillar pillar-link" href={href} target="_blank" rel="noopener noreferrer">
-      {body}
+    <a className="cz-card cz-card-link" href={href} target="_blank" rel="noopener noreferrer">
+      {inner}
     </a>
   ) : (
-    <div className="pillar">{body}</div>
+    <div className="cz-card">{inner}</div>
   );
 }
 
+/**
+ * 글쓰기 카드(블로그 + 출판물 + 글). 항목 수가 가변이라 고정 3열 .pillars 대신
+ * 자동 채움(cz-cols-auto) 카드 그리드로 — 어떤 개수에서도 깨지지 않게. 어느 페이지에서나 공용.
+ */
 export function WritingBound(_: { props: Record<string, never> }) {
   const D = useSiteData();
   const { blog, extraWritings } = D.portfolioCopy.builder;
@@ -397,7 +397,7 @@ export function WritingBound(_: { props: Record<string, never> }) {
     ...extraWritings,
   ];
   return (
-    <div className="pillars">
+    <div className="cz-cards cz-cols-auto">
       {cards.map((c, i) => (
         <WritingCard key={i} no={`PIECE · 0${i + 1}`} name={c.name} en={c.en} blurb={c.blurb} href={c.href} />
       ))}

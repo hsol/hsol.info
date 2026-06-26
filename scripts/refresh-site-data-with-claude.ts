@@ -8,7 +8,7 @@ import { HSOL_DATA } from "../src/data/site";
 import { layoutSchema, type SiteLayout } from "../src/content/layout-types";
 import { DEFAULT_LAYOUT } from "../src/content/default-layout";
 import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
-import { PAGE_KEYS, type PageKey } from "../src/content/site-structure";
+import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
 import { renderCatalogForPrompt } from "../src/content/layout-catalog";
 import {
   pageCompositionSchema,
@@ -61,13 +61,16 @@ const COMPOSITION_BUILDER_ENABLED = (() => {
   const v = (process.env.COMPOSITION_BUILDER ?? "0").trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes";
 })();
+/** 컴포지션 빌더 대상 = 네 관점(persona) 페이지 전부. COMPOSITION_PAGES(CSV)로 좁힐 수 있다. */
+const DEFAULT_COMPOSITION_PAGES: PageKey[] = ["hire", "collab", "builder", "curious"];
 const COMPOSITION_PAGES: PageKey[] = (() => {
-  const raw = (process.env.COMPOSITION_PAGES ?? "curious").trim();
+  const raw = (process.env.COMPOSITION_PAGES ?? "").trim();
+  if (!raw) return DEFAULT_COMPOSITION_PAGES;
   const keys = raw
     .split(",")
     .map((s) => s.trim())
     .filter((s): s is PageKey => (PAGE_KEYS as readonly string[]).includes(s));
-  return keys.length ? keys : ["curious"];
+  return keys.length ? keys : DEFAULT_COMPOSITION_PAGES;
 })();
 const COMPOSITION_MAX_TOKENS = Number(process.env.COMPOSITION_EMIT_MAX_TOKENS ?? 16000);
 
@@ -1087,21 +1090,72 @@ function validateCompositionNodes(nodes: ComposeNode[], pathPrefix = ""): string
 function enforceCompositionSkeleton(page: PageKey, comp: PageComposition): PageComposition {
   const isPersona = ["hire", "collab", "builder", "curious"].includes(page);
   if (!isPersona) return comp;
-  const SKELETON = new Set(["Back", "ViewHead", "CoffeeCTA"]);
-  const coffee = comp.nodes.find((n) => n.component === "CoffeeCTA") ?? { component: "CoffeeCTA" };
-  const body = comp.nodes.filter((n) => !SKELETON.has(n.component));
+  // 골격 컴포넌트(Back/ViewHead/CoffeeCTA)는 페이지 프레임이라 트리 어디에 있든(중첩 포함) 떼어내
+  // 정해진 위치에만 다시 박는다. CoffeeCTA 는 빌더가 쓴 첫 props(title/sub)를 보존한다.
+  let coffee: ComposeNode | undefined;
+  const strip = (list: ComposeNode[]): ComposeNode[] => {
+    const out: ComposeNode[] = [];
+    for (const n of list) {
+      if (n.component === "CoffeeCTA") {
+        if (!coffee) coffee = n;
+        continue;
+      }
+      if (n.component === "Back" || n.component === "ViewHead") continue;
+      out.push(n.children ? { ...n, children: strip(n.children) } : n);
+    }
+    return out;
+  };
+  const body = strip(comp.nodes);
   return {
     nodes: [
       { component: "Back" },
       { component: "ViewHead", props: { persona: page } },
       ...body,
-      coffee,
+      coffee ?? { component: "CoffeeCTA" },
     ],
   };
 }
 
+/** 트리의 모든 노드 컴포넌트 이름(중첩 포함, 중복 제거). */
+function allComposeComponents(nodes: ComposeNode[]): string[] {
+  const out: string[] = [];
+  const rec = (list: ComposeNode[]) => {
+    for (const n of list) {
+      out.push(n.component);
+      if (n.children) rec(n.children);
+    }
+  };
+  rec(nodes);
+  return [...new Set(out)];
+}
+
+/** 형제 관점들의 현재 구성 요약(헤더 + 컴포넌트 팔레트). 빌더가 서로의 존재를 알고 한 사이트처럼 맞추게. */
+function siblingCompositionDigest(
+  pages: Partial<Record<PageKey, PageComposition>>,
+  exclude: PageKey,
+): string {
+  const others = (Object.keys(pages) as PageKey[]).filter((p) => p !== exclude && pages[p]?.nodes?.length);
+  if (!others.length) {
+    return "(아직 형제 관점이 없다 — 네가 첫 번째다. 뒤따를 형제들이 맞출 수 있게 명확하고 일관된 헤더 표준을 세워라.)";
+  }
+  return others
+    .map((p) => {
+      const comp = pages[p]!;
+      const heads = comp.nodes
+        .filter((n) => n.component === "Section")
+        .map((n) => {
+          const x = (n.props ?? {}) as { num?: unknown; title?: unknown; eyebrow?: unknown; meta?: unknown };
+          const label = x.title ?? x.eyebrow ?? "";
+          return `§${x.num ?? "-"} ${label}${x.meta ? ` (${x.meta})` : ""}`;
+        });
+      return `[${p}]\n    섹션 헤더: ${heads.join(" / ") || "(없음)"}\n    쓴 컴포넌트: ${allComposeComponents(comp.nodes).join(", ")}`;
+    })
+    .join("\n");
+}
+
 /**
- * 한 페이지의 컴포넌트-트리(composition)를 생성한다 — 앵커 후 진화 + vault 그라운딩 + 골격 가드레일.
+ * 한 페이지의 컴포넌트-트리(composition)를 생성한다 — 앵커 후 진화 + vault 그라운딩 + 골격 가드레일
+ * + 형제 관점 인식(서로의 구성을 보고 한 사이트처럼 맞춤).
  * 실패하면 null(호출부에서 기존/blocks 로 폴백). 트리 Zod + 노드별 propsSchema 로 3회까지 재검증.
  */
 async function generateComposition(
@@ -1112,20 +1166,26 @@ async function generateComposition(
     contextText: string;
     lens: string;
     researchNotes: string;
+    siblings: string;
   },
 ): Promise<{ composition: PageComposition; changes: string[] } | null> {
   const catalog = renderComposeCatalog();
   const anchor = args.currentComposition
     ? JSON.stringify(args.currentComposition, null, 2)
     : "(아직 이 페이지의 composition 이 없음 — 처음 만든다)";
-  const personaRole =
-    args.page === "curious"
-      ? "그냥 궁금한 사람 관점. 인간적 궤적(Gantt)·개인적인 노트 중심, 따뜻하고 담백하게."
-      : `'${args.page}' 페이지`;
+  const personaRole = SITE_STRUCTURE[args.page]?.role ?? `'${args.page}' 페이지`;
+  /** 관점별로 특히 잘 맞는 data-bound 컴포넌트 힌트(강제는 아님 — 빌더가 본문 구성을 주도). */
+  const DATABOUND_HINT: Partial<Record<PageKey, string>> = {
+    hire: "Facts(기본 팩트), Pillars(강점), CareerTimeline(persona:hire), Skills 등이 잘 맞는다.",
+    collab: "PillarGrid(source:collab.methods, 일하는 방식), CareerTimeline(persona:collab), Pillars 등이 잘 맞는다.",
+    builder: "Skills(스택·도메인), CareerTimeline(persona:builder), Writing(글) 등이 잘 맞는다.",
+    curious: "Gantt(인간적 궤적), PillarGrid(source:curious.notes) 등이 잘 맞는다. 따뜻하고 담백하게.",
+  };
+  const databoundHint = DATABOUND_HINT[args.page] ? `\n이 관점에 잘 맞는 data-bound: ${DATABOUND_HINT[args.page]}` : "";
 
   const basePrompt = `너는 hsol.info 포트폴리오의 **컴포지션 빌더**다. '${args.page}' 페이지를 디자인시스템 컴포넌트의 **트리**로 조합하고, content 컴포넌트의 내용을 **vault 근거로 직접 작성**한다.
 
-페이지 성격: ${personaRole}
+페이지 성격: ${personaRole}${databoundHint}
 
 원칙(중요):
 1) **앵커 후 진화**: 아래 "현재 composition"이 있으면 그것을 기준으로 통째로 갈아엎지 말고 근거 있는 1~3가지 개선만 적용한다. 없으면 페이지 성격에 맞게 새로 구성한다.
@@ -1134,7 +1194,8 @@ async function generateComposition(
    - **"블로그" 용어 규칙**: 그냥 "블로그"는 **현행 Medium(medium.com/@hsol)**을 가리킨다. 한솔닷컴(Tistory)은 **deprecated 아카이브**다. 블로그를 한 항목으로 보여줄 때는 현행 Medium 을 대표로 쓰고, 티스토리는 "아카이브"로만 표기한다(현행처럼 쓰지 마라). Medium 을 빠뜨리지 마라.
 4) **골격**: 맨 앞 Back, 그다음 ViewHead(페르소나 헤더), 맨 끝 CoffeeCTA 는 시스템이 자동으로 박는다 — 네가 직접 넣지 마라. 너는 그 사이 **본문 구성**만 자유롭게 짠다.
 5) **문체(한국어)**: 서술형 줄글은 존댓말(~합니다/~입니다). 첫 문장을 "저는/임한솔은" 같은 1인칭·이름 고정 템플릿으로 시작하지 않는다. AI 티 특수문자(엠대시 —, 말줄임표 …, 곡선따옴표) 금지 — 하이픈·마침표·곧은따옴표만.
-6) **변화는 있어야**: 이번 회차 리서치 인사이트를 최소 1곳 구성에 반영하라(섹션 추가/순서/강조). 단 의미 없는 뒤섞기 금지.
+6) **형제 관점과 협업(매우 중요)**: 너는 혼자가 아니다. 아래 [형제 관점들의 현재 구성]에 다른 관점 페이지들이 어떻게 만들어졌는지 있다. **한 사람이 만든 한 사이트**처럼 보이도록 형제들과 맞춰라 — 섹션 헤더의 워딩·형식(한국어/영문 제목 여부, 번호, 영문 kicker 등), 컴포넌트 쓰는 습관, 톤. 한쪽은 영문 제목·다른 쪽은 한글 제목처럼 따로 노는 건 금지. 단 베끼지 말고 내용·강조·순서는 이 관점에 맞게 다르게. (형제가 아직 없으면 네가 기준이 되어 명확하고 일관된 헤더 표준을 세운다.)
+7) **변화는 있어야**: 이번 회차 리서치 인사이트를 최소 1곳 구성에 반영하라(섹션 추가/순서/강조). 단 의미 없는 뒤섞기 금지.
 
 [이번 회차 리서치 메모 — 주제: ${args.lens}]
 ${args.researchNotes || "(리서치 없음 — 현재 구성을 기준으로 작은 개선만)"}
@@ -1144,6 +1205,9 @@ ${args.researchNotes || "(리서치 없음 — 현재 구성을 기준으로 작
 - changes: 무엇을·왜 바꿨는지(어떤 근거에서) 1~3개를 한국어 한 줄씩.
 
 ${catalog}
+
+[형제 관점들의 현재 구성 — 한 사이트의 다른 방들. 한 사람이 만든 것처럼 형식·워딩·톤을 맞춰라]
+${args.siblings}
 
 [현재 composition — 앵커]
 ${anchor}
@@ -1588,13 +1652,14 @@ ${contextText}
     const pages: SiteComposition["pages"] = { ...(existingSiteComposition?.pages ?? {}) };
 
     for (const page of COMPOSITION_PAGES) {
-      const current = extractExistingComposition(currentSiteDataText, page);
+      const current = pages[page] ?? extractExistingComposition(currentSiteDataText, page);
       const gen = await generateComposition(apiKey, {
         page,
         currentComposition: current,
         contextText: compositionContext,
         lens,
         researchNotes,
+        siblings: siblingCompositionDigest(pages, page),
       });
       if (gen) {
         pages[page] = enforceCompositionSkeleton(page, gen.composition);
