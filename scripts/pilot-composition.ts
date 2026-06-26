@@ -186,7 +186,11 @@ function buildPrompt(
 1) 앵커 후 진화: "현재 composition"이 있으면 통째로 갈아엎지 말고 1~3가지 개선만. 없으면 페이지 성격에 맞게 새로 구성.
 2) 카탈로그 안 component 만. container 만 children 을 가진다. data-bound(Facts/Skills/Writing/Pillars/PillarGrid/CareerTimeline/Gantt/CoffeeCTA/Back/ViewHead)는 배치만 — 내용은 site-data 에서 자동, props 로 내용 지어내지 마라.
 3) vault 그라운딩(필수): content 컴포넌트(Prose/Callout/CardGrid/MetricGrid/ChipList/Quote/KeyValueList/LinkList/Heading)의 내용은 아래 [참조 vault]·[관점 데이터]에 실제로 있는 사실로만. 문서 밖 추측·새 수치·과장 금지. 애매하면 항목 수를 줄여라. **"블로그" = 현행 Medium(medium.com/@hsol)**; 한솔닷컴(Tistory)은 deprecated 아카이브로만 표기하고 Medium 을 빠뜨리지 마라.
-4) 골격: 맨 앞 Back, 그다음 ViewHead(페르소나 헤더), 맨 끝 CoffeeCTA 는 시스템이 자동으로 박는다 — 직접 넣지 마라. 너는 그 사이 본문만 짠다.
+4) 고정 골격(시스템이 자동 배치 — 다시 만들지 마라): 네 본문 말고도 다음이 이미 고정으로 들어간다. 인지하고 중복하지 마라.
+   - 맨 위 Back 바(뒤로가기 + 언어 토글).
+   - 그다음 ViewHead: GRID 좌표 + 페이지 큰 제목 + lede 소개(viewHeaders[persona]에서 자동). → 본문 첫 섹션에서 같은 제목·자기소개를 되풀이하지 마라.
+   - 맨 끝 CoffeeCTA: 'Coffee chat — 30 min' 커피챗 예약 카드(Calendly). 연락·마무리 CTA가 이미 끝에 있다. → '연락 / Contact / 커피챗 / 대화 나눠요' 같은 마무리·연락 섹션을 따로 만들지 마라(중복).
+   너는 ViewHead 와 CoffeeCTA 사이의 본문만 짠다.
 5) 문체(한국어): 줄글은 존댓말(~합니다/~입니다). 첫 문장을 "저는/임한솔은" 같은 1인칭·이름 고정으로 시작하지 마라. 엠대시(—)·말줄임표(…)·곡선따옴표 금지 — 하이픈·마침표·곧은따옴표만.
 6) **형제 관점과 협업(매우 중요)**: 너는 혼자가 아니다. 아래 [형제 관점들의 현재 구성]에 다른 관점 페이지들이 어떻게 만들어졌는지 있다. **한 사람이 만든 한 사이트**처럼 보이도록 형제들과 맞춰라 — 섹션 헤더의 워딩·형식(예: 한국어 제목인지 영문인지, 번호 붙이는지, 영문 kicker 다는지), 컴포넌트 쓰는 습관, 톤. 한쪽은 영문 제목·다른 쪽은 한글 제목처럼 따로 노는 건 금지. 단 베끼지는 말고, 내용·강조·순서는 ${persona} 관점에 맞게 다르게. (형제가 아직 없으면 네가 기준이 된다 — 명확하고 일관된 헤더로 첫 표준을 세워라.)
 7) 기술/스택은 '범위 신호'로만(헤드라인 금지): 기술 나열이 'X·Y·Z 밖에 못 하는 사람'으로 축소시키면 안 된다(12년차 엔지니어->대표·팀장 포지셔닝과 충돌).
