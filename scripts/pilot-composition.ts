@@ -11,6 +11,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
+import { generateText, jsonSchema, tool } from "ai";
 import {
   pageCompositionSchema,
   siteCompositionSchema,
@@ -20,8 +21,10 @@ import {
 import { COMPOSE_MANIFEST } from "../src/content/compose/manifest";
 import { renderComposeCatalog } from "../src/content/compose/catalog";
 import { SITE_STRUCTURE } from "../src/content/site-structure";
+import { gatewayModel } from "../src/lib/llm";
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
+const MODEL =
+  process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-4.7";
 const SITE_DATA_PATH = "hsol-info-blob/vault/object-views/site-data.json";
 const VAULT = "hsol-info-blob/vault";
 const CONTEXT_FILES = [
@@ -95,38 +98,34 @@ function enforceSkeleton(persona: Persona, comp: PageComposition): PageCompositi
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Anthropic 호출 + 일시적 오류(네트워크/429/5xx) 지수 백오프 재시도. */
-async function callAnthropic(apiKey: string, prompt: string, maxRetries = 4) {
-  const body = JSON.stringify({
-    model: MODEL,
-    max_tokens: 16000,
-    messages: [{ role: "user", content: prompt }],
-    tools: [
-      {
-        name: TOOL,
-        description: "디자인시스템 컴포넌트 트리(composition)와 changes 를 반환한다. 일반 텍스트 금지.",
-        input_schema: {
-          type: "object",
-          additionalProperties: true,
-          properties: { composition: { type: "object" }, changes: { type: "array", items: { type: "string" } } },
-          required: ["composition"],
-        },
-      },
-    ],
-    tool_choice: { type: "tool", name: TOOL },
-  });
+/** composition 결과를 강제 tool_use 로 반환하는 툴(실행 없음 — 구조화 출력 용도). */
+const compositionTool = tool({
+  description: "디자인시스템 컴포넌트 트리(composition)와 changes 를 반환한다. 일반 텍스트 금지.",
+  inputSchema: jsonSchema<{ composition?: unknown; changes?: unknown }>({
+    type: "object",
+    additionalProperties: true,
+    properties: { composition: { type: "object" }, changes: { type: "array", items: { type: "string" } } },
+    required: ["composition"],
+  }),
+});
+
+/** AI Gateway 호출(강제 tool_use) + 일시적 오류(네트워크/429/5xx) 지수 백오프 재시도. */
+async function callComposition(
+  prompt: string,
+  maxRetries = 4,
+): Promise<{ composition?: unknown; changes?: unknown } | undefined> {
   let lastErr: Error | null = null;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-        body,
+      const result = await generateText({
+        model: gatewayModel(MODEL),
+        maxOutputTokens: 16000,
+        messages: [{ role: "user", content: prompt }],
+        tools: { [TOOL]: compositionTool },
+        toolChoice: { type: "tool", toolName: TOOL },
       });
-      if (res.ok) return (await res.json()) as { content?: Array<{ type?: string; name?: string; input?: unknown }> };
-      const text = await res.text();
-      lastErr = new Error(`Anthropic ${res.status}: ${text}`);
-      if (!(res.status === 429 || res.status >= 500) || attempt === maxRetries) throw lastErr;
+      const call = result.toolCalls.find((c) => c.toolName === TOOL);
+      return call?.input as { composition?: unknown; changes?: unknown } | undefined;
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
       if (attempt === maxRetries) throw lastErr;
@@ -135,7 +134,7 @@ async function callAnthropic(apiKey: string, prompt: string, maxRetries = 4) {
     console.log(`    (재시도 ${attempt + 1}/${maxRetries}: ${lastErr.message.slice(0, 80)} — ${delay}ms 후)`);
     await sleep(delay);
   }
-  throw lastErr ?? new Error("Anthropic request failed");
+  throw lastErr ?? new Error("composition request failed");
 }
 
 /** 트리의 모든 노드 컴포넌트 이름(중첩 포함). */
@@ -237,7 +236,6 @@ interface SiteShape {
 }
 
 async function generateForPersona(
-  apiKey: string,
   persona: Persona,
   site: SiteShape,
   context: string,
@@ -268,11 +266,10 @@ async function generateForPersona(
 
   let hint = "";
   for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const data = await callAnthropic(apiKey, hint ? `${prompt}\n\n이전 시도 오류:\n${hint}\n고쳐서 다시 생성하라.` : prompt);
-    const tool = data.content?.find((b) => b.type === "tool_use" && b.name === TOOL)?.input as
-      | { composition?: unknown; changes?: unknown }
-      | undefined;
-    const parsed = pageCompositionSchema.safeParse(tool?.composition);
+    const toolInput = await callComposition(
+      hint ? `${prompt}\n\n이전 시도 오류:\n${hint}\n고쳐서 다시 생성하라.` : prompt,
+    );
+    const parsed = pageCompositionSchema.safeParse(toolInput?.composition);
     if (!parsed.success) {
       hint = parsed.error.issues.slice(0, 10).map((s) => `${s.path.join(".") || "<root>"}: ${s.message}`).join("\n");
       console.log(`    [${persona} attempt ${attempt}] 트리 형태 실패: ${hint}`);
@@ -284,15 +281,18 @@ async function generateForPersona(
       console.log(`    [${persona} attempt ${attempt}] 노드 검증 실패:\n${hint}`);
       continue;
     }
-    const changes = (Array.isArray(tool?.changes) ? (tool?.changes as unknown[]) : []).map((c) => String(c).trim()).filter(Boolean);
+    const changes = (Array.isArray(toolInput?.changes) ? (toolInput?.changes as unknown[]) : []).map((c) => String(c).trim()).filter(Boolean);
     return { composition: parsed.data, changes };
   }
   return null;
 }
 
 async function main() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Missing ANTHROPIC_API_KEY (run with --env-file=.env.local)");
+  if (!process.env.AI_GATEWAY_API_KEY && !process.env.VERCEL_OIDC_TOKEN) {
+    throw new Error(
+      "Missing AI Gateway 인증 — AI_GATEWAY_API_KEY 또는 VERCEL_OIDC_TOKEN 필요 (run with --env-file=.env.local; OIDC는 `vercel env pull` 로 갱신)",
+    );
+  }
 
   const argv = process.argv.slice(2).filter((a) => (PERSONAS as readonly string[]).includes(a)) as Persona[];
   const targets = argv.length ? argv : [...PERSONAS];
@@ -316,7 +316,7 @@ async function main() {
   for (const persona of targets) {
     console.log(`[pilot] ${persona} composition 생성 중 (model=${MODEL})...`);
     try {
-      const result = await generateForPersona(apiKey, persona, site, context, pages);
+      const result = await generateForPersona(persona, site, context, pages);
       if (!result) {
         console.error(`  ✗ ${persona}: 3회 검증 실패 — 건너뜀(기존/blocks 폴백)`);
         continue;

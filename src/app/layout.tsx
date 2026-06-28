@@ -104,6 +104,8 @@ const STRUCTURED_DATA = {
       url: SITE_URL,
       image: `${SITE_URL}/og.png`,
       jobTitle: "대표 / 메이커",
+      disambiguatingDescription:
+        "정의당 정치인·법무법인 광장 조세변호사·한밭대 교수·뮤지컬배우 임한솔과 동명이인인, 씨엔티테크→리디북스→토스를 거친 12년차 소프트웨어 엔지니어이자 스타트업 대표 임한솔.",
       description: SITE_DESCRIPTION_LONG,
       worksFor: [
         { "@id": "https://proofer.tech/#organization" },

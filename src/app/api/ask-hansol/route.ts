@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { tool } from "ai";
+import { z } from "zod";
 import { getSiteData } from "@/lib/content/site-data";
+import { chatText } from "@/lib/llm";
 import type { SiteData } from "@/content/schema";
 import { normalizeAskAnswerPlainText } from "@/lib/ask-hansol/answer-linkify";
 import {
@@ -209,93 +212,36 @@ async function persistAskExchange(
   }
 }
 
-type AnthropicContentBlock =
-  | { type: "text"; text?: string }
-  | { type: "tool_use"; id: string; name: string; input?: unknown };
-
 function toPlainAnswer(text: string): string {
   return normalizeAskAnswerPlainText(text);
 }
+
+/** Ask Hansol용 Blob 조회 툴. AI SDK가 tool_use/tool_result 루프를 자동 처리한다. */
+const blobLookupTool = tool({
+  description:
+    "Ask Hansol용 Blob 문서를 조회합니다. 결과에 vault/README.md가 있으면 읽는 법 지침일 뿐 사실 근거가 아님. 사실은 objects 등 본문을 따르며, 본문에 가족·배우자 사실이 있으면 방문자에게 그대로 말해도 됨. 방문자 답변 문장에는 vault/Blob/매뉴얼·조회 과정을 언급하지 말 것.",
+  inputSchema: z.object({
+    query: z.string().describe("조회할 주제 또는 질문"),
+  }),
+  execute: async ({ query }) => runBlobLookupTool({ query }),
+});
 
 async function askAnthropicChat(
   systemPrompt: string,
   priorTurns: Array<{ role: "user" | "assistant"; content: string }>,
   latestUserText: string,
 ): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
-  const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
-  const messages: Array<{ role: "user" | "assistant"; content: unknown }> = [];
-
-  for (const t of priorTurns) {
-    messages.push({ role: t.role, content: t.content });
-  }
-  messages.push({ role: "user", content: latestUserText });
-
-  for (let i = 0; i < 4; i++) {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 600,
-        system: systemPrompt,
-        messages,
-        tools: [
-          {
-            name: "blob_lookup",
-            description:
-              "Ask Hansol용 Blob 문서를 조회합니다. 결과에 vault/README.md가 있으면 읽는 법 지침일 뿐 사실 근거가 아님. 사실은 objects 등 본문을 따르며, 본문에 가족·배우자 사실이 있으면 방문자에게 그대로 말해도 됨. 방문자 답변 문장에는 vault/Blob/매뉴얼·조회 과정을 언급하지 말 것.",
-            input_schema: {
-              type: "object",
-              properties: {
-                query: { type: "string", description: "조회할 주제 또는 질문" },
-              },
-              required: ["query"],
-            },
-          },
-        ],
-      }),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as { content?: AnthropicContentBlock[] };
-    const content = data.content ?? [];
-    const toolUses = content.filter(
-      (block): block is Extract<AnthropicContentBlock, { type: "tool_use" }> =>
-        block.type === "tool_use" && block.name === "blob_lookup",
-    );
-
-    messages.push({ role: "assistant", content });
-
-    if (toolUses.length === 0) {
-      const answer = content
-        .filter(
-          (block): block is Extract<AnthropicContentBlock, { type: "text" }> =>
-            block.type === "text",
-        )
-        .map((block) => block.text ?? "")
-        .join("\n")
-        .trim();
-      return answer ? toPlainAnswer(answer) : null;
-    }
-
-    for (const toolUse of toolUses) {
-      const toolResult = await runBlobLookupTool(toolUse.input);
-      messages.push({
-        role: "user",
-        content: [{ type: "tool_result", tool_use_id: toolUse.id, content: toolResult }],
-      });
-    }
-  }
-
-  return null;
+  const answer = await chatText({
+    system: systemPrompt,
+    maxOutputTokens: 600,
+    messages: [
+      ...priorTurns.map((t) => ({ role: t.role, content: t.content })),
+      { role: "user" as const, content: latestUserText },
+    ],
+    tools: { blob_lookup: blobLookupTool },
+    maxSteps: 4,
+  });
+  return answer ? toPlainAnswer(answer) : null;
 }
 
 export async function GET(req: Request) {

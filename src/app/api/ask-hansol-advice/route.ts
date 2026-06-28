@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSiteData } from "@/lib/content/site-data";
 import type { SiteData } from "@/content/schema";
 import { normalizeAskAnswerPlainText } from "@/lib/ask-hansol/answer-linkify";
+import { chatText } from "@/lib/llm";
 import {
   fetchComprehensiveProfileContext,
   fetchVaultReadmeGuideBody,
@@ -132,37 +133,13 @@ ${facts}${supplementary}${readmeBlock}`;
 }
 
 async function adviseWithAnthropic(systemPrompt: string, issue: string): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
-  const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
   const userBlock = `아래 이슈/고민에 대해, 임한솔 본인이 1인칭(저는/저라면/제)으로 직접 답하듯이 위 원칙·형식대로 답해 주세요. 자신을 3인칭으로 부르지 마세요.\n\n[방문자의 이슈]\n${issue}`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1_300,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userBlock }],
-    }),
-    cache: "no-store",
+  const text = await chatText({
+    system: systemPrompt,
+    maxOutputTokens: 1_300,
+    messages: [{ role: "user", content: userBlock }],
   });
-  if (!response.ok) return null;
-
-  const data = (await response.json()) as {
-    content?: Array<{ type: string; text?: string }>;
-  };
-  const text = (data.content ?? [])
-    .filter((b): b is { type: "text"; text?: string } => b.type === "text")
-    .map((b) => b.text ?? "")
-    .join("\n")
-    .trim();
   return text ? normalizeAskAnswerPlainText(text) : null;
 }
 
