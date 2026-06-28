@@ -2,6 +2,9 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { generateText, jsonSchema, stepCountIs, tool, type ModelMessage, type ToolSet } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { gatewayModel } from "../src/lib/llm";
 import { siteDataSchema, type SiteData } from "../src/content/schema";
 import { stripAiTypographyDeep } from "../src/lib/ai-typography";
 import { HSOL_DATA } from "../src/data/site";
@@ -29,7 +32,8 @@ function buildVersion(d: Date): string {
   return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}.${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`;
 }
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
+const MODEL =
+  process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-4.7";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
 const SITE_DATA_PATH =
   process.env.VAULT_SITE_DATA_PATH ??
@@ -665,58 +669,78 @@ function isEmitToolUseBlock(
   return item.type === "tool_use" && item.name === EMIT_TOOL_NAME;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Anthropic 메시지 body(model/max_tokens/messages/tools/tool_choice)를 AI SDK 호출로 변환한다.
+ * - 커스텀 툴(name+input_schema)은 강제 구조화 출력용(실행 없음)으로 매핑.
+ * - 서버 툴(web_search / web_fetch)은 @ai-sdk/anthropic provider 툴로 매핑(Gateway 경유 실행).
+ */
+function toAiTools(raw: unknown): ToolSet {
+  const list = Array.isArray(raw)
+    ? (raw as Array<{ type?: string; name?: string; description?: string; input_schema?: unknown }>)
+    : [];
+  const out: ToolSet = {};
+  for (const t of list) {
+    const type = t.type ?? "";
+    if (type.startsWith("web_search")) {
+      out.web_search = anthropic.tools.webSearch_20260209();
+    } else if (type.startsWith("web_fetch")) {
+      out.web_fetch = anthropic.tools.webFetch_20260209();
+    } else if (t.name && t.input_schema) {
+      out[t.name] = tool({
+        description: t.description ?? "",
+        inputSchema: jsonSchema(t.input_schema as Parameters<typeof jsonSchema>[0]),
+      });
+    }
+  }
+  return out;
+}
 
 /**
- * Anthropic Messages 단발 호출(raw HTTP) + 일시적 오류 재시도.
- * 429/5xx 와 네트워크 오류는 지수 백오프로 재시도하고, 그 외 4xx 는 즉시 실패한다.
- * 무인 CI 파이프라인이 일시적 API 블립(예: 500 Internal server error)에 죽지 않게 한다.
+ * Vercel AI Gateway 경유 단발 호출. 기존 raw-HTTP 호출부와 호환되는 {content, stop_reason, usage}
+ * 형태로 반환한다(호출부의 tool_use/text 블록 파싱·max_tokens 감지 로직을 그대로 유지).
+ * 일시적 오류(429/5xx/네트워크)는 AI SDK가 maxRetries 만큼 지수 백오프로 재시도한다.
  */
 async function anthropicFetchJson(
-  apiKey: string,
+  _apiKey: string,
   body: Record<string, unknown>,
   opts?: { maxRetries?: number },
 ): Promise<{ content?: AnthropicContent[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }> {
-  const maxRetries = opts?.maxRetries ?? Number(process.env.ANTHROPIC_MAX_RETRIES ?? 4);
-  let lastErr: Error | null = null;
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    let response: Response;
-    try {
-      response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify(body),
-      });
-    } catch (networkErr) {
-      lastErr = networkErr instanceof Error ? networkErr : new Error(String(networkErr));
-      if (attempt < maxRetries) {
-        const delay = Math.min(2000 * 2 ** attempt, 30000);
-        logStep(`Anthropic network error (attempt ${attempt + 1}/${maxRetries + 1}): ${lastErr.message}; retry in ${delay}ms.`);
-        await sleep(delay);
-        continue;
-      }
-      throw lastErr;
-    }
+  const tools = toAiTools(body.tools);
+  const hasTools = Object.keys(tools).length > 0;
+  const choice = body.tool_choice as { type?: string; name?: string } | undefined;
 
-    if (response.ok) {
-      return (await response.json()) as Awaited<ReturnType<typeof anthropicFetchJson>>;
-    }
-    const text = await response.text();
-    lastErr = new Error(`Anthropic request failed (${response.status}): ${text}`);
-    const retryable = response.status === 429 || response.status >= 500;
-    if (retryable && attempt < maxRetries) {
-      const delay = Math.min(2000 * 2 ** attempt, 30000);
-      logStep(`Anthropic ${response.status} (attempt ${attempt + 1}/${maxRetries + 1}); retry in ${delay}ms.`);
-      await sleep(delay);
-      continue;
-    }
-    throw lastErr;
+  const result = await generateText({
+    model: gatewayModel((body.model as string | undefined) ?? null),
+    maxOutputTokens: body.max_tokens as number,
+    messages: body.messages as ModelMessage[],
+    maxRetries: opts?.maxRetries ?? Number(process.env.ANTHROPIC_MAX_RETRIES ?? 4),
+    ...(hasTools ? { tools, stopWhen: stepCountIs(RESEARCH_MAX_ROUNDS) } : {}),
+    ...(choice?.type === "tool" && choice.name
+      ? { toolChoice: { type: "tool" as const, toolName: choice.name } }
+      : {}),
+  });
+
+  const content: AnthropicContent[] = [];
+  if (result.text?.trim()) content.push({ type: "text", text: result.text });
+  for (const call of result.toolCalls) {
+    content.push({ type: "tool_use", name: call.toolName, input: call.input });
   }
-  throw lastErr ?? new Error("Anthropic request failed");
+
+  const stop_reason =
+    result.finishReason === "length"
+      ? "max_tokens"
+      : result.finishReason === "tool-calls"
+        ? "tool_use"
+        : "end_turn";
+
+  return {
+    content,
+    stop_reason,
+    usage: {
+      input_tokens: result.usage?.inputTokens,
+      output_tokens: result.usage?.outputTokens,
+    },
+  };
 }
 
 async function requestAnthropicStructured(
@@ -1485,9 +1509,11 @@ ${args.contextText}
 
 async function main() {
   logStep("Refresh started.");
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // AI Gateway 인증: 로컬은 AI_GATEWAY_API_KEY 또는 VERCEL_OIDC_TOKEN, CI/배포는 OIDC 자동.
+  // apiKey 변수는 하위 호출부 시그니처 호환을 위한 마커일 뿐(실제 인증은 Gateway가 처리).
+  const apiKey = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN ?? "";
   if (!apiKey) {
-    throw new Error("Missing ANTHROPIC_API_KEY");
+    throw new Error("Missing AI Gateway 인증 — AI_GATEWAY_API_KEY 또는 VERCEL_OIDC_TOKEN 필요 (OIDC는 `vercel env pull` 로 갱신)");
   }
 
   const { text: currentSiteDataText, exists: hasExistingSiteData } = await getExistingSiteDataText();

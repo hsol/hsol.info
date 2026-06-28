@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSiteData } from "@/lib/content/site-data";
 import type { SiteData } from "@/content/schema";
 import { normalizeAskAnswerPlainText } from "@/lib/ask-hansol/answer-linkify";
+import { chatText } from "@/lib/llm";
 import {
   fetchComprehensiveProfileContext,
   fetchVaultReadmeGuideBody,
@@ -120,37 +121,13 @@ async function analyzeJdWithAnthropic(
   systemPrompt: string,
   jdText: string,
 ): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
-  const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
   const userBlock = `아래 채용 공고(JD)에 대한 임한솔의 적합도를 위 원칙·형식대로 분석해 주세요.\n\n[채용 공고(JD)]\n${jdText}`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1_100,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userBlock }],
-    }),
-    cache: "no-store",
+  const text = await chatText({
+    system: systemPrompt,
+    maxOutputTokens: 1_100,
+    messages: [{ role: "user", content: userBlock }],
   });
-  if (!response.ok) return null;
-
-  const data = (await response.json()) as {
-    content?: Array<{ type: string; text?: string }>;
-  };
-  const text = (data.content ?? [])
-    .filter((b): b is { type: "text"; text?: string } => b.type === "text")
-    .map((b) => b.text ?? "")
-    .join("\n")
-    .trim();
   return text ? normalizeAskAnswerPlainText(text) : null;
 }
 

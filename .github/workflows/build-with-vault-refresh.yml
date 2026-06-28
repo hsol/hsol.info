@@ -36,8 +36,9 @@ jobs:
 
       - name: Refresh site-data with Claude
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: claude-sonnet-4-6
+          # Vercel AI Gateway 경유(직접 Anthropic 호출 없음). CI엔 OIDC가 없으므로 키 필수.
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          AI_GATEWAY_MODEL: anthropic/claude-opus-4.7
           ANTHROPIC_MAX_TOKENS: "64000"
           GIT_DIFF_BASE_SHA: ${{ github.event.before }}
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
