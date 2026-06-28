@@ -313,6 +313,26 @@ function mergeCareerItemTier(args: {
   return out;
 }
 
+/**
+ * 모델이 글/레퍼런스 항목(blog·extraWritings·notes·methods 등 MethodItem)에 자율 판단으로 채운
+ * 정식 href 를 큐레이트된 기존 항목에 name 기준으로 반영한다. 콘텐츠(name/blurb 등)는 건드리지 않고
+ * href 만 보강 — 머지가 base(HSOL_DATA)로 리셋하느라 모델의 링크 판단이 버려지던 걸 살린다.
+ */
+function applyModelHrefs(
+  existing: Array<{ name: string; href?: string }> | undefined,
+  incoming: unknown,
+): void {
+  if (!Array.isArray(existing)) return;
+  const inList = (Array.isArray(incoming) ? incoming : [])
+    .map((x) => toRecord(x))
+    .filter((x): x is Record<string, unknown> => Boolean(x));
+  for (const item of existing) {
+    const match = inList.find((r) => pickString(r.name) === item.name);
+    const href = pickString(match?.href);
+    if (href && /^https?:\/\//i.test(href)) item.href = href;
+  }
+}
+
 function normalizeAlternateSiteDataShape(input: unknown): unknown {
   const src = toRecord(input);
   if (!src) return input;
@@ -390,6 +410,16 @@ function normalizeAlternateSiteDataShape(input: unknown): unknown {
     out.portfolioCopy.home.coffeeButtonLabel =
       pickString(portfolioCopy.ctaMain, out.portfolioCopy.home.coffeeButtonLabel) ??
       out.portfolioCopy.home.coffeeButtonLabel;
+
+    // 글/레퍼런스 항목: 모델이 vault URL을 보고 채운 href를 큐레이트 항목에 자율 반영(콘텐츠는 유지).
+    const pcBuilder = toRecord(portfolioCopy.builder);
+    if (pcBuilder) {
+      const blogHref = pickString(toRecord(pcBuilder.blog)?.href);
+      if (blogHref && /^https?:\/\//i.test(blogHref)) out.portfolioCopy.builder.blog.href = blogHref;
+      applyModelHrefs(out.portfolioCopy.builder.extraWritings, pcBuilder.extraWritings);
+    }
+    applyModelHrefs(out.portfolioCopy.curious.notes, toRecord(portfolioCopy.curious)?.notes);
+    applyModelHrefs(out.portfolioCopy.collab.methods, toRecord(portfolioCopy.collab)?.methods);
   }
 
   if (Array.isArray(src.career) && src.career.length > 0) {
@@ -464,10 +494,15 @@ function normalizeAlternateSiteDataShape(input: unknown): unknown {
     out.publications = src.publications
       .map((item) => toRecord(item))
       .filter((item): item is Record<string, unknown> => Boolean(item))
-      .map((item, idx) => ({
-        title: pickString(item.title, out.publications[idx]?.title, "Untitled") ?? "Untitled",
-        desc: pickString(item.desc, item.descKo, out.publications[idx]?.desc, "설명 없음") ?? "설명 없음",
-      }));
+      .map((item, idx) => {
+        // href: 모델이 vault URL을 채우면 살리고, 없으면 기존 값 유지(있어야 Writing 카드가 링크로 렌더됨).
+        const href = pickString(item.href, out.publications[idx]?.href);
+        return {
+          title: pickString(item.title, out.publications[idx]?.title, "Untitled") ?? "Untitled",
+          desc: pickString(item.desc, item.descKo, out.publications[idx]?.desc, "설명 없음") ?? "설명 없음",
+          ...(href && /^https?:\/\//i.test(href) ? { href } : {}),
+        };
+      });
   }
 
   if (Array.isArray(src.faq) && src.faq.length > 0) {
@@ -1230,6 +1265,7 @@ async function generateComposition(
 8) **이력서 진입점(ResumeCTA)**: 이력서·포트폴리오 원페이저(/resume)로 보내는 ResumeCTA 컴포넌트가 있다. **hire(채용) 관점에는 반드시 포함**해 PDF 이력서 진입점을 제공하라(보통 경력/하이라이트 근처나 본문 말미). collab·builder 도 적절하면 넣고, curious 는 선택.
    - **Divider 는 한 섹션 안(children)에서 묶음을 나눌 때만** 쓴다. **섹션과 섹션 사이(최상위)에 Divider 를 넣지 마라** — 섹션은 이미 충분히 떨어진다(중복·노이즈).
 9) **변화는 있어야**: 이번 회차 리서치 인사이트를 최소 1곳 구성에 반영하라(섹션 추가/순서/강조). 단 의미 없는 뒤섞기 금지.
+10) **레퍼런스는 링크로(중요)**: 본문이 가리키는 대상에 [참조 vault 컨텍스트]·data-bound 데이터에 **정식 URL 이 있으면 평문으로 두지 말고 클릭 가능한 링크로 건다**. 링크 수단은 LinkList(items[{label,href}]) 또는 CardGrid(items[{title,body,href}]) 의 href, 그리고 글·출판물은 data-bound Writing(자동 링크). **Prose 는 링크를 담지 못한다** — Prose 안에 URL 을 글자로 적지 말고, 링크가 필요한 항목은 위 컴포넌트로 올려라. URL 은 컨텍스트/데이터에 실제 있는 것만 쓰고 지어내지 않는다. 출처·조회 과정·저장소 이름을 드러내지 말라는 규칙은 '공개 가능한 정식 URL 링크'까지 금지하는 게 아니다(글·뉴스레터·출판물·외부 사이트의 공개 링크는 오히려 적극적으로 건다).
 
 [이번 회차 리서치 메모 — 주제: ${args.lens}]
 ${args.researchNotes || "(리서치 없음 — 현재 구성을 기준으로 작은 개선만)"}
@@ -1562,6 +1598,7 @@ async function main() {
 5) 페르소나(hire/collab/builder/curious): portfolioCopy 쪽 timelineIntro는 필수. 문단은 JSON에서 \\n\\n. (1) 한 줄 포지셔닝 (2) 기관·역할·기간·도메인 등 구체를 최소 2곳 이상 녹인 근거 (3) 타임라인으로 자연스럽게 이어지는 마무리. hire/collab/builder/curious 각각 채용·협업·동료 빌더·인간 궤적 독자에 맞는 설득 축을 분명히 한다. viewHeaders의 titleLines·lede는 같은 근거로 timelineIntro와 모순 없이 짝을 이루게(lede는 1~2문장 첫인상, 서사는 timelineIntro). collab 방법론·curious 노트 등 몸통 블러브도 동일 근거·항목마다 다른 각도로 배치한다. timelineIntro·lede·위 필드들은 규칙 3의 **산문 문체(전역)** 를 반드시 따른다.
 6) career[i].points는 항목당 3개 이상 5개 이하로 유지한다(빈 bullet 금지).
 7) career[i].tier: 키는 personas[].key 와 정확히 일치·값은 양의 정수(1=기본 펼침, 2+=접힘). 관점별로 의미 있게 차등하고, 네 관점 전부 동일 중요도가 아니면 숫자만 복붙하지 않는다.
+8) 외부 링크(href) — 역할을 이해하고 스스로 판단: href 는 "방문자가 그 항목의 실제 대상으로 바로 갈 수 있게 하는 링크"다(글이면 원문, 뉴스레터·출판물이면 공식 소개·구매·구독 페이지, 외부 자료면 그 사이트). href 를 가질 수 있는 항목(글·뉴스레터·출판물처럼 외부에 공개된 대상을 가리키는 것)을 다룰 때, [참조 vault 컨텍스트]에 그 항목을 가리키는 **공개된 정식 URL** 이 있고 방문자가 눌러볼 만하다고 판단되면 **항목별 지시를 기다리지 말고 스스로 href 에 채운다** — href 의 의도를 알고 적용하는 것이지, 정해준 항목만 채우는 게 아니다. 단 (a) 컨텍스트에 실제로 있는 URL 만 쓰고 추측·생성 금지 (b) 후보가 여럿이면 가장 정식·현행인 것 하나 (c) 확실한 URL 이 없으면 href 를 비우고, 기존 href 는 더 정확한 게 없는 한 유지한다. URL 을 본문 글자로만 적고(예: "medium.com/...") href 를 비우지 말 것 — 글자 URL 대신 href 로 넣어 클릭 가능하게 한다.
 
 키 구조 템플릿(키 이름 고정 참고용):
 ${SITE_DATA_TEMPLATE}
