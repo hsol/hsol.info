@@ -199,6 +199,7 @@ function buildPrompt(
 8) 이력서 진입점(ResumeCTA): 이력서·포트폴리오 원페이저(/resume)로 보내는 ResumeCTA 컴포넌트가 있다. hire(채용) 관점에는 반드시 포함해 PDF 이력서 진입점을 제공하라. 나머지는 선택.
    - Divider 는 한 섹션 안(children)에서 묶음을 나눌 때만 쓴다. 섹션과 섹션 사이(최상위)에 Divider 를 넣지 마라 — 섹션은 이미 충분히 떨어진다(중복·노이즈).
 9) 관점마다 본문 구성·강조를 다르게: 같은 데이터라도 ${persona} 독자의 관심사에 맞춰 순서·선택·카피를 달리한다.
+10) 레퍼런스는 링크로(중요): 본문이 가리키는 대상에 [참조 vault]·data-bound 데이터에 정식 URL 이 있으면 평문으로 두지 말고 클릭 가능한 링크로 건다. 링크 수단은 LinkList(items[{label,href}])·CardGrid(items[{title,body,href}]) 의 href, 글·출판물은 data-bound Writing(자동 링크). Prose 는 링크를 담지 못하니 Prose 안에 URL 을 글자로 적지 말고 위 컴포넌트로 올려라. URL 은 실제 있는 것만, 지어내지 마라. 출처·조회 과정을 숨기라는 규칙은 공개 가능한 정식 링크(글·뉴스레터·출판물·외부 사이트)까지 막는 게 아니다 — 그런 링크는 적극적으로 건다.
 
 반드시 ${TOOL} tool_use 로만 반환:
 - composition: { "nodes": [ ...노드 ] }
