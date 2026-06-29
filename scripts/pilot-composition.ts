@@ -183,7 +183,7 @@ function buildPrompt(
 
 원칙:
 1) 앵커 후 진화: "현재 composition"이 있으면 통째로 갈아엎지 말고 1~3가지 개선만. 없으면 페이지 성격에 맞게 새로 구성.
-2) 카탈로그 안 component 만. container 만 children 을 가진다. data-bound(Facts/Skills/Writing/Pillars/PillarGrid/CareerTimeline/Gantt/CoffeeCTA/Back/ViewHead)는 배치만 — 내용은 site-data 에서 자동, props 로 내용 지어내지 마라.
+2) 카탈로그 안 component 만. container 만 children 을 가진다. data-bound(Facts/Skills/Writing/Pillars/PillarGrid/CareerTimeline/Gantt/CoffeeCTA/Back/ViewHead)는 배치만 — 내용은 site-data 에서 자동, props 로 내용 지어내지 마라. data-bound 가 자동으로 보여주는 항목(특히 Writing 은 블로그·출판물·뉴스레터를 다 보여줌)을 Callout/CardGrid/Prose 로 또 만들지 마라 — 중복된다.
 3) vault 그라운딩(필수): content 컴포넌트(Prose/Callout/CardGrid/MetricGrid/ChipList/Quote/KeyValueList/LinkList/Heading)의 내용은 아래 [참조 vault]·[관점 데이터]에 실제로 있는 사실로만. 문서 밖 추측·새 수치·과장 금지. 애매하면 항목 수를 줄여라. **"블로그" = 현행 Medium(medium.com/@hsol)**; 한솔닷컴(Tistory)은 deprecated 아카이브로만 표기하고 Medium 을 빠뜨리지 마라.
 4) 고정 골격(시스템이 자동 배치 — 다시 만들지 마라): 네 본문 말고도 다음이 이미 고정으로 들어간다. 인지하고 중복하지 마라.
    - 맨 위 Back 바(뒤로가기 + 언어 토글).

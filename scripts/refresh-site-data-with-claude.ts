@@ -1248,7 +1248,7 @@ async function generateComposition(
 
 원칙(중요):
 1) **앵커 후 진화**: 아래 "현재 composition"이 있으면 그것을 기준으로 통째로 갈아엎지 말고 근거 있는 1~3가지 개선만 적용한다. 없으면 페이지 성격에 맞게 새로 구성한다.
-2) **카탈로그 안에서만**: [컴포넌트 카탈로그]의 component 만 쓴다. container 만 children 을 가진다. data-bound 컴포넌트는 배치만(내용은 site-data 에서 자동) — props 로 내용을 지어내지 마라.
+2) **카탈로그 안에서만**: [컴포넌트 카탈로그]의 component 만 쓴다. container 만 children 을 가진다. data-bound 컴포넌트는 배치만(내용은 site-data 에서 자동) — props 로 내용을 지어내지 마라. **data-bound 와 내용 중복 금지**: data-bound(특히 Writing 은 블로그·출판물·뉴스레터를 자동으로 다 보여준다)를 배치하면, 그 안에 이미 나오는 항목(예: 그 책·그 뉴스레터)을 Callout/CardGrid/Prose 로 또 만들지 마라 — 같은 항목이 두 번 보인다.
 3) **vault 그라운딩(필수)**: content 컴포넌트(Prose/Callout/CardGrid/MetricGrid/ChipList/Quote/KeyValueList/LinkList/Heading)의 내용은 아래 [참조 vault 컨텍스트]에 실제로 있는 사실·고유명사·기간·수치로만 쓴다. 문서 밖 추측·새 수치·과장 금지. 애매하면 항목 수를 줄인다.
    - **"블로그" 용어 규칙**: 그냥 "블로그"는 **현행 Medium(medium.com/@hsol)**을 가리킨다. 한솔닷컴(Tistory)은 **deprecated 아카이브**다. 블로그를 한 항목으로 보여줄 때는 현행 Medium 을 대표로 쓰고, 티스토리는 "아카이브"로만 표기한다(현행처럼 쓰지 마라). Medium 을 빠뜨리지 마라.
 4) **고정 골격(시스템이 자동 배치 — 다시 만들지 마라)**: 이 페이지엔 네 본문 말고도 다음이 **이미 고정으로** 들어간다. 인지하고 중복하지 마라.
@@ -1599,6 +1599,7 @@ async function main() {
 6) career[i].points는 항목당 3개 이상 5개 이하로 유지한다(빈 bullet 금지).
 7) career[i].tier: 키는 personas[].key 와 정확히 일치·값은 양의 정수(1=기본 펼침, 2+=접힘). 관점별로 의미 있게 차등하고, 네 관점 전부 동일 중요도가 아니면 숫자만 복붙하지 않는다.
 8) 외부 링크(href) — 역할을 이해하고 스스로 판단: href 는 "방문자가 그 항목의 실제 대상으로 바로 갈 수 있게 하는 링크"다(글이면 원문, 뉴스레터·출판물이면 공식 소개·구매·구독 페이지, 외부 자료면 그 사이트). href 를 가질 수 있는 항목(글·뉴스레터·출판물처럼 외부에 공개된 대상을 가리키는 것)을 다룰 때, [참조 vault 컨텍스트]에 그 항목을 가리키는 **공개된 정식 URL** 이 있고 방문자가 눌러볼 만하다고 판단되면 **항목별 지시를 기다리지 말고 스스로 href 에 채운다** — href 의 의도를 알고 적용하는 것이지, 정해준 항목만 채우는 게 아니다. 단 (a) 컨텍스트에 실제로 있는 URL 만 쓰고 추측·생성 금지 (b) 후보가 여럿이면 가장 정식·현행인 것 하나 (c) 확실한 URL 이 없으면 href 를 비우고, 기존 href 는 더 정확한 게 없는 한 유지한다. URL 을 본문 글자로만 적고(예: "medium.com/...") href 를 비우지 말 것 — 글자 URL 대신 href 로 넣어 클릭 가능하게 한다.
+9) publications 분류(중복 금지): publications 는 **정식 출판물(책·전자책·논문 등 완결된 저작물)만** 넣는다. 뉴스레터·블로그·연재 글·외부 기고는 publications 가 아니라 portfolioCopy.builder.blog / extraWritings 로 간다. 같은 글(예: 같은 뉴스레터)을 publications 와 extraWritings 양쪽에 넣지 마라 — Writing 카드가 두 번 렌더되어 중복된다. 한 항목은 가장 맞는 한 곳에만 둔다.
 
 키 구조 템플릿(키 이름 고정 참고용):
 ${SITE_DATA_TEMPLATE}
