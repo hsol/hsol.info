@@ -26,12 +26,16 @@ export function ArticleView({ article }: { article: ArticleRow }) {
   return (
     <main id="main-content" className="news-page">
       <article className="news-article" itemScope itemType="https://schema.org/NewsArticle">
+        {/* 화면 breadcrumb 를 JSON-LD BreadcrumbList 와 동일하게: 홈 › 뉴스 › [기사 제목].
+            섹션은 아래 kicker 로 별도 표시한다. */}
         <nav className="news-breadcrumb" aria-label="breadcrumb">
           <Link href="/">홈</Link>
           <span aria-hidden="true">›</span>
           <Link href="/news">뉴스</Link>
           <span aria-hidden="true">›</span>
-          <span className="news-breadcrumb-current">{article.section}</span>
+          <span className="news-breadcrumb-current" aria-current="page">
+            {article.headline}
+          </span>
         </nav>
 
         <header className="news-header">

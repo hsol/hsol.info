@@ -19,12 +19,15 @@
 
 .news-breadcrumb {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
   color: #5b6b78;
   margin-bottom: 1.75rem;
+}
+.news-breadcrumb > a {
+  white-space: nowrap;
 }
 .news-breadcrumb a {
   color: #5b6b78;
@@ -37,6 +40,10 @@
 .news-breadcrumb-current {
   color: #0e2a3d;
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .news-kicker {

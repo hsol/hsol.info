@@ -23,7 +23,6 @@ export const PUBLICATION = "한솔닷컴";
 export const NEWSROOM_NAME = "한솔닷컴 뉴스룸";
 export const NEWSROOM_ID = `${SITE_URL}/news#publisher`;
 const PERSON_ID = `${SITE_URL}/#person`;
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og.png`;
 
 export function articleUrl(slug: string): string {
   return `${SITE_URL}/news/${slug}`;
@@ -39,7 +38,12 @@ export function buildArticleMetadata(article: ArticleRow): Metadata {
   const url = `/news/${article.slug}`;
   const published = isoOrNull(article.publishedAt) ?? undefined;
   const modified = isoOrNull(article.updatedAt) ?? published;
-  const image = article.coverImage ?? DEFAULT_OG_IMAGE;
+  // coverImage 가 있으면 명시. 없으면 og/twitter images 를 비워 두어, 라우트의 opengraph-image
+  // (동적 생성)가 자동으로 카드 이미지로 쓰이게 한다.
+  const cover = article.coverImage;
+  const coverImages = cover
+    ? [{ url: cover, width: 1200, height: 630, alt: article.coverImageAlt ?? article.headline }]
+    : undefined;
 
   return {
     title: article.headline,
@@ -60,13 +64,13 @@ export function buildArticleMetadata(article: ArticleRow): Metadata {
       authors: [SITE_URL],
       section: article.section,
       tags: article.tags,
-      images: [{ url: image, width: 1200, height: 630, alt: article.coverImageAlt ?? article.headline }],
+      ...(coverImages ? { images: coverImages } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title: article.headline,
       description: article.dek ?? article.summary,
-      images: [image],
+      ...(cover ? { images: [cover] } : {}),
     },
   };
 }
@@ -76,7 +80,8 @@ export function buildArticleJsonLd(article: ArticleRow) {
   const url = articleUrl(article.slug);
   const published = isoOrNull(article.publishedAt);
   const modified = isoOrNull(article.updatedAt) ?? published;
-  const image = article.coverImage ?? DEFAULT_OG_IMAGE;
+  // coverImage 없으면 라우트의 동적 OG 이미지를 가리킨다.
+  const image = article.coverImage ?? `${url}/opengraph-image`;
 
   /** 공개 출처 → schema.org citation(CreativeWork). E-E-A-T·근거 신호. */
   const citation = article.references.map((ref) => ({
@@ -84,6 +89,9 @@ export function buildArticleJsonLd(article: ArticleRow) {
     name: ref.title,
     ...(ref.url ? { url: ref.url } : {}),
   }));
+
+  // 한글 본문 단어 수 근사(공백 분절). 구글 wordCount 신호용.
+  const wordCount = article.body.trim().split(/\s+/).filter(Boolean).length;
 
   return {
     "@context": "https://schema.org",
@@ -94,11 +102,14 @@ export function buildArticleJsonLd(article: ArticleRow) {
         headline: article.headline,
         description: article.summary,
         image: [image],
+        thumbnailUrl: image,
         url,
         mainEntityOfPage: { "@type": "WebPage", "@id": url },
         datePublished: published,
         dateModified: modified,
         inLanguage: "ko-KR",
+        isAccessibleForFree: true,
+        wordCount,
         articleSection: article.section,
         keywords: (article.keywords.length ? article.keywords : article.tags).join(", "),
         author: { "@id": NEWSROOM_ID },

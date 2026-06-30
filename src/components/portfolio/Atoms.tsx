@@ -381,7 +381,7 @@ export function Foot() {
       </div>
       <div className="foot-mid">— hsol.info — a living portfolio —</div>
       <div className="foot-links">
-        <Link href="/resume">이력서</Link>
+        <Link href="/resume">Resume</Link>
         <a href={d.linkedin} target="_blank" rel="noopener noreferrer">
           LinkedIn
         </a>
@@ -389,7 +389,7 @@ export function Foot() {
         <a href={d.calendly} target="_blank" rel="noopener noreferrer">
           Calendly
         </a>
-        <Link href="/news">뉴스룸</Link>
+        <Link href="/news">Newsroom</Link>
       </div>
     </footer>
   );

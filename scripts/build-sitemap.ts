@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
-import { listPublishedArticleRefs } from "../src/lib/db/articles";
+import { isArticlesDbConfigured, listPublishedArticleRefs } from "../src/lib/db/articles";
 
 /**
  * 직접 작성한 sitemap 빌더.
@@ -66,8 +66,20 @@ const EXTRA_ROUTES: Array<{ route: string; changefreq: ChangeFreq; priority: num
  * (이 트랙은 SITE_STRUCTURE/site-data 와 무관한 별도 콘텐츠라 여기서 합류시킨다.)
  */
 async function buildNewsEntries(now: string): Promise<UrlEntry[]> {
+  // 빌드 로그에서 뉴스룸 색인 상태를 바로 확인할 수 있게 명시적으로 찍는다.
+  if (!isArticlesDbConfigured()) {
+    console.warn(
+      "[sitemap] DATABASE_URL/POSTGRES_URL 미설정 — /news/* 를 sitemap 에서 제외합니다. " +
+        "(Vercel 빌드 env 에 Neon 변수가 주입되는지 확인)",
+    );
+    return [];
+  }
   const refs = await listPublishedArticleRefs();
-  if (refs.length === 0) return [];
+  if (refs.length === 0) {
+    console.warn("[sitemap] DB 연결됨 · 발행 기사 0건 — /news/* 없음 (먼저 articles:sync 필요).");
+    return [];
+  }
+  console.log(`[sitemap] 뉴스룸 기사 ${refs.length}건 + 허브 1건을 sitemap 에 주입.`);
   const hub: UrlEntry = {
     loc: `${SITE_URL}/news`,
     lastmod: now,

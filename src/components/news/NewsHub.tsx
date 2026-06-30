@@ -23,9 +23,10 @@ export function NewsHub({ articles }: { articles: ArticleRow[] }) {
       </nav>
 
       <header className="news-hub-header">
-        <h1 className="news-hub-title">한솔닷컴 뉴스룸</h1>
+        <h1 className="news-hub-title">한솔닷컴 Newsroom</h1>
         <p className="news-hub-sub">
-          한솔닷컴 뉴스룸이 임한솔의 일과 사건을 취재해 기록합니다.
+          임한솔이 살아오면서 보고 겪은 일과 사건들을 임한솔 AI 클론을 취재하여 순차적으로 기록해 나갑니다.<br/>
+          뉴스룸의 이름은 임한솔의 옛 블로그명을 딴 개인 매체 <strong>한솔닷컴</strong>에서 따왔습니다.
         </p>
       </header>
 

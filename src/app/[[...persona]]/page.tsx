@@ -6,6 +6,21 @@ import {
   type PersonaKey,
 } from "@/components/portfolio/portfolio-types";
 import { getSiteData } from "@/lib/content/site-data";
+import {
+  asGraph,
+  buildBreadcrumbList,
+  buildProfilePageNode,
+  SITE_URL,
+} from "@/lib/seo/person-graph";
+
+const SITE_TITLE = "임한솔 · Hansol Lim — hsol.info";
+/** 페르소나별 빵부스러기 짧은 라벨. */
+const PERSONA_CRUMB: Record<PersonaKey, string> = {
+  hire: "채용·영입",
+  collab: "협업",
+  builder: "메이커",
+  curious: "둘러보기",
+};
 
 /** 페르소나별 검색 진입점 메타데이터. 동일 콘텐츠 셸이지만 URL/타깃 청중이 달라 별도 노출. */
 const PERSONA_META: Record<
@@ -75,5 +90,34 @@ export default async function Page({
     if (!ok) notFound();
   }
   const siteData = await getSiteData();
-  return <PortfolioApp siteData={siteData} />;
+
+  // 페이지 단위 구조화 데이터 — 모든 페르소나 뷰는 임한솔(#person)을 다루는 ProfilePage.
+  const key = segments?.[0] as PersonaKey | undefined;
+  const isPersona = Boolean(key && PERSONA_PATH_KEYS.includes(key));
+  const url = isPersona ? `${SITE_URL}${PERSONA_META[key as PersonaKey].path}` : `${SITE_URL}/`;
+  const name = isPersona ? PERSONA_META[key as PersonaKey].title : SITE_TITLE;
+  const nodes: object[] = [];
+  if (isPersona) {
+    const crumbUrl = `${url}#breadcrumb`;
+    nodes.push(
+      buildProfilePageNode({ url, name, breadcrumbId: crumbUrl }),
+      buildBreadcrumbList(url, [
+        { name: "홈", url: `${SITE_URL}/` },
+        { name: PERSONA_CRUMB[key as PersonaKey], url },
+      ]),
+    );
+  } else {
+    nodes.push(buildProfilePageNode({ url, name, dateModified: new Date().toISOString() }));
+  }
+  const jsonLd = asGraph(nodes);
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PortfolioApp siteData={siteData} />
+    </>
+  );
 }
