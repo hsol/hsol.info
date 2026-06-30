@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArticleView } from "@/components/news/ArticleView";
+import { SiteDataProvider } from "@/components/portfolio/Atoms";
+import { DeferredChatDock } from "@/components/DeferredChatDock";
 import {
   getPublishedArticleBySlug,
   listPublishedArticleRefs,
 } from "@/lib/db/articles";
+import { getSiteData } from "@/lib/content/site-data";
 import { buildArticleJsonLd, buildArticleMetadata } from "@/lib/news/seo";
 import "../news.css";
 
@@ -37,6 +40,7 @@ export default async function NewsArticlePage({ params }: Params) {
   if (!article) notFound();
 
   const jsonLd = buildArticleJsonLd(article);
+  const siteData = await getSiteData();
 
   return (
     <>
@@ -45,6 +49,18 @@ export default async function NewsArticlePage({ params }: Params) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <ArticleView article={article} />
+      {/* Ask Hansol — 기사 독자가 맥락을 바로 물어볼 수 있게 FAB 도크를 띄운다.
+          포트폴리오 뷰가 아니라 "둘러보기(curious)" 맥락에 기사 제목을 detail 로 실어 보낸다. */}
+      <SiteDataProvider data={siteData}>
+        <DeferredChatDock
+          pageContext={{
+            view: "curious",
+            section: "news",
+            hash: `/news/${article.slug}`,
+            detail: article.headline,
+          }}
+        />
+      </SiteDataProvider>
     </>
   );
 }
