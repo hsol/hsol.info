@@ -11,7 +11,8 @@ const PAGE_DESCRIPTION =
   "한솔닷컴 뉴스룸이 엔지니어 출신 메이커 임한솔(Hansol Lim)의 일·사건·성과를 취재해 기록하는 뉴스 아카이브.";
 
 export const metadata: Metadata = {
-  title: PAGE_TITLE,
+  // 허브는 자체 완결형 제목 — 세그먼트 template("— 한솔닷컴")을 우회.
+  title: { absolute: PAGE_TITLE },
   description: PAGE_DESCRIPTION,
   alternates: {
     canonical: "/news",

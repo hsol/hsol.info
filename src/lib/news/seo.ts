@@ -104,7 +104,7 @@ export function buildArticleJsonLd(article: ArticleRow) {
         "@id": `${url}#article`,
         headline: article.headline,
         description: article.summary,
-        image: [image],
+        image: [{ "@type": "ImageObject", url: image, width: 1200, height: 630 }],
         thumbnailUrl: image,
         url,
         mainEntityOfPage: { "@type": "WebPage", "@id": url },
@@ -126,7 +126,7 @@ export function buildArticleJsonLd(article: ArticleRow) {
         "@id": NEWSROOM_ID,
         name: PUBLICATION,
         url: `${SITE_URL}/news`,
-        parentOrganization: { "@id": `${SITE_URL}/#website` },
+        founder: { "@id": PERSON_ID },
         logo: {
           "@type": "ImageObject",
           url: `${SITE_URL}/icons/icon-512.png`,
