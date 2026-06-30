@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
+import { listPublishedArticleRefs } from "../src/lib/db/articles";
 
 /**
  * 직접 작성한 sitemap 빌더.
@@ -59,6 +60,32 @@ const EXTRA_ROUTES: Array<{ route: string; changefreq: ChangeFreq; priority: num
   { route: "/resume", changefreq: "weekly", priority: 0.7 },
 ];
 
+/**
+ * 뉴스룸 — DB(미러)에서 발행 기사 slug 를 읽어 `/news` 허브 + 각 `/news/<slug>` 를 주입한다.
+ * DATABASE_URL 미설정/미동기화면 빈 배열이라 sitemap 은 기존 페이지만으로 정상 생성된다.
+ * (이 트랙은 SITE_STRUCTURE/site-data 와 무관한 별도 콘텐츠라 여기서 합류시킨다.)
+ */
+async function buildNewsEntries(now: string): Promise<UrlEntry[]> {
+  const refs = await listPublishedArticleRefs();
+  if (refs.length === 0) return [];
+  const hub: UrlEntry = {
+    loc: `${SITE_URL}/news`,
+    lastmod: now,
+    changefreq: "daily",
+    priority: 0.8,
+  };
+  const articles = refs.map((r): UrlEntry => {
+    const lastmod = r.lastmod ? new Date(r.lastmod).toISOString() : now;
+    return {
+      loc: `${SITE_URL}/news/${r.slug}`,
+      lastmod: Number.isNaN(Date.parse(lastmod)) ? now : lastmod,
+      changefreq: "monthly",
+      priority: 0.7,
+    };
+  });
+  return [hub, ...articles];
+}
+
 function buildEntries(now: string): UrlEntry[] {
   const pageEntries = PAGE_KEYS.filter((key) => SITE_STRUCTURE[key].inSitemap).map(
     (key): UrlEntry => {
@@ -101,7 +128,10 @@ function renderXml(entries: UrlEntry[]): string {
 
 async function main() {
   const now = new Date().toISOString();
-  const entries = buildEntries(now);
+  const newsEntries = await buildNewsEntries(now);
+  const entries = [...buildEntries(now), ...newsEntries].sort(
+    (a, b) => b.priority - a.priority || a.loc.localeCompare(b.loc),
+  );
   const xml = renderXml(entries);
 
   for (const outputPath of OUTPUT_PATHS) {

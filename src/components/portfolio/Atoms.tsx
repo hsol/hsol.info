@@ -389,9 +389,7 @@ export function Foot() {
         <a href={d.calendly} target="_blank" rel="noopener noreferrer">
           Calendly
         </a>
-        <a href={d.company} target="_blank" rel="noopener noreferrer">
-          Proofer
-        </a>
+        <Link href="/news">뉴스룸</Link>
       </div>
     </footer>
   );
