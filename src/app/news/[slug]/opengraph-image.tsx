@@ -13,10 +13,27 @@ import { getPublishedArticleBySlug } from "@/lib/db/articles";
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "한솔닷컴 뉴스룸";
 
 const NAVY = "#0e2a3d";
 const ACCENT = "#7fb4d0";
+
+/** og:image:alt 를 기사 제목으로 개별화(파일 컨벤션 유지). */
+export async function generateImageMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const article = await getPublishedArticleBySlug(slug);
+  return [
+    {
+      id: "og",
+      alt: article?.headline ?? "한솔닷컴 뉴스룸",
+      size,
+      contentType,
+    },
+  ];
+}
 
 export default async function OgImage({
   params,

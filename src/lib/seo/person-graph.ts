@@ -64,6 +64,10 @@ export function buildPersonNode(data: SiteData, description: string) {
       "@type": "EducationalOrganization",
       name: e.school,
     })),
+    hasCredential: data.certifications.map((c) => ({
+      "@type": "EducationalOccupationalCredential",
+      name: c,
+    })),
     knowsLanguage: data.languages.map((l) => l.name),
     knowsAbout: uniq(data.career.flatMap((c) => c.tags)),
     sameAs: SAME_AS,

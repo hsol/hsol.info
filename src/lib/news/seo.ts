@@ -83,8 +83,9 @@ export function buildArticleJsonLd(article: ArticleRow) {
   const url = articleUrl(article.slug);
   const published = isoOrNull(article.publishedAt);
   const modified = isoOrNull(article.updatedAt) ?? published;
-  // coverImage 없으면 라우트의 동적 OG 이미지를 가리킨다.
-  const image = article.coverImage ?? `${url}/opengraph-image`;
+  // coverImage 없으면 동적 OG 이미지. opengraph-image.tsx 가 generateImageMetadata 로 id "og"
+  // 를 붙이므로 실제 경로는 `/opengraph-image/og`(bare 는 404). id 변경 시 함께 수정.
+  const image = article.coverImage ?? `${url}/opengraph-image/og`;
 
   /** 공개 출처 → schema.org citation(CreativeWork). E-E-A-T·근거 신호. */
   const citation = article.references.map((ref) => ({
