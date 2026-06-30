@@ -13,13 +13,30 @@ import type { AskDraft } from "@/components/portfolio/portfolio-types";
  */
 
 type Listener = (draft: AskDraft) => void;
+type OpenListener = () => void;
 
 let pending: AskDraft | null = null;
 const listeners = new Set<Listener>();
+const openListeners = new Set<OpenListener>();
 
 export function requestSelectionAsk(draft: AskDraft): void {
   pending = draft;
   listeners.forEach((listener) => listener(draft));
+}
+
+/**
+ * 질문 자동 전송 없이 Ask 도크만 연다(예: "직접 물어보기" CTA).
+ * requestSelectionAsk 와 달리 draft 를 남기지 않아 도크가 빈 입력 상태로 떠 사용자가 직접 친다.
+ */
+export function requestAskOpen(): void {
+  openListeners.forEach((listener) => listener());
+}
+
+export function onAskOpen(listener: OpenListener): () => void {
+  openListeners.add(listener);
+  return () => {
+    openListeners.delete(listener);
+  };
 }
 
 export function onSelectionAsk(listener: Listener): () => void {

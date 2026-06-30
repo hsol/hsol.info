@@ -5,7 +5,7 @@
 import "@/styles/legacy/chatdock.css";
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { lazy } from "@/lib/lazy-dynamic";
-import { onSelectionAsk } from "@/components/ask-selection/selection-bridge";
+import { onAskOpen, onSelectionAsk } from "@/components/ask-selection/selection-bridge";
 
 const ChatDock = lazy(() =>
   import("@/components/portfolio/ask/ChatDock").then((m) => ({ default: m.ChatDock })),
@@ -51,6 +51,9 @@ export function DeferredChatDock({
 
   // 드래그→질문 전역 브리지: 선택 질문이 오면 도크를 띄운다(FAB 상태인 /about 등 포함).
   useEffect(() => onSelectionAsk(() => mountDock(true)), [mountDock]);
+
+  // "직접 물어보기" CTA 등 자동 전송 없이 도크만 여는 전역 신호.
+  useEffect(() => onAskOpen(() => mountDock(true)), [mountDock]);
 
   if (!ready) {
     // 데스크톱 인라인(has-dock, ≥900px)에서는 CSS로 FAB이 숨겨지고 곧바로 인라인 도크가

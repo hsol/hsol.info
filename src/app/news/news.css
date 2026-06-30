@@ -171,13 +171,24 @@
   margin: 0.9rem 0 0;
   font-size: 0.9rem;
 }
-.news-clone-cta a {
+.news-clone-cta a,
+.news-clone-cta-btn {
   color: #1d6fa5;
   font-weight: 600;
   text-decoration: none;
 }
-.news-clone-cta a:hover {
+.news-clone-cta a:hover,
+.news-clone-cta-btn:hover {
   text-decoration: underline;
+}
+/* CTA 는 도크를 여는 버튼이지만 기존 링크와 동일하게 보이도록 버튼 크롬 제거. */
+.news-clone-cta-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 .news-sources {

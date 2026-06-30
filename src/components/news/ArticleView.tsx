@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ArticleRow } from "@/types/article";
 import { MarkdownBody } from "@/components/portfolio/ask/MarkdownBody";
+import { AskHansolCta } from "@/components/news/AskHansolCta";
 
 const DATE_FMT = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
@@ -90,7 +91,7 @@ export function ArticleView({ article }: { article: ArticleRow }) {
             <p className="news-clone-q">{article.cloneInterview.question}</p>
             <blockquote className="news-clone-a">{article.cloneInterview.answer}</blockquote>
             <p className="news-clone-cta">
-              <Link href="/">Ask Hansol에게 직접 물어보기 →</Link>
+              <AskHansolCta />
             </p>
           </aside>
         ) : null}
