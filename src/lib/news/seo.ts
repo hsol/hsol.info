@@ -50,7 +50,10 @@ export function buildArticleMetadata(article: ArticleRow): Metadata {
     description: article.summary,
     keywords: article.keywords.length ? article.keywords : article.tags,
     authors: [{ name: article.byline, url: SITE_URL }],
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      types: { "application/rss+xml": "/news/feed.xml" },
+    },
     robots: { index: article.status === "published", follow: true },
     openGraph: {
       type: "article",

@@ -13,7 +13,10 @@ const PAGE_DESCRIPTION =
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
-  alternates: { canonical: "/news" },
+  alternates: {
+    canonical: "/news",
+    types: { "application/rss+xml": "/news/feed.xml" },
+  },
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
