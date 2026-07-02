@@ -198,9 +198,21 @@ function expandBareMarkdownAngle(text: string): string {
   return s;
 }
 
+/**
+ * vault 컨텍스트에서 새어 나오는 옵시디언 위키링크(`[[Target]]`·`[[Target|Label]]`·`![[…]]`)를
+ * 일반 텍스트로 푼다. 라벨이 있으면 라벨, 없으면 타깃을 보여주고, 빈 `[[ ]]`는 제거한다.
+ */
+function stripWikilinks(text: string): string {
+  return text.replace(
+    /!?\[\[\s*([^\]|]*?)\s*(?:\|\s*([^\]]*?)\s*)?\]\]/g,
+    (_full, target: string, label?: string) => (label ?? target ?? "").trim(),
+  );
+}
+
 /** API 응답 후처리: 마크다운 서식은 유지하고, 링크만 클릭 가능 형태로 정규화 */
 export function normalizeAskAnswerPlainText(text: string): string {
-  let s = expandBareMarkdownAngle(text);
+  let s = stripWikilinks(text);
+  s = expandBareMarkdownAngle(s);
   s = stripAiTypography(s)
     // Autolink 문법의 <www...>를 <https://www...>로 보정
     .replace(/<(www\.[^>\s]+)>/gi, "<https://$1>")

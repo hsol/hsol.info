@@ -1,0 +1,401 @@
+/* 뉴스룸 — 매거진형 기사 타이포그래피. 본문 가독성·스캔성에 최적화. */
+
+/* 사이트 공통(레거시) 배경을 가리는 기사 전용 풀블리드 배경.
+   레거시 body::before/::after 격자는 position:fixed; z-index:0 이라, 일반 흐름의 배경 위로
+   올라온다. position:relative + z-index:1 로 그 오버레이 위에 불투명 배경을 깐다. */
+.news-root {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  min-height: 100vh;
+}
+
+.news-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 5rem;
+  color: #14202b;
+}
+
+.news-breadcrumb {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #5b6b78;
+  margin-bottom: 1.75rem;
+}
+.news-breadcrumb > a {
+  white-space: nowrap;
+}
+.news-breadcrumb a {
+  color: #5b6b78;
+  text-decoration: none;
+}
+.news-breadcrumb a:hover {
+  color: #0e2a3d;
+  text-decoration: underline;
+}
+.news-breadcrumb-current {
+  color: #0e2a3d;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.news-kicker {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1d6fa5;
+  margin: 0 0 0.6rem;
+}
+
+.news-header {
+  border-bottom: 1px solid #e7ecef;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+}
+.news-headline {
+  font-size: clamp(1.7rem, 4.5vw, 2.4rem);
+  line-height: 1.28;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.9rem;
+}
+.news-dek {
+  font-size: 1.08rem;
+  line-height: 1.6;
+  color: #41525f;
+  margin: 0 0 1.1rem;
+}
+.news-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+  color: #6b7a86;
+}
+
+.news-cover {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin-bottom: 1.75rem;
+  display: block;
+}
+
+.news-body {
+  font-size: 1.06rem;
+  line-height: 1.85;
+  color: #1c2a34;
+}
+.news-body h2 {
+  font-size: 1.32rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 2.4rem 0 0.9rem;
+  letter-spacing: -0.005em;
+}
+.news-body h3 {
+  font-size: 1.12rem;
+  font-weight: 700;
+  margin: 1.8rem 0 0.7rem;
+}
+.news-body p {
+  margin: 0 0 1.25rem;
+}
+.news-body a {
+  color: #1d6fa5;
+  text-underline-offset: 2px;
+}
+.news-body ul,
+.news-body ol {
+  margin: 0 0 1.25rem;
+  padding-left: 1.3rem;
+}
+.news-body li {
+  margin-bottom: 0.5rem;
+}
+.news-body strong {
+  font-weight: 700;
+  color: #0e2a3d;
+}
+.news-body blockquote {
+  border-left: 3px solid #cdd8df;
+  margin: 1.5rem 0;
+  padding: 0.2rem 0 0.2rem 1.1rem;
+  color: #41525f;
+}
+
+/* AI 클론 인터뷰 콜아웃 — Ask Hansol 브랜딩 + 유도 */
+.news-clone {
+  margin: 2.75rem 0 0;
+  padding: 1.25rem 1.4rem;
+  background: #f1f6f9;
+  border: 1px solid #dbe6ec;
+  border-left: 3px solid #1d6fa5;
+  border-radius: 10px;
+}
+.news-clone-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1d6fa5;
+  margin: 0 0 0.6rem;
+}
+.news-clone-q {
+  font-weight: 700;
+  color: #14202b;
+  margin: 0 0 0.5rem;
+}
+.news-clone-a {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 1.04rem;
+  line-height: 1.8;
+  color: #1c2a34;
+}
+.news-clone-a::before {
+  content: "“";
+}
+.news-clone-a::after {
+  content: "”";
+}
+.news-clone-cta {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+}
+.news-clone-cta a,
+.news-clone-cta-btn {
+  color: #1d6fa5;
+  font-weight: 600;
+  text-decoration: none;
+}
+.news-clone-cta a:hover,
+.news-clone-cta-btn:hover {
+  text-decoration: underline;
+}
+/* CTA 는 도크를 여는 버튼이지만 기존 링크와 동일하게 보이도록 버튼 크롬 제거. */
+.news-clone-cta-btn {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.news-sources {
+  margin: 2.75rem 0 0;
+  padding: 1.5rem 0 0;
+  border-top: 1px solid #e7ecef;
+}
+.news-sources-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.7rem;
+  color: #41525f;
+}
+.news-sources-note {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: #5b6b78;
+  margin: 0 0 0.9rem;
+}
+.news-sources-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: #41525f;
+}
+.news-source-item {
+  margin-bottom: 0.35rem;
+}
+.news-source-item a {
+  color: #1d6fa5;
+  text-underline-offset: 2px;
+}
+
+.news-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 2.5rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e7ecef;
+}
+.news-tag {
+  font-size: 0.82rem;
+  color: #5b6b78;
+  background: #f1f5f7;
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+}
+
+.news-footer-nav {
+  margin-top: 2.5rem;
+}
+.news-footer-nav a {
+  color: #1d6fa5;
+  text-decoration: none;
+  font-weight: 600;
+}
+.news-footer-nav a:hover {
+  text-decoration: underline;
+}
+
+/* ── 허브 ── */
+.news-back {
+  margin-bottom: 1.5rem;
+  font-size: 0.86rem;
+}
+.news-back a {
+  color: #5b6b78;
+  text-decoration: none;
+  font-weight: 600;
+}
+.news-back a:hover {
+  color: #0e2a3d;
+  text-decoration: underline;
+}
+
+.news-hub-header {
+  border-bottom: 2px solid #0e2a3d;
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+.news-hub-title {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.6rem;
+}
+.news-hub-sub {
+  color: #41525f;
+  font-size: 1rem;
+  margin: 0;
+}
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.news-list-item {
+  border-bottom: 1px solid #e7ecef;
+}
+.news-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.5rem 0;
+  text-decoration: none;
+  color: inherit;
+}
+.news-card:hover .news-card-headline {
+  color: #1d6fa5;
+}
+.news-card-text {
+  display: block;
+  min-width: 0;
+}
+/* 1200×630 비율 유지 썸네일 — coverImage 없으면 동적 OG 이미지 폴백 */
+.news-card-thumb {
+  width: clamp(120px, 26vw, 200px);
+  height: auto;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.news-card-kicker {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1d6fa5;
+}
+.news-card-headline {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0.4rem 0 0.5rem;
+  transition: color 0.15s ease;
+}
+.news-card-dek {
+  color: #41525f;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  margin: 0 0 0.6rem;
+}
+.news-card-meta {
+  font-size: 0.84rem;
+  color: #6b7a86;
+}
+.news-empty {
+  color: #6b7a86;
+  padding: 3rem 0;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .news-root {
+    background: #0e1519;
+  }
+  .news-page {
+    color: #e6edf2;
+  }
+  .news-body {
+    color: #d4dde3;
+  }
+  .news-body strong,
+  .news-breadcrumb-current,
+  .news-card:hover .news-card-headline {
+    color: #cfe3f0;
+  }
+  .news-header,
+  .news-tags,
+  .news-sources,
+  .news-list-item {
+    border-color: #1f2c34;
+  }
+  .news-sources-note,
+  .news-sources-list {
+    color: #aab8c2;
+  }
+  .news-clone {
+    background: #15212a;
+    border-color: #243341;
+    border-left-color: #4a9fd0;
+  }
+  .news-clone-q {
+    color: #e6edf2;
+  }
+  .news-clone-a {
+    color: #d4dde3;
+  }
+  .news-back a {
+    color: #aab8c2;
+  }
+  .news-back a:hover {
+    color: #cfe3f0;
+  }
+  .news-hub-header {
+    border-color: #cfe3f0;
+  }
+  .news-dek,
+  .news-card-dek,
+  .news-hub-sub {
+    color: #aab8c2;
+  }
+  .news-tag {
+    background: #1a242b;
+    color: #aab8c2;
+  }
+}

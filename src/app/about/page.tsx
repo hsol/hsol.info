@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import PortfolioApp from "@/components/portfolio/PortfolioApp";
 import { getSiteData } from "@/lib/content/site-data";
+import {
+  asGraph,
+  buildBreadcrumbList,
+  buildProfilePageNode,
+} from "@/lib/seo/person-graph";
 
 const SITE_URL = "https://hsol.info";
 
@@ -28,21 +33,22 @@ export const metadata: Metadata = {
 };
 
 /**
- * 이 URL을 "임한솔"이라는 사람(#person)을 다루는 ProfilePage로 명시한다.
- * #person·#website는 루트 레이아웃의 전역 그래프에서 정의되므로 @id로만 참조한다.
+ * 이 URL을 "임한솔"(#person)을 다루는 ProfilePage 로 명시 + 빵부스러기.
+ * #person·#website 는 루트 레이아웃의 전역 그래프에서 정의되므로 @id 로만 참조한다.
  */
-const PROFILE_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "ProfilePage",
-  "@id": `${SITE_URL}/about#profilepage`,
-  url: `${SITE_URL}/about`,
-  name: PAGE_TITLE,
-  inLanguage: "ko-KR",
-  dateModified: new Date().toISOString(),
-  isPartOf: { "@id": `${SITE_URL}/#website` },
-  about: { "@id": `${SITE_URL}/#person` },
-  mainEntity: { "@id": `${SITE_URL}/#person` },
-};
+const ABOUT_URL = `${SITE_URL}/about`;
+const PROFILE_JSON_LD = asGraph([
+  buildProfilePageNode({
+    url: ABOUT_URL,
+    name: PAGE_TITLE,
+    dateModified: new Date().toISOString(),
+    breadcrumbId: `${ABOUT_URL}#breadcrumb`,
+  }),
+  buildBreadcrumbList(ABOUT_URL, [
+    { name: "홈", url: `${SITE_URL}/` },
+    { name: "소개", url: ABOUT_URL },
+  ]),
+]);
 
 export default async function AboutRoutePage() {
   const siteData = await getSiteData();

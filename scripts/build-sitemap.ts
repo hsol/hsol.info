@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
+import { isArticlesDbConfigured, listPublishedArticleRefs } from "../src/lib/db/articles";
 
 /**
  * 직접 작성한 sitemap 빌더.
@@ -14,6 +15,13 @@ import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-str
  * - 동일 본문을 `public/sitemap.xml`과 `public/sitemap`에 모두 쓴다(리다이렉트 없이 공존).
  */
 const SITE_URL = "https://hsol.info";
+/**
+ * 뉴스룸은 news.hsol.info 서브도메인으로 노출한다(미들웨어가 /news 로 리버스 프록시).
+ * sitemap 의 뉴스 엔트리는 메인 도메인이 아니라 이 서브도메인 URL 로 내보낸다.
+ *   news.hsol.info        → /news 허브
+ *   news.hsol.info/<slug> → /news/<slug>
+ */
+const NEWS_SITE_URL = "https://news.hsol.info";
 const OUTPUT_PATHS = ["public/sitemap.xml", "public/sitemap"] as const;
 
 type ChangeFreq =
@@ -59,6 +67,44 @@ const EXTRA_ROUTES: Array<{ route: string; changefreq: ChangeFreq; priority: num
   { route: "/resume", changefreq: "weekly", priority: 0.7 },
 ];
 
+/**
+ * 뉴스룸 — DB(미러)에서 발행 기사 slug 를 읽어 `/news` 허브 + 각 `/news/<slug>` 를 주입한다.
+ * DATABASE_URL 미설정/미동기화면 빈 배열이라 sitemap 은 기존 페이지만으로 정상 생성된다.
+ * (이 트랙은 SITE_STRUCTURE/site-data 와 무관한 별도 콘텐츠라 여기서 합류시킨다.)
+ */
+async function buildNewsEntries(now: string): Promise<UrlEntry[]> {
+  // 빌드 로그에서 뉴스룸 색인 상태를 바로 확인할 수 있게 명시적으로 찍는다.
+  if (!isArticlesDbConfigured()) {
+    console.warn(
+      "[sitemap] DATABASE_URL/POSTGRES_URL 미설정 — /news/* 를 sitemap 에서 제외합니다. " +
+        "(Vercel 빌드 env 에 Neon 변수가 주입되는지 확인)",
+    );
+    return [];
+  }
+  const refs = await listPublishedArticleRefs();
+  if (refs.length === 0) {
+    console.warn("[sitemap] DB 연결됨 · 발행 기사 0건 — /news/* 없음 (먼저 articles:sync 필요).");
+    return [];
+  }
+  console.log(`[sitemap] 뉴스룸 기사 ${refs.length}건 + 허브 1건을 sitemap 에 주입.`);
+  const hub: UrlEntry = {
+    loc: NEWS_SITE_URL,
+    lastmod: now,
+    changefreq: "daily",
+    priority: 0.8,
+  };
+  const articles = refs.map((r): UrlEntry => {
+    const lastmod = r.lastmod ? new Date(r.lastmod).toISOString() : now;
+    return {
+      loc: `${NEWS_SITE_URL}/${r.slug}`,
+      lastmod: Number.isNaN(Date.parse(lastmod)) ? now : lastmod,
+      changefreq: "monthly",
+      priority: 0.7,
+    };
+  });
+  return [hub, ...articles];
+}
+
 function buildEntries(now: string): UrlEntry[] {
   const pageEntries = PAGE_KEYS.filter((key) => SITE_STRUCTURE[key].inSitemap).map(
     (key): UrlEntry => {
@@ -101,7 +147,10 @@ function renderXml(entries: UrlEntry[]): string {
 
 async function main() {
   const now = new Date().toISOString();
-  const entries = buildEntries(now);
+  const newsEntries = await buildNewsEntries(now);
+  const entries = [...buildEntries(now), ...newsEntries].sort(
+    (a, b) => b.priority - a.priority || a.loc.localeCompare(b.loc),
+  );
   const xml = renderXml(entries);
 
   for (const outputPath of OUTPUT_PATHS) {

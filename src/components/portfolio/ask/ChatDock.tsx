@@ -13,7 +13,11 @@ import {
   streamAnswerText,
 } from "@/lib/ask-hansol/client";
 import { getOrCreateAskHansolSessionId } from "@/lib/ask-hansol/browser-session";
-import { onSelectionAsk, takePendingSelectionAsk } from "@/components/ask-selection/selection-bridge";
+import {
+  onAskOpen,
+  onSelectionAsk,
+  takePendingSelectionAsk,
+} from "@/components/ask-selection/selection-bridge";
 import { ASK_HANSOL_FALLBACK_MESSAGE, ASK_HANSOL_SUGGESTIONS } from "@/lib/ask-hansol/shared";
 import type { AskDraft, ChatMsg } from "@/components/portfolio/portfolio-types";
 import { renderMarkdownText } from "./render-markdown-text";
@@ -153,6 +157,9 @@ export function ChatDock({
       setSelectionDraft(draft);
     });
   }, []);
+
+  // "직접 물어보기" CTA — 자동 전송 없이 도크만 연다. 이미 마운트돼 닫혀 있어도 다시 열리게.
+  useEffect(() => onAskOpen(() => setOpen(true)), []);
 
   useEffect(() => {
     if (!selectionDraft || !historyReady) return;

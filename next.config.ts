@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["mermaid", "react-markdown", "remark-gfm"],
   },
   images: { unoptimized: true },
+  /** 서브모듈(hsol-info-blob) lockfile 때문에 워크스페이스 루트가 오인되지 않게 고정.
+      파일 트레이싱·process.cwd() 기준을 이 프로젝트로 못박는다. */
+  outputFileTracingRoot: rootDir,
+  /** 동적 OG 이미지(satori)가 런타임에 읽는 한글 폰트를 람다 번들에 포함. */
+  outputFileTracingIncludes: {
+    "/news/[slug]/opengraph-image": ["./src/app/fonts/LINESeedKR-Bd.ttf"],
+  },
   /** Claude Design `TweaksPanel` — gradually add types in `src/components/TweaksPanel.tsx` */
   typescript: { ignoreBuildErrors: true },
   webpack: (config, { isServer }) => {

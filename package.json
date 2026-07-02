@@ -12,6 +12,7 @@
     "content:generate:site-ts": "tsx scripts/generate-site-ts-from-vault.ts",
     "content:generate:onepager-pdf": "tsx scripts/generate-onepager-pdf.ts",
     "content:layout:snapshot": "tsx scripts/snapshot-layout-to-site-data.ts",
+    "articles:sync": "tsx scripts/sync-articles.ts",
     "sitemap:build": "tsx scripts/build-sitemap.ts",
     "assets:hansol-photo": "cwebp -q 82 public/hansol.png -o public/hansol.webp && avifenc -q 50 -s 6 public/hansol.png public/hansol.avif && cp public/hansol.webp public/hansol.avif assets/"
   },
@@ -22,6 +23,7 @@
     "@vercel/blob": "^2.3.3",
     "ai": "^7.0.4",
     "framer-motion": "^12.41.0",
+    "gray-matter": "^4.0.3",
     "mermaid": "^11.15.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
