@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { NewsHub } from "@/components/news/NewsHub";
 import { listPublishedArticles } from "@/lib/db/articles";
-import { buildNewsHubJsonLd, PUBLICATION } from "@/lib/news/seo";
+import { buildNewsHubJsonLd, NEWS_URL, PUBLICATION } from "@/lib/news/seo";
 import "./news.css";
 
 export const revalidate = 600;
@@ -15,15 +15,15 @@ export const metadata: Metadata = {
   title: { absolute: PAGE_TITLE },
   description: PAGE_DESCRIPTION,
   alternates: {
-    canonical: "/news",
-    types: { "application/rss+xml": "/news/feed.xml" },
+    canonical: NEWS_URL,
+    types: { "application/rss+xml": `${NEWS_URL}/feed.xml` },
   },
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
-    url: "/news",
+    url: NEWS_URL,
     siteName: PUBLICATION,
     images: [{ url: "/og.png", width: 1200, height: 630 }],
   },

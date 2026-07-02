@@ -6,6 +6,7 @@ import type { NextRequest } from "next/server";
  *
  *   news.hsol.info/          → (rewrite) /news
  *   news.hsol.info/<기사>    → (rewrite) /news/<기사>
+ *   news.hsol.info/feed.xml  → (rewrite) /news/feed.xml   (RSS 자기참조 URL)
  *
  * 리다이렉트가 아니라 rewrite 라 브라우저 주소창은 news.hsol.info 로 유지되고,
  * 실제 렌더는 메인 앱의 /news 트리가 담당한다. (Vercel 프로젝트에 news.hsol.info
@@ -35,6 +36,9 @@ export const config = {
    *  - `_next/`·`api/` : 빌드 산출물·API 라우트
    *  - 확장자 있는 경로(`.*\.`) : favicon·이미지·sitemap.xml 등 정적 자산.
    *    news.hsol.info 로 로드되는 절대경로 자산이 /news/_next/... 로 깨지지 않게 한다.
+   *
+   * 단, `/feed.xml` 만은 예외로 포함해 미들웨어가 /news/feed.xml 로 rewrite 하게 한다
+   * (RSS 자기참조 URL 이 news.hsol.info/feed.xml 이라 이 경로가 실제로 응답해야 함).
    */
-  matcher: ["/((?!_next/|api/|.*\\.).*)"],
+  matcher: ["/((?!_next/|api/|.*\\.).*)", "/feed.xml"],
 };
