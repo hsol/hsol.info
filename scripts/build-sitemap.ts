@@ -15,6 +15,13 @@ import { isArticlesDbConfigured, listPublishedArticleRefs } from "../src/lib/db/
  * - 동일 본문을 `public/sitemap.xml`과 `public/sitemap`에 모두 쓴다(리다이렉트 없이 공존).
  */
 const SITE_URL = "https://hsol.info";
+/**
+ * 뉴스룸은 news.hsol.info 서브도메인으로 노출한다(미들웨어가 /news 로 리버스 프록시).
+ * sitemap 의 뉴스 엔트리는 메인 도메인이 아니라 이 서브도메인 URL 로 내보낸다.
+ *   news.hsol.info        → /news 허브
+ *   news.hsol.info/<slug> → /news/<slug>
+ */
+const NEWS_SITE_URL = "https://news.hsol.info";
 const OUTPUT_PATHS = ["public/sitemap.xml", "public/sitemap"] as const;
 
 type ChangeFreq =
@@ -81,7 +88,7 @@ async function buildNewsEntries(now: string): Promise<UrlEntry[]> {
   }
   console.log(`[sitemap] 뉴스룸 기사 ${refs.length}건 + 허브 1건을 sitemap 에 주입.`);
   const hub: UrlEntry = {
-    loc: `${SITE_URL}/news`,
+    loc: NEWS_SITE_URL,
     lastmod: now,
     changefreq: "daily",
     priority: 0.8,
@@ -89,7 +96,7 @@ async function buildNewsEntries(now: string): Promise<UrlEntry[]> {
   const articles = refs.map((r): UrlEntry => {
     const lastmod = r.lastmod ? new Date(r.lastmod).toISOString() : now;
     return {
-      loc: `${SITE_URL}/news/${r.slug}`,
+      loc: `${NEWS_SITE_URL}/${r.slug}`,
       lastmod: Number.isNaN(Date.parse(lastmod)) ? now : lastmod,
       changefreq: "monthly",
       priority: 0.7,
