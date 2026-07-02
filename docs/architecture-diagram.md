@@ -60,9 +60,5 @@
 
 다음 갱신 때 이 목록부터 소화하고, 소화한 항목은 지운다.
 
-- [ ] 한솔닷컴 뉴스룸 파이프라인 — vault 기사 → DB(Neon) 미러 → `/news` SSR,
-      news.hsol.info 리버스 프록시, RSS, 기사별 동적 OG, 뉴스 전용 sitemap
-- [ ] LLM 경로 — Anthropic 직접 호출 → Vercel AI Gateway(ai SDK) 경유로 전환
-- [ ] `/resume` 원페이저 페이지 (현재는 이력서 데이터가 hire 뷰로만 흐르는 것으로 그려짐)
-- [ ] compose 생성형 컴포넌트-트리 엔진 — 매 배포 자가개선 레이아웃 빌더 + build-log
-- [ ] Ask Hansol API 분화 — 기본 질문 외 JD 적합도·시각 자문·드래그 선택 질문 (현재 단일 노드)
+- (현재 없음 — 2026-07-02 갱신에서 뉴스룸 파이프라인·AI Gateway 경유 LLM 경로·`/resume`
+  원페이저·compose 컴포지션 빌더+build-log·Ask API 분화 5건을 모두 반영)
