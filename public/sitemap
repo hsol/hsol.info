@@ -2,55 +2,55 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://hsol.info</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://hsol.info/about</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://blog.hsol.info</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
+    <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hsol.info/builder</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hsol.info/collab</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hsol.info/curious</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hsol.info/hire</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://news.hsol.info</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://hsol.info/resume</loc>
-    <lastmod>2026-07-02T10:53:32.966Z</lastmod>
+    <lastmod>2026-07-02T10:56:43.361Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
