@@ -9,3 +9,4 @@ generated/
 .env*.local
 .vercel
 *.tsbuildinfo
+.tmp*
