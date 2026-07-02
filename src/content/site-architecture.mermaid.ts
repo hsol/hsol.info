@@ -140,7 +140,7 @@ flowchart TB
       LINKIFY[출력 정규화]
       DB_MSG[메시지 로그]
       DB_MEM[메모리 롤업]
-      NEWS_SSR[뉴스룸 SSR<br/>news.hsol.info·RSS·동적 OG·전용 sitemap]
+      NEWS_SSR[뉴스룸 SSR news.hsol.info<br/>RSS·동적 OG·전용 sitemap]
       RESUME_SSR[이력서 원페이저 SSR·PDF]
       BUILDLOG_SSR[빌드 로그 페이지]
     end
