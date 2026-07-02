@@ -36,21 +36,34 @@ export function NewsHub({ articles }: { articles: ArticleRow[] }) {
         <ul className="news-list">
           {articles.map((a) => {
             const date = formatDate(a.publishedAt);
+            // coverImage 없으면 동적 OG 이미지 폴백(기사 상세·og 카드와 동일 이미지).
+            const thumb = a.coverImage ?? `/news/${a.slug}/opengraph-image/og`;
             return (
               <li key={a.slug} className="news-list-item">
                 <Link href={`/news/${a.slug}`} className="news-card">
-                  <span className="news-card-kicker">{a.section}</span>
-                  <h2 className="news-card-headline">{a.headline}</h2>
-                  {a.dek ? <p className="news-card-dek">{a.dek}</p> : null}
-                  <span className="news-card-meta">
-                    {a.byline}
-                    {date ? (
-                      <>
-                        {" · "}
-                        <time dateTime={date.iso}>{date.label}</time>
-                      </>
-                    ) : null}
+                  <span className="news-card-text">
+                    <span className="news-card-kicker">{a.section}</span>
+                    <h2 className="news-card-headline">{a.headline}</h2>
+                    {a.dek ? <p className="news-card-dek">{a.dek}</p> : null}
+                    <span className="news-card-meta">
+                      {a.byline}
+                      {date ? (
+                        <>
+                          {" · "}
+                          <time dateTime={date.iso}>{date.label}</time>
+                        </>
+                      ) : null}
+                    </span>
                   </span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className="news-card-thumb"
+                    src={thumb}
+                    alt={a.coverImageAlt ?? a.headline}
+                    width={1200}
+                    height={630}
+                    loading="lazy"
+                  />
                 </Link>
               </li>
             );

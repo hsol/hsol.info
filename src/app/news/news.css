@@ -292,13 +292,27 @@
   border-bottom: 1px solid #e7ecef;
 }
 .news-card {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
   padding: 1.5rem 0;
   text-decoration: none;
   color: inherit;
 }
 .news-card:hover .news-card-headline {
   color: #1d6fa5;
+}
+.news-card-text {
+  display: block;
+  min-width: 0;
+}
+/* 1200×630 비율 유지 썸네일 — coverImage 없으면 동적 OG 이미지 폴백 */
+.news-card-thumb {
+  width: clamp(120px, 26vw, 200px);
+  height: auto;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 .news-card-kicker {
   font-size: 0.74rem;

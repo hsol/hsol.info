@@ -69,6 +69,8 @@ export function ArticleView({ article }: { article: ArticleRow }) {
           </div>
         </header>
 
+        {/* 본문 커버는 실제 시각 자료(coverImage)가 있을 때만 — 동적 OG 이미지는 헤드라인이
+            든 카드라 h1 바로 아래 중복돼 보여 상세에서는 폴백하지 않는다(og·허브·RSS 만 폴백). */}
         {article.coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -80,6 +82,7 @@ export function ArticleView({ article }: { article: ArticleRow }) {
             itemProp="image"
           />
         ) : null}
+
 
         <div className="news-body" itemProp="articleBody">
           <MarkdownBody text={article.body} />

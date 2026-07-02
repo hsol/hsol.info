@@ -17,7 +17,7 @@ import type {
  */
 
 const ARTICLES_DIR =
-  process.env.VAULT_ARTICLES_DIR ?? "hsol-info-blob/vault/objects/articles";
+  process.env.VAULT_ARTICLES_DIR ?? "hsol-info-blob/vault/objects/news-articles";
 
 function asString(v: unknown): string | null {
   if (typeof v === "string") return v.trim() || null;
@@ -76,7 +76,7 @@ export async function readArticlesFromVault(): Promise<ArticleRow[]> {
       const raw = await readFile(path.join(dir, files[i]), "utf8");
       const { data, content } = matter(raw);
       const d = data as Record<string, unknown>;
-      if (d.type !== "Article") continue;
+      if (d.type !== "NewsArticle") continue;
       const slug = asString(d.slug);
       const headline = asString(d.headline);
       const summary = asString(d.summary);

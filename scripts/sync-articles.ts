@@ -12,7 +12,7 @@ import type {
 /**
  * 뉴스룸 기사 동기화 — vault(원본) → Neon `articles`(미러), 단방향.
  *
- * - 원본: `hsol-info-blob/vault/objects/articles/<slug>.md` (frontmatter `type: Article`)
+ * - 원본: `hsol-info-blob/vault/objects/news-articles/<slug>.md` (frontmatter `type: NewsArticle`)
  * - 최초 INSERT 후 DB PK 를 해당 vault 파일 frontmatter `dbId` 에 surgical 역기록(페어링).
  * - site-data.json/blob 자동생성과 무관한 **전용·수동** 작업. postbuild/refresh 에 끼우지 않는다.
  *
@@ -21,7 +21,7 @@ import type {
  */
 
 const ARTICLES_DIR =
-  process.env.VAULT_ARTICLES_DIR ?? "hsol-info-blob/vault/objects/articles";
+  process.env.VAULT_ARTICLES_DIR ?? "hsol-info-blob/vault/objects/news-articles";
 
 const DRY_RUN = process.argv.includes("--dry");
 
@@ -84,8 +84,8 @@ function requireField(file: string, name: string, value: string | null): string 
 function parseArticle(file: string, raw: string): Parsed {
   const { data, content } = matter(raw);
   const d = data as Record<string, unknown>;
-  if (d.type !== "Article") {
-    throw new Error(`[${file}] type 이 Article 이 아닙니다 (type: ${String(d.type)}).`);
+  if (d.type !== "NewsArticle") {
+    throw new Error(`[${file}] type 이 NewsArticle 이 아닙니다 (type: ${String(d.type)}).`);
   }
   const slug = requireField(file, "slug", asString(d.slug));
   const input: ArticleInput = {

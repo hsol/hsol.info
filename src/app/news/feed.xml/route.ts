@@ -35,6 +35,8 @@ export async function GET(): Promise<Response> {
   const items = articles
     .map((a) => {
       const link = articleUrl(a.slug);
+      // coverImage 없으면 동적 OG 이미지 폴백(기사 페이지·og 카드와 동일 이미지).
+      const image = a.coverImage ?? `${link}/opengraph-image/og`;
       return [
         "    <item>",
         `      <title>${xmlEscape(a.headline)}</title>`,
@@ -43,6 +45,7 @@ export async function GET(): Promise<Response> {
         `      <pubDate>${rfc822(a.publishedAt)}</pubDate>`,
         `      <category>${xmlEscape(a.section)}</category>`,
         `      <description><![CDATA[${a.dek ?? a.summary}]]></description>`,
+        `      <media:thumbnail url="${xmlEscape(image)}" width="1200" height="630" />`,
         "    </item>",
       ].join("\n");
     })
@@ -50,7 +53,7 @@ export async function GET(): Promise<Response> {
 
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
-    `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n` +
+    `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">\n` +
     `  <channel>\n` +
     `    <title>${xmlEscape(NEWSROOM_NAME)}</title>\n` +
     `    <link>${HUB_URL}</link>\n` +

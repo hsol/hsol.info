@@ -1,7 +1,7 @@
 /**
  * 뉴스룸 Article 모델.
  *
- * 원본(SSOT)은 vault(`hsol-info-blob/vault/objects/articles/<slug>.md`)이고,
+ * 원본(SSOT)은 vault(`hsol-info-blob/vault/objects/news-articles/<slug>.md`, frontmatter `type: NewsArticle`)이고,
  * Neon `articles` 테이블은 그 **미러**다. `npm run articles:sync`가 vault → DB 로
  * 단방향 동기화하며, 최초 INSERT 시 PK(`dbId`)를 vault frontmatter 에 역기록해 페어링한다.
  *
