@@ -40,7 +40,11 @@ export function NewsHub({ articles }: { articles: ArticleRow[] }) {
           {articles.map((a) => {
             const date = formatDate(a.publishedAt);
             // coverImage 없으면 동적 OG 이미지 폴백(기사 상세·og 카드와 동일 이미지).
+            // 폴백은 헤드라인 텍스트 이미지라 모바일 풀폭에선 본문과 중복돼 보여 숨긴다(CSS).
             const thumb = a.coverImage ?? `/news/${a.slug}/opengraph-image/og`;
+            const thumbClass = a.coverImage
+              ? "news-card-thumb"
+              : "news-card-thumb news-card-thumb--og-fallback";
             return (
               <li key={a.slug} className="news-list-item">
                 <Link href={`/news/${a.slug}`} className="news-card">
@@ -60,7 +64,7 @@ export function NewsHub({ articles }: { articles: ArticleRow[] }) {
                   </span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    className="news-card-thumb"
+                    className={thumbClass}
                     src={thumb}
                     alt={a.coverImageAlt ?? a.headline}
                     width={1200}
