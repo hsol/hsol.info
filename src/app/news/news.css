@@ -344,6 +344,30 @@
   text-align: center;
 }
 
+/* 모바일 — 텍스트·썸네일 2단이 좁은 화면에서 서로를 짓눌러 부자연스럽다.
+   썸네일을 상단 풀폭으로 올리고 텍스트를 아래로 쌓는 단일 컬럼으로 전환.
+   OG 폴백 썸네일(헤드라인 텍스트 이미지)은 풀폭에서 본문 헤드라인과 중복돼 보여 숨긴다. */
+@media (max-width: 600px) {
+  .news-card {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.85rem;
+    padding: 1.25rem 0;
+  }
+  .news-card-thumb {
+    width: 100%;
+  }
+  .news-card-thumb--og-fallback {
+    display: none;
+  }
+  .news-card-headline {
+    font-size: 1.15rem;
+  }
+  .news-card-dek {
+    font-size: 0.94rem;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   .news-root {
     background: #0e1519;
