@@ -17,6 +17,14 @@ import type { ArticleRow } from "@/types/article";
  */
 
 export const SITE_URL = "https://hsol.info";
+/**
+ * 뉴스룸 정규 오리진 — 뉴스는 news.hsol.info 서브도메인으로 노출한다(미들웨어가 /news 로 rewrite).
+ * canonical·og:url·JSON-LD·sitemap 이 모두 이 URL 을 가리켜 검색엔진에 단일 정규 주소를 준다.
+ *   news.hsol.info        → 허브
+ *   news.hsol.info/<slug> → 기사
+ * (#person·#website 등 사이트 정체성 @id 는 메인 도메인 SITE_URL 을 계속 참조한다.)
+ */
+export const NEWS_URL = "https://news.hsol.info";
 /** 매체명(마스트헤드) — author·publisher·og:siteName 에 쓰는 매체 이름. */
 export const PUBLICATION = "한솔닷컴";
 /** 섹션명 — 허브/컬렉션 표기. */
@@ -25,7 +33,7 @@ export const NEWSROOM_ID = `${SITE_URL}/news#publisher`;
 const PERSON_ID = `${SITE_URL}/#person`;
 
 export function articleUrl(slug: string): string {
-  return `${SITE_URL}/news/${slug}`;
+  return `${NEWS_URL}/${slug}`;
 }
 
 function isoOrNull(value: string | null): string | null {
@@ -35,7 +43,7 @@ function isoOrNull(value: string | null): string | null {
 }
 
 export function buildArticleMetadata(article: ArticleRow): Metadata {
-  const url = `/news/${article.slug}`;
+  const url = `${NEWS_URL}/${article.slug}`;
   const published = isoOrNull(article.publishedAt) ?? undefined;
   const modified = isoOrNull(article.updatedAt) ?? published;
   // coverImage 가 있으면 명시. 없으면 og/twitter images 를 비워 두어, 라우트의 opengraph-image
@@ -52,7 +60,7 @@ export function buildArticleMetadata(article: ArticleRow): Metadata {
     authors: [{ name: article.byline, url: SITE_URL }],
     alternates: {
       canonical: url,
-      types: { "application/rss+xml": "/news/feed.xml" },
+      types: { "application/rss+xml": `${NEWS_URL}/feed.xml` },
     },
     robots: { index: article.status === "published", follow: true },
     openGraph: {
@@ -126,7 +134,7 @@ export function buildArticleJsonLd(article: ArticleRow) {
         "@type": "Organization",
         "@id": NEWSROOM_ID,
         name: PUBLICATION,
-        url: `${SITE_URL}/news`,
+        url: NEWS_URL,
         founder: { "@id": PERSON_ID },
         logo: {
           "@type": "ImageObject",
@@ -140,7 +148,7 @@ export function buildArticleJsonLd(article: ArticleRow) {
         "@id": `${url}#breadcrumb`,
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "홈", item: SITE_URL },
-          { "@type": "ListItem", position: 2, name: "뉴스", item: `${SITE_URL}/news` },
+          { "@type": "ListItem", position: 2, name: "뉴스", item: NEWS_URL },
           { "@type": "ListItem", position: 3, name: article.headline, item: url },
         ],
       },
@@ -154,7 +162,7 @@ export function buildNewsHubJsonLd(articles: ArticleRow[]) {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "@id": `${SITE_URL}/news#collection`,
-    url: `${SITE_URL}/news`,
+    url: NEWS_URL,
     name: NEWSROOM_NAME,
     inLanguage: "ko-KR",
     isPartOf: { "@id": `${SITE_URL}/#website` },

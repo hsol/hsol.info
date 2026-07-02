@@ -1,5 +1,5 @@
 import { listPublishedArticles } from "@/lib/db/articles";
-import { articleUrl, NEWSROOM_NAME, SITE_URL } from "@/lib/news/seo";
+import { articleUrl, NEWS_URL, NEWSROOM_NAME } from "@/lib/news/seo";
 
 /**
  * 한솔닷컴 뉴스룸 RSS 2.0 피드 (`/news/feed.xml`).
@@ -7,8 +7,8 @@ import { articleUrl, NEWSROOM_NAME, SITE_URL } from "@/lib/news/seo";
  */
 export const revalidate = 600;
 
-const FEED_URL = `${SITE_URL}/news/feed.xml`;
-const HUB_URL = `${SITE_URL}/news`;
+const FEED_URL = `${NEWS_URL}/feed.xml`;
+const HUB_URL = `${NEWS_URL}`;
 const FEED_DESCRIPTION =
   "한솔닷컴 뉴스룸이 임한솔의 일과 사건을 취재해 기록하는 뉴스 피드.";
 
