@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import type { SiteData } from "@/content/schema";
+import { NEWS_URL } from "@/lib/news/seo";
 import {
   enableEnglishMode,
   getPreferredLang,
@@ -389,7 +390,8 @@ export function Foot() {
         <a href={d.calendly} target="_blank" rel="noopener noreferrer">
           Calendly
         </a>
-        <Link href="/news">Newsroom</Link>
+        {/* 뉴스룸 정규 주소는 서브도메인 — 다른 호스트라 절대 URL + 일반 <a>. */}
+        <a href={NEWS_URL}>Newsroom</a>
       </div>
     </footer>
   );
