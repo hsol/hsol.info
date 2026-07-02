@@ -2,6 +2,9 @@
  * `/architecture` 페이지 전용 Mermaid.
  * 아래 템플릿 리터럴 안의 다이어그램만 수정하면 됩니다(줄바꿈·들여쓰기 유지 가능).
  *
+ * ⚠️ 자동 갱신 없음 — 수동 관리. 무엇을·언제·어떻게 업데이트할지는
+ * docs/architecture-diagram.md 지침을 따른다(미반영 변경 목록도 거기에 관리).
+ *
  * 노드·서브그래프 색은 사이트 청사진 팔레트와 `MermaidDiagram` themeVariables에 맞춤:
  * bp-deep #0e2a3d, bp-floor #14384f, bp-wall #1d4866, line #2e6889·#3d7a9c,
  * soft #5e93b1, bright #287099, glow #7fb4d0, ink #f2f7fa / ink-2 #d6e3ec / ink-mute #8fb1c4, accent #f4c977.
