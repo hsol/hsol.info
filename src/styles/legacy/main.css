@@ -20,7 +20,10 @@
   --ink-mute:   #9bc0d4;
   --ink-faint:  #7aa3b8;
 
-  --accent:     #f4c977;   /* warm contrast for emphasis */
+  /* --accent 는 과거 warm 톤(#f4c977)이었으나 실제 서비스는 PortfolioApp 의 JS 오버라이드로
+     항상 파랑을 썼다. 오버라이드가 없는 라우트(news 상세·원페이저 콜드 로드)에서만 노랑이
+     새어 나오던 문제가 있어, CSS 기본값 자체를 파랑(--bp-bright 와 동일)으로 고정한다. */
+  --accent:     #287099;
   --accent-2:   #ff8765;   /* secondary warm */
 
   --sans: var(--font-line-seed), -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;

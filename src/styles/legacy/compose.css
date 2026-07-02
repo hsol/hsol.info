@@ -115,7 +115,7 @@ h3.cz-heading-text { font-size: 15px; }
   background: rgba(20, 56, 79, 0.92);
   border-radius: 0 6px 6px 0;
 }
-/* 페르소나 페이지에선 --accent 가 짙은 파랑(#287099)으로 덮여 어두운 패널에서 안 읽힌다.
+/* --accent 는 짙은 파랑(#287099)이라 어두운 패널에서 안 읽힌다.
    강조는 읽히는 톤(밝은 하늘색 --bp-glow / 흰색 --ink)으로 주고, accent 는 테두리에만. */
 .cz-callout-accent { border-left-color: var(--bp-glow); }
 .cz-callout-eyebrow {
