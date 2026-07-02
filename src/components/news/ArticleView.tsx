@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ArticleRow } from "@/types/article";
+import { SITE_URL } from "@/lib/news/seo";
 import { MarkdownBody } from "@/components/portfolio/ask/MarkdownBody";
 import { AskHansolCta } from "@/components/news/AskHansolCta";
 
@@ -30,7 +31,8 @@ export function ArticleView({ article }: { article: ArticleRow }) {
         {/* 화면 breadcrumb 를 JSON-LD BreadcrumbList 와 동일하게: 홈 › 뉴스 › [기사 제목].
             섹션은 아래 kicker 로 별도 표시한다. */}
         <nav className="news-breadcrumb" aria-label="breadcrumb">
-          <Link href="/">홈</Link>
+          {/* 메인 사이트로 나가는 링크 — 다른 호스트라 절대 URL + 일반 <a>. */}
+          <a href={SITE_URL}>홈</a>
           <span aria-hidden="true">›</span>
           <Link href="/news">뉴스</Link>
           <span aria-hidden="true">›</span>

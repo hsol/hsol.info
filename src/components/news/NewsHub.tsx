@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ArticleRow } from "@/types/article";
+import { SITE_URL } from "@/lib/news/seo";
 
 const DATE_FMT = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
@@ -19,7 +20,9 @@ export function NewsHub({ articles }: { articles: ArticleRow[] }) {
   return (
     <main id="main-content" className="news-page">
       <nav className="news-back" aria-label="뒤로">
-        <Link href="/">← hsol.info 홈</Link>
+        {/* 뉴스룸(서브도메인)에서 메인 사이트로 나가는 링크 — 다른 호스트라 절대 URL + 일반 <a>.
+            href="/" 로 두면 news.hsol.info/ 로만 돌아와 버린다. */}
+        <a href={SITE_URL}>← hsol.info 홈</a>
       </nav>
 
       <header className="news-hub-header">
