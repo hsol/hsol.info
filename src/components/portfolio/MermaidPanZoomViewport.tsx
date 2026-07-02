@@ -8,7 +8,9 @@ import {
   type ReactElement,
 } from "react";
 
-const MIN_SCALE = 0.1;
+// 대형 도식(폭 1만 px 이상)도 화면 맞춤이 가능하도록 하한을 넉넉히 둔다.
+// 0.1이었을 때 fit 배율(≈0.07)이 클램프에 걸려 도식이 잘린 채 보였다.
+const MIN_SCALE = 0.02;
 const MAX_SCALE = 3;
 
 type View = { scale: number; tx: number; ty: number };

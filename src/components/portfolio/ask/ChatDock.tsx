@@ -12,7 +12,10 @@ import {
   fetchAskHansolHistory,
   streamAnswerText,
 } from "@/lib/ask-hansol/client";
-import { getOrCreateAskHansolSessionId } from "@/lib/ask-hansol/browser-session";
+import {
+  getOrCreateAskHansolSessionId,
+  peekAskHansolSessionId,
+} from "@/lib/ask-hansol/browser-session";
 import {
   onAskOpen,
   onSelectionAsk,
@@ -52,6 +55,9 @@ export function ChatDock({
   const [adviceText, setAdviceText] = useState("");
   const [selectionDraft, setSelectionDraft] = useState<AskDraft | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollInnerRef = useRef<HTMLDivElement | null>(null);
+  const stickToBottomRef = useRef(true);
+  const historyRequestedRef = useRef(false);
   const handledDraftIdRef = useRef<string | null>(null);
   const handledJdSignalRef = useRef(0);
   const handledAdviceSignalRef = useRef(0);
@@ -64,18 +70,34 @@ export function ChatDock({
   const suggestions = ASK_HANSOL_SUGGESTIONS;
 
   useEffect(() => {
-    const sid = getOrCreateAskHansolSessionId();
+    // StrictMode 이중 실행 가드 — 첫 실행이 세션을 새로 만들면 두 번째 실행이
+    // "기존 세션"으로 오인해 불필요한 히스토리 fetch 를 날리는 것을 막는다.
+    if (historyRequestedRef.current) return;
+    historyRequestedRef.current = true;
+    // 첫 방문(저장된 세션 없음)이면 서버 히스토리가 있을 수 없다 — fetch 없이 즉시 준비 완료.
+    // 재방문만 로딩 상태를 거치므로 새 방문자는 로더를 아예 보지 않는다.
+    const existing = peekAskHansolSessionId();
+    const sid = existing ?? getOrCreateAskHansolSessionId();
     setSessionId(sid);
+    if (!existing) {
+      setHistoryReady(true);
+      return;
+    }
     void fetchAskHansolHistory(sid)
       .then((rows) => {
         if (rows.length === 0) return;
-        setMessages(
-          rows.map((row) => ({
-            key: `db-${row.id}`,
-            role: row.role === "assistant" ? "hansol" : "user",
-            text: row.content,
-          })),
-        );
+        const history = rows.map((row) => ({
+          key: `db-${row.id}`,
+          role: row.role === "assistant" ? ("hansol" as const) : ("user" as const),
+          text: row.content,
+        }));
+        // 로딩 중 사용자가 이미 보낸 로컬 메시지를 덮어쓰지 않도록 교체가 아니라 앞에 병합.
+        // 같은 db 키는 걸러내 이펙트가 두 번 돌아도(StrictMode) 중복되지 않게 멱등 처리.
+        const historyKeys = new Set(history.map((h) => h.key));
+        setMessages((prev) => [
+          ...history,
+          ...prev.filter((m) => !historyKeys.has(m.key)),
+        ]);
       })
       .finally(() => setHistoryReady(true));
   }, []);
@@ -90,19 +112,29 @@ export function ChatDock({
     setOpen(true);
   }, [openSignal]);
 
+  // 바닥 고정 스크롤 — 히스토리 로드·새 메시지·스트리밍은 물론, 마크다운 청크가 늦게
+  // 로드되며 콘텐츠 높이가 자랄 때도 ResizeObserver 로 바닥을 유지한다(한 번만 내리면
+  // 이후 높이 증가로 스크롤이 과거 대화 위쪽에 남는 문제가 있었다). 사용자가 위로
+  // 스크롤해 과거 대화를 읽는 중에는 자동 스크롤로 방해하지 않는다.
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    const id = requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
-    return () => cancelAnimationFrame(id);
-  }, [messages]);
+    const inner = scrollInnerRef.current;
+    if (!el || !inner) return;
+    const scrollToBottom = () => {
+      if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
+    };
+    scrollToBottom();
+    const observer = new ResizeObserver(scrollToBottom);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [open, historyReady]);
 
   const ask = useCallback(
     async (query?: string, options?: { selectedText?: string }) => {
+      // 히스토리 로딩(historyReady 이전)을 기다리지 않는다 — 로드 완료 시 병합되므로
+      // 로딩 중 입력·전송도 안전하다. 입력을 막으면 초기 몇 초간 도크가 죽은 것처럼 보인다.
       const finalQ = (query ?? q).trim();
-      if (!finalQ || loading || !historyReady) return;
+      if (!finalQ || loading) return;
       const sid = sessionId || getOrCreateAskHansolSessionId();
       if (!sessionId && sid) setSessionId(sid);
       setQ("");
@@ -136,16 +168,16 @@ export function ChatDock({
         () => setLoading(false),
       );
     },
-    [q, loading, sessionId, historyReady, pageContext],
+    [q, loading, sessionId, pageContext],
   );
 
   useEffect(() => {
-    if (!draftToAsk || !historyReady) return;
+    if (!draftToAsk) return;
     if (handledDraftIdRef.current === draftToAsk.id) return;
     handledDraftIdRef.current = draftToAsk.id;
     setOpen(true);
     void ask(draftToAsk.displayQuery, { selectedText: draftToAsk.selectedText });
-  }, [draftToAsk, historyReady, ask]);
+  }, [draftToAsk, ask]);
 
   // 전역 드래그→질문 브리지 구독(+ 마운트 전 발생분 1회 흡수).
   useEffect(() => {
@@ -162,12 +194,12 @@ export function ChatDock({
   useEffect(() => onAskOpen(() => setOpen(true)), []);
 
   useEffect(() => {
-    if (!selectionDraft || !historyReady) return;
+    if (!selectionDraft) return;
     if (handledDraftIdRef.current === selectionDraft.id) return;
     handledDraftIdRef.current = selectionDraft.id;
     setOpen(true);
     void ask(selectionDraft.displayQuery, { selectedText: selectionDraft.selectedText });
-  }, [selectionDraft, historyReady, ask]);
+  }, [selectionDraft, ask]);
 
   // Hire 상세의 "JD 적합도 분석" 진입점 — 도크를 열고 JD 작성 패널을 펼친다.
   // handledJdSignalRef로 같은 신호를 한 번만 처리해, Hire를 떠났다 돌아올 때
@@ -183,7 +215,7 @@ export function ChatDock({
 
   const analyzeJd = useCallback(async () => {
     const finalJd = jdText.trim();
-    if (finalJd.length < 40 || loading || !historyReady) return;
+    if (finalJd.length < 40 || loading) return;
     const sid = sessionId || getOrCreateAskHansolSessionId();
     if (!sessionId && sid) setSessionId(sid);
     setJdText("");
@@ -218,7 +250,7 @@ export function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [jdText, loading, sessionId, historyReady, pageContext]);
+  }, [jdText, loading, sessionId, pageContext]);
 
   // Collab 상세의 "임한솔 시각 자문" 진입점 — 도크를 열고 이슈 작성 패널을 펼친다.
   useEffect(() => {
@@ -232,7 +264,7 @@ export function ChatDock({
 
   const askAdvice = useCallback(async () => {
     const finalIssue = adviceText.trim();
-    if (finalIssue.length < 20 || loading || !historyReady) return;
+    if (finalIssue.length < 20 || loading) return;
     const sid = sessionId || getOrCreateAskHansolSessionId();
     if (!sessionId && sid) setSessionId(sid);
     setAdviceText("");
@@ -267,7 +299,7 @@ export function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [adviceText, loading, sessionId, historyReady, pageContext]);
+  }, [adviceText, loading, sessionId, pageContext]);
 
   return (
     <>
@@ -296,8 +328,25 @@ export function ChatDock({
             ×
           </button>
         </header>
-        <div className="chatdock-scroll" ref={scrollRef}>
-          {messages.length === 0 && (
+        <div
+          className="chatdock-scroll"
+          ref={scrollRef}
+          onScroll={() => {
+            const el = scrollRef.current;
+            if (!el) return;
+            // 바닥에서 48px 이내면 자동 스크롤 유지, 그 위로 올라가면 사용자가 읽는 중.
+            stickToBottomRef.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          }}
+        >
+          <div className="chatdock-scroll-inner" ref={scrollInnerRef}>
+          {!historyReady && messages.length === 0 && (
+            <div className="chatdock-history-loading" role="status">
+              <span className="chatdock-history-spinner" aria-hidden />
+              이전 대화를 불러오는 중…
+            </div>
+          )}
+          {historyReady && messages.length === 0 && (
             <div className="chatdock-empty">
               <div className="chatdock-empty-line">{D.portfolioCopy.ask.dockEmptyLine}</div>
               <p>{D.portfolioCopy.ask.dockEmptyIntro}</p>
@@ -334,6 +383,7 @@ export function ChatDock({
               <div className="chatdock-msg-body">{renderMarkdownText(m.text, m.streaming)}</div>
             </div>
           ))}
+          </div>
         </div>
         {jdFeatureEnabled && jdMode && (
           <div className="chatdock-jd-panel">
@@ -362,7 +412,7 @@ export function ChatDock({
               type="button"
               className="chatdock-jd-submit"
               onClick={() => analyzeJd()}
-              disabled={loading || jdText.trim().length < 40 || !historyReady}
+              disabled={loading || jdText.trim().length < 40}
             >
               {loading ? "분석 중..." : "적합도 분석하기"}
             </button>
@@ -404,7 +454,7 @@ export function ChatDock({
               type="button"
               className="chatdock-jd-submit"
               onClick={() => askAdvice()}
-              disabled={loading || adviceText.trim().length < 20 || !historyReady}
+              disabled={loading || adviceText.trim().length < 20}
             >
               {loading ? "생각 중..." : "제 관점은요!"}
             </button>
@@ -433,7 +483,7 @@ export function ChatDock({
             onChange={(e) => setQ(e.target.value)}
           />
 
-          <button className="chatdock-send" type="submit" disabled={loading || !q.trim() || !historyReady}>
+          <button className="chatdock-send" type="submit" disabled={loading || !q.trim()}>
             {loading ? "..." : "↑"}
           </button>
         </form>

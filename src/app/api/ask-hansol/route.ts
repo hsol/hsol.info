@@ -8,7 +8,6 @@ import { normalizeAskAnswerPlainText } from "@/lib/ask-hansol/answer-linkify";
 import {
   fetchBlobContext,
   fetchVaultReadmeGuideBody,
-  keywordTokens,
 } from "@/lib/ask-hansol/blob-context";
 import { summarizeMemoryMerge } from "@/lib/ask-hansol/memory-summarize";
 import {
@@ -30,10 +29,6 @@ import {
 /** 세션별 GET 히스토리·POST가 DB를 쓰므로 매 요청 동적 처리(정적 캐시 시 이전 대화가 비어 보임) */
 export const dynamic = "force-dynamic";
 
-function normalize(text: string): string {
-  return text.toLowerCase().replace(/[?!.\s]/g, "");
-}
-
 type FaqEntry = SiteData["faq"][number];
 type AskHansolPageView = "home" | "hire" | "collab" | "builder" | "curious";
 type AskHansolPageContext = {
@@ -42,28 +37,6 @@ type AskHansolPageContext = {
   hash?: string;
   detail?: string;
 };
-
-function findFaqAnswer(query: string, faq: FaqEntry[]): string | null {
-  const needle = normalize(query);
-  const needleTokens = keywordTokens(query);
-  const matched = faq.find((item) => {
-    const candidate = normalize(item.q);
-    if (
-      candidate === needle ||
-      candidate.includes(needle) ||
-      needle.includes(candidate)
-    ) {
-      return true;
-    }
-
-    if (needleTokens.length === 0) return false;
-    const candidateTokens = keywordTokens(item.q);
-    if (candidateTokens.length === 0) return false;
-    const overlap = needleTokens.filter((token) => candidateTokens.includes(token)).length;
-    return overlap / needleTokens.length >= 0.6;
-  });
-  return matched?.a ?? null;
-}
 
 async function runBlobLookupTool(input: unknown): Promise<string> {
   const query =
@@ -114,26 +87,6 @@ function splitPriorAndLatestUser(
   }
   const latestUserText = pending ? `${pending}\n\n(이어서) ${latestQuery}` : latestQuery;
   return { priorForClaude: cleaned, latestUserText };
-}
-
-/** 세션에 맥락이 있으면 짧은 지시·대명사 후속만 FAQ 고정답으로 보내지 않음 */
-function shouldSkipFaqForContext(
-  query: string,
-  tailMessageCount: number,
-  hasMemorySummary: boolean,
-): boolean {
-  if (tailMessageCount === 0 && !hasMemorySummary) return false;
-  const q = query.trim();
-  if (q.length > 48) return false;
-  if (
-    /^(그(래|러면|럼|거|게|때)?|이거|저거|그거|위|아까|방금|전에|더|왜|어떻게|언제|어디|누구|맞아|맞죠|네|응|오케이|ok|yes)\b/i.test(
-      q,
-    )
-  ) {
-    return true;
-  }
-  if (/(^|\s)그\s/.test(q) && q.length < 28) return true;
-  return false;
 }
 
 function parsePageContext(input: unknown): AskHansolPageContext | null {
@@ -295,21 +248,6 @@ export async function POST(req: Request) {
       const memRow = await getSessionMemoryRow(sessionId);
       memorySummary = memRow?.summary?.trim() ? memRow.summary : null;
       priorTurnsRaw = await listTailMessagesForPrompt(sessionId, tailLimit);
-    }
-
-    const skipFaq = shouldSkipFaqForContext(
-      query,
-      priorTurnsRaw.length,
-      Boolean(memorySummary),
-    );
-    const faqAnswer = skipFaq ? null : findFaqAnswer(query, siteData.faq);
-    if (faqAnswer) {
-      const faqPlain = toPlainAnswer(faqAnswer);
-      if (sessionId) {
-        await persistAskExchange(sessionId, displayText, faqPlain);
-        await refreshSessionMemoryRollup(sessionId, tailLimit, summarizeMemoryMerge);
-      }
-      return NextResponse.json({ answer: faqPlain });
     }
 
     const { priorForClaude, latestUserText } = splitPriorAndLatestUser(priorTurnsRaw, query);

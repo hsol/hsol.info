@@ -2,6 +2,9 @@
  * `/architecture` 페이지 전용 Mermaid.
  * 아래 템플릿 리터럴 안의 다이어그램만 수정하면 됩니다(줄바꿈·들여쓰기 유지 가능).
  *
+ * ⚠️ 자동 갱신 없음 — 수동 관리. 무엇을·언제·어떻게 업데이트할지는
+ * docs/architecture-diagram.md 지침을 따른다(미반영 변경 목록도 거기에 관리).
+ *
  * 노드·서브그래프 색은 사이트 청사진 팔레트와 `MermaidDiagram` themeVariables에 맞춤:
  * bp-deep #0e2a3d, bp-floor #14384f, bp-wall #1d4866, line #2e6889·#3d7a9c,
  * soft #5e93b1, bright #287099, glow #7fb4d0, ink #f2f7fa / ink-2 #d6e3ec / ink-mute #8fb1c4, accent #f4c977.
@@ -56,6 +59,7 @@ flowchart TB
         PLA[places]
         EVT[events]
         ALOG[액션 로그]
+        NEWS_ART[뉴스룸 기사]
       end
 
       subgraph L4A["L4-A. ObjectView 코드 컨텍스트 참조"]
@@ -86,6 +90,7 @@ flowchart TB
         SD_ASK_UI[portfolioCopy.ask]
         SD_RESUME[career education certifications languages publications]
         SD_FAQ[faq 7개]
+        SD_COMPOSE[composition 페이지 컴포넌트-트리]
       end
 
       subgraph L5["L5. 저장 및 Blob 동기화"]
@@ -105,13 +110,16 @@ flowchart TB
         ZOD[스키마 검증 zod]
         FAIL[실패 덤프]
         SITE_TS[빌드 타임 폴백 스냅샷]
+        COMPOSE_GEN[컴포지션 빌더<br/>레이아웃 자가개선]
+        ONEPAGER_GEN[원페이저 HTML·PDF 생성]
+        SYNC_ART[기사 동기화 수동 ETL]
       end
     end
   end
 
   subgraph MEGA_INFRA["외부 서비스 공유 인프라"]
     direction LR
-    ANTHROPIC[(LLM API)]
+    ANTHROPIC[(LLM API<br/>Vercel AI Gateway 경유)]
     VERCEL[(SSR 호스팅)]
     NEON[(Postgres)]
   end
@@ -125,12 +133,16 @@ flowchart TB
       LOADER[데이터 로더 3단 폴백]
       CACHE[5분 TTL 캐시]
       API_AH[ChatDock API 핸들러]
-      FAQ_MATCH{FAQ 매칭}
+      API_SPEC[특화 질문 API<br/>JD 적합도·시각 자문]
+      API_SEL[드래그 선택 질문 API]
       RETRIEVAL[키워드 retrieval]
       TOOL_LOOP[tool use 루프]
       LINKIFY[출력 정규화]
       DB_MSG[메시지 로그]
       DB_MEM[메모리 롤업]
+      NEWS_SSR[뉴스룸 SSR news.hsol.info<br/>RSS·동적 OG·전용 sitemap]
+      RESUME_SSR[이력서 원페이저 SSR·PDF]
+      BUILDLOG_SSR[빌드 로그 페이지]
     end
 
     subgraph MEGA_CLIENT["CLIENT 브라우저 런타임"]
@@ -154,6 +166,7 @@ flowchart TB
       UL((잠재 협업자))
       UB((메이커 엔지니어))
       UC((일반 호기심))
+      UN((검색 유입 뉴스 독자))
     end
   end
 
@@ -205,6 +218,7 @@ flowchart TB
   OV_BLOG_ARCH --> BLOB_REPO
   OV_MED_ARCH --> BLOB_REPO
   SD_META --> BLOB_REPO
+  NEWS_ART --> BLOB_REPO
 
   BLOB_REPO -- push event --> WF_BLOB_SYNC
   WF_BLOB_SYNC -- Blob 업로드 --> VBLOB
@@ -226,6 +240,14 @@ flowchart TB
   SD_META --> SCRIPT_GEN
   SCRIPT_GEN --> ZOD
   ZOD --> SITE_TS
+  SCRIPT_REF --> COMPOSE_GEN
+  COMPOSE_GEN --> ANTHROPIC
+  ANTHROPIC --> SD_COMPOSE
+  COMPOSE_GEN -- 개선 기록 --> NEON
+  WF_REF --> ONEPAGER_GEN
+  ONEPAGER_GEN --> VBLOB
+  NEWS_ART --> SYNC_ART
+  SYNC_ART -- 기사 미러 --> NEON
   WF_REF --> VERCEL
 
   VERCEL --> LAYOUT
@@ -247,7 +269,8 @@ flowchart TB
   SD_BUILDER_COPY ==> VB
   SD_CURIOUS_COPY ==> VC
   SD_ASK_UI ==> CHATDOCK
-  SD_FAQ ==> FAQ_MATCH
+  SD_FAQ ==> TOOL_LOOP
+  SD_COMPOSE ==> PORT_APP
 
   PORT_APP --> HOME_PAGE
   PORT_APP --> VH
@@ -259,9 +282,12 @@ flowchart TB
 
   CHATDOCK --> ASK_CL
   ASK_CL --> API_AH
-  API_AH --> FAQ_MATCH
-  FAQ_MATCH -- 매칭 --> LINKIFY
-  FAQ_MATCH -- 미매칭 --> RETRIEVAL
+  ASK_CL --> API_SPEC
+  API_SPEC --> ANTHROPIC
+  API_SPEC --> DB_MSG
+  PORT_APP -- 드래그 선택 질문 --> API_SEL
+  API_SEL -- 서버 간 재호출 --> API_AH
+  API_AH --> RETRIEVAL
   API_AH --> LOADER
 
   OV_README ==> API_AH
@@ -280,6 +306,10 @@ flowchart TB
   DB_MEM --> NEON
   LINKIFY --> ASK_CL
 
+  NEWS_SSR --> NEON
+  BUILDLOG_SSR --> NEON
+  RESUME_SSR --> VBLOB
+
   CHATDOCK --> IO
   IO --> CHATDOCK
   ASK_CL --> LS
@@ -289,6 +319,9 @@ flowchart TB
   UL --> VL
   UB --> VB
   UC --> VC
+  UH --> RESUME_SSR
+  UB -.-> BUILDLOG_SSR
+  UN --> NEWS_SSR
   UH -.대화.-> CHATDOCK
   UL -.대화.-> CHATDOCK
   UB -.대화.-> CHATDOCK
@@ -309,15 +342,15 @@ flowchart TB
 
   class TI,ME,LI,BK,HW mermaid-src
   class OT,LT,AT,IFC,SP,VT mermaid-ont
-  class PEO,ORG,PRJ,ART,CON,PLA,EVT,ALOG,DS_BLOG,DS_MED,DS_LI,DS_BK mermaid-obj
+  class PEO,ORG,PRJ,ART,CON,PLA,EVT,ALOG,NEWS_ART,DS_BLOG,DS_MED,DS_LI,DS_BK mermaid-obj
   class OV_PERSONA,OV_WRIT,OV_PORT,OV_TIME,OV_BACK,OV_NET,OV_BLOG_ARCH,OV_MED_ARCH,OV_README mermaid-view
-  class SD_META,SD_HOME,SD_HIRE_COPY,SD_COLLAB_COPY,SD_BUILDER_COPY,SD_CURIOUS_COPY,SD_ASK_UI,SD_RESUME,SD_FAQ mermaid-hubInner
+  class SD_META,SD_HOME,SD_HIRE_COPY,SD_COLLAB_COPY,SD_BUILDER_COPY,SD_CURIOUS_COPY,SD_ASK_UI,SD_RESUME,SD_FAQ,SD_COMPOSE mermaid-hubInner
   class BLOB_REPO,VBLOB,WF_BLOB_SYNC mermaid-store
-  class GH,WF_REF,WF_SUB,SCRIPT_REF,SCRIPT_GEN,ZOD,FAIL,SITE_TS mermaid-ci
+  class GH,WF_REF,WF_SUB,SCRIPT_REF,SCRIPT_GEN,ZOD,FAIL,SITE_TS,COMPOSE_GEN,ONEPAGER_GEN,SYNC_ART mermaid-ci
   class ANTHROPIC,VERCEL,NEON mermaid-ext
-  class LAYOUT,PAGE,LOADER,CACHE,API_AH,FAQ_MATCH,RETRIEVAL,TOOL_LOOP,DB_MSG,DB_MEM,LINKIFY mermaid-srv
+  class LAYOUT,PAGE,LOADER,CACHE,API_AH,API_SPEC,API_SEL,RETRIEVAL,TOOL_LOOP,DB_MSG,DB_MEM,LINKIFY,NEWS_SSR,RESUME_SSR,BUILDLOG_SSR mermaid-srv
   class PORT_APP,HOME_PAGE,VH,VL,VB,VC,CHATDOCK,ATOMS,IO,LS,ASK_CL mermaid-cli
-  class UH,UL,UB,UC mermaid-usr
+  class UH,UL,UB,UC,UN mermaid-usr
   class EDIT_HUMAN,EDIT_CLAUDE mermaid-editor
 
   style ONTOLOGY fill:#14384f,stroke:#287099,stroke-width:4px,color:#f2f7fa
