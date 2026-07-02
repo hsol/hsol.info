@@ -13,8 +13,10 @@ import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-str
  * - 엔트리 순서는 priority 내림차순으로 정렬해 사람이 읽기 쉽게.
  * - 동일 본문을 `public/sitemap.xml`과 `public/sitemap`에 모두 쓴다(리다이렉트 없이 공존).
  *
- * 뉴스룸(news.hsol.info)은 **별도 sitemap** 으로 분리한다 — 이 메인 sitemap 에는 넣지 않고,
+ * 뉴스룸(news.hsol.info)의 개별 기사는 **별도 sitemap** 으로 분리한다 — 이 메인 sitemap 에는 넣지 않고,
  * `src/app/news/sitemap/route.ts` 가 news.hsol.info/sitemap 으로 독립 제공한다.
+ * 대신 서브도메인 **루트 URL**(blog/news)은 SUBDOMAIN_ENTRIES 로 여기에 포함해
+ * 메인 sitemap 을 통해서도 크롤러가 서브도메인을 발견하도록 한다.
  */
 const SITE_URL = "https://hsol.info";
 const OUTPUT_PATHS = ["public/sitemap.xml", "public/sitemap"] as const;
@@ -62,6 +64,16 @@ const EXTRA_ROUTES: Array<{ route: string; changefreq: ChangeFreq; priority: num
   { route: "/resume", changefreq: "weekly", priority: 0.7 },
 ];
 
+/**
+ * hsol.info 밖의 서브도메인 루트 URL. sitemap 프로토콜은 원칙적으로 same-host 를 요구하지만
+ * Google 은 Search Console 에서 소유가 확인된 호스트 간 cross-host 엔트리를 허용한다.
+ * 개별 하위 페이지는 각 서브도메인의 sitemap 이 책임지고, 여기서는 진입점만 알린다.
+ */
+const SUBDOMAIN_ENTRIES: Array<{ loc: string; changefreq: ChangeFreq; priority: number }> = [
+  { loc: "https://blog.hsol.info", changefreq: "daily", priority: 0.8 },
+  { loc: "https://news.hsol.info", changefreq: "daily", priority: 0.8 },
+];
+
 function buildEntries(now: string): UrlEntry[] {
   const pageEntries = PAGE_KEYS.filter((key) => SITE_STRUCTURE[key].inSitemap).map(
     (key): UrlEntry => {
@@ -77,7 +89,10 @@ function buildEntries(now: string): UrlEntry[] {
   const extraEntries = EXTRA_ROUTES.map(
     (e): UrlEntry => ({ loc: locFor(e.route), lastmod: now, changefreq: e.changefreq, priority: e.priority }),
   );
-  return [...pageEntries, ...extraEntries].sort(
+  const subdomainEntries = SUBDOMAIN_ENTRIES.map(
+    (e): UrlEntry => ({ loc: e.loc, lastmod: now, changefreq: e.changefreq, priority: e.priority }),
+  );
+  return [...pageEntries, ...extraEntries, ...subdomainEntries].sort(
     (a, b) => b.priority - a.priority || a.loc.localeCompare(b.loc),
   );
 }
