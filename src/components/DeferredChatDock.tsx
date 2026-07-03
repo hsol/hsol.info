@@ -21,8 +21,6 @@ export function DeferredChatDock({
   defaultOpen,
   inline,
   openSignal,
-  jdOpenSignal,
-  adviceOpenSignal,
   ...rest
 }: Props) {
   const [ready, setReady] = useState(false);
@@ -40,14 +38,6 @@ export function DeferredChatDock({
   useEffect(() => {
     if (openSignal && openSignal > 0) mountDock(true);
   }, [openSignal, mountDock]);
-
-  useEffect(() => {
-    if (jdOpenSignal && jdOpenSignal > 0) mountDock(true);
-  }, [jdOpenSignal, mountDock]);
-
-  useEffect(() => {
-    if (adviceOpenSignal && adviceOpenSignal > 0) mountDock(true);
-  }, [adviceOpenSignal, mountDock]);
 
   // 드래그→질문 전역 브리지: 선택 질문이 오면 도크를 띄운다(FAB 상태인 /about 등 포함).
   useEffect(() => onSelectionAsk(() => mountDock(true)), [mountDock]);
@@ -76,8 +66,6 @@ export function DeferredChatDock({
       defaultOpen={openAfterLoad || defaultOpen}
       inline={inline}
       openSignal={openSignal}
-      jdOpenSignal={jdOpenSignal}
-      adviceOpenSignal={adviceOpenSignal}
       {...rest}
     />
   );

@@ -23,6 +23,7 @@ import {
 } from "@/components/ask-selection/selection-bridge";
 import { ASK_HANSOL_FALLBACK_MESSAGE, ASK_HANSOL_SUGGESTIONS } from "@/lib/ask-hansol/shared";
 import type { AskDraft, ChatMsg } from "@/components/portfolio/portfolio-types";
+import { useAskFeature } from "./ask-feature-context";
 import { renderMarkdownText } from "./render-markdown-text";
 
 export function ChatDock({
@@ -31,16 +32,12 @@ export function ChatDock({
   pageContext,
   openSignal,
   draftToAsk,
-  jdOpenSignal,
-  adviceOpenSignal,
 }: {
   defaultOpen?: boolean;
   inline?: boolean;
   pageContext?: AskHansolPageContext;
   openSignal?: number;
   draftToAsk?: AskDraft | null;
-  jdOpenSignal?: number;
-  adviceOpenSignal?: number;
 }) {
   const D = useSiteData();
   const [open, setOpen] = useState(defaultOpen);
@@ -49,18 +46,16 @@ export function ChatDock({
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [historyReady, setHistoryReady] = useState(false);
-  const [jdMode, setJdMode] = useState(false);
-  const [jdText, setJdText] = useState("");
-  const [adviceMode, setAdviceMode] = useState(false);
-  const [adviceText, setAdviceText] = useState("");
   const [selectionDraft, setSelectionDraft] = useState<AskDraft | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollInnerRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
   const historyRequestedRef = useRef(false);
   const handledDraftIdRef = useRef<string | null>(null);
-  const handledJdSignalRef = useRef(0);
-  const handledAdviceSignalRef = useRef(0);
+  const handledSubmitRef = useRef(0);
+
+  // JD 적합도·자문 패널의 입력·활성·제출은 모달(AskFeatureDialog)과 공유한다(완전 싱크).
+  const af = useAskFeature();
 
   /** JD 적합도 분석 기능은 채용 검토(Hire) 상세 화면에서만 노출한다. */
   const jdFeatureEnabled = pageContext?.view === "hire";
@@ -201,25 +196,12 @@ export function ChatDock({
     void ask(selectionDraft.displayQuery, { selectedText: selectionDraft.selectedText });
   }, [selectionDraft, ask]);
 
-  // Hire 상세의 "JD 적합도 분석" 진입점 — 도크를 열고 JD 작성 패널을 펼친다.
-  // handledJdSignalRef로 같은 신호를 한 번만 처리해, Hire를 떠났다 돌아올 때
-  // 오래된 신호로 패널이 다시 열리지 않게 한다.
-  useEffect(() => {
-    if (typeof jdOpenSignal !== "number" || jdOpenSignal <= 0) return;
-    if (handledJdSignalRef.current === jdOpenSignal) return;
-    if (!jdFeatureEnabled) return;
-    handledJdSignalRef.current = jdOpenSignal;
-    setOpen(true);
-    setJdMode(true);
-  }, [jdOpenSignal, jdFeatureEnabled]);
-
   const analyzeJd = useCallback(async () => {
-    const finalJd = jdText.trim();
+    const finalJd = af.text.trim();
     if (finalJd.length < 40 || loading) return;
     const sid = sessionId || getOrCreateAskHansolSessionId();
     if (!sessionId && sid) setSessionId(sid);
-    setJdText("");
-    setJdMode(false);
+    af.closePanel(); // 입력 비우고 패널을 닫는다(답변은 도크 대화로 스트리밍).
     setLoading(true);
 
     const preview = finalJd.length > 180 ? `${finalJd.slice(0, 180)}...` : finalJd;
@@ -250,25 +232,14 @@ export function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [jdText, loading, sessionId, pageContext]);
-
-  // Collab 상세의 "임한솔 시각 자문" 진입점 — 도크를 열고 이슈 작성 패널을 펼친다.
-  useEffect(() => {
-    if (typeof adviceOpenSignal !== "number" || adviceOpenSignal <= 0) return;
-    if (handledAdviceSignalRef.current === adviceOpenSignal) return;
-    if (!adviceFeatureEnabled) return;
-    handledAdviceSignalRef.current = adviceOpenSignal;
-    setOpen(true);
-    setAdviceMode(true);
-  }, [adviceOpenSignal, adviceFeatureEnabled]);
+  }, [af, loading, sessionId, pageContext]);
 
   const askAdvice = useCallback(async () => {
-    const finalIssue = adviceText.trim();
+    const finalIssue = af.text.trim();
     if (finalIssue.length < 20 || loading) return;
     const sid = sessionId || getOrCreateAskHansolSessionId();
     if (!sessionId && sid) setSessionId(sid);
-    setAdviceText("");
-    setAdviceMode(false);
+    af.closePanel();
     setLoading(true);
 
     const preview = finalIssue.length > 180 ? `${finalIssue.slice(0, 180)}...` : finalIssue;
@@ -299,7 +270,15 @@ export function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [adviceText, loading, sessionId, pageContext]);
+  }, [af, loading, sessionId, pageContext]);
+
+  // 제출 신호(모달·패널 공용) → 현재 활성 기능의 실제 분석/자문을 실행한다.
+  useEffect(() => {
+    if (af.submitSignal <= 0 || handledSubmitRef.current === af.submitSignal) return;
+    handledSubmitRef.current = af.submitSignal;
+    if (af.panelActive === "jd") void analyzeJd();
+    else if (af.panelActive === "advice") void askAdvice();
+  }, [af.submitSignal, af.panelActive, analyzeJd, askAdvice]);
 
   return (
     <>
@@ -361,7 +340,7 @@ export function ChatDock({
                 <button
                   type="button"
                   className="chatdock-jd-cta"
-                  onClick={() => setJdMode(true)}
+                  onClick={() => af.openPanel("jd")}
                 >
                   채용 공고(JD) 붙여넣고 적합도 보기
                 </button>
@@ -370,7 +349,7 @@ export function ChatDock({
                 <button
                   type="button"
                   className="chatdock-jd-cta"
-                  onClick={() => setAdviceMode(true)}
+                  onClick={() => af.openPanel("advice")}
                 >
                   고민이 있으신가요? 제게 말씀해주세요.
                 </button>
@@ -385,17 +364,14 @@ export function ChatDock({
           ))}
           </div>
         </div>
-        {jdFeatureEnabled && jdMode && (
+        {jdFeatureEnabled && af.panelActive === "jd" && (
           <div className="chatdock-jd-panel">
             <div className="chatdock-jd-head">
               <span className="chatdock-jd-title">채용 공고 적합도 분석</span>
               <button
                 type="button"
                 className="chatdock-jd-close"
-                onClick={() => {
-                  setJdMode(false);
-                  setJdText("");
-                }}
+                onClick={() => af.closePanel()}
                 aria-label="JD 분석 닫기"
               >
                 취소
@@ -404,40 +380,37 @@ export function ChatDock({
             <textarea
               className="chatdock-jd-textarea"
               placeholder="채용 공고(JD) 전문을 붙여넣어 주세요. 주요 업무·자격 요건·우대 사항이 있으면 더 정확합니다."
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
+              value={af.text}
+              onChange={(e) => af.setText(e.target.value)}
               rows={6}
             />
             <button
               type="button"
               className="chatdock-jd-submit"
-              onClick={() => analyzeJd()}
-              disabled={loading || jdText.trim().length < 40}
+              onClick={() => af.requestSubmit()}
+              disabled={loading || af.text.trim().length < 40}
             >
               {loading ? "분석 중..." : "적합도 분석하기"}
             </button>
           </div>
         )}
-        {jdFeatureEnabled && !jdMode && (
+        {jdFeatureEnabled && af.panelActive !== "jd" && (
           <button
             type="button"
             className="chatdock-jd-toggle"
-            onClick={() => setJdMode(true)}
+            onClick={() => af.openPanel("jd")}
           >
             채용 공고(JD) 적합도 분석
           </button>
         )}
-        {adviceFeatureEnabled && adviceMode && (
+        {adviceFeatureEnabled && af.panelActive === "advice" && (
           <div className="chatdock-jd-panel">
             <div className="chatdock-jd-head">
               <span className="chatdock-jd-title">임한솔의 AI 클론 의사결정 자문요청</span>
               <button
                 type="button"
                 className="chatdock-jd-close"
-                onClick={() => {
-                  setAdviceMode(false);
-                  setAdviceText("");
-                }}
+                onClick={() => af.closePanel()}
                 aria-label="자문 닫기"
               >
                 취소
@@ -446,25 +419,25 @@ export function ChatDock({
             <textarea
               className="chatdock-jd-textarea"
               placeholder="고민 중인 이슈를 적어주세요. 배경·제약·목표·지금까지 시도한 것을 함께 적으면 더 깊이 짚어드려요. (예: 초기 팀에 PM을 따로 둬야 할까요? 상황은...)"
-              value={adviceText}
-              onChange={(e) => setAdviceText(e.target.value)}
+              value={af.text}
+              onChange={(e) => af.setText(e.target.value)}
               rows={6}
             />
             <button
               type="button"
               className="chatdock-jd-submit"
-              onClick={() => askAdvice()}
-              disabled={loading || adviceText.trim().length < 20}
+              onClick={() => af.requestSubmit()}
+              disabled={loading || af.text.trim().length < 20}
             >
               {loading ? "생각 중..." : "제 관점은요!"}
             </button>
           </div>
         )}
-        {adviceFeatureEnabled && !adviceMode && (
+        {adviceFeatureEnabled && af.panelActive !== "advice" && (
           <button
             type="button"
             className="chatdock-jd-toggle"
-            onClick={() => setAdviceMode(true)}
+            onClick={() => af.openPanel("advice")}
           >
             AI 자문 · 한솔님은 어떻게 보시나요?
           </button>

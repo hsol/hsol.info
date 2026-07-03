@@ -25,6 +25,7 @@ import {
   Gantt,
   Grid,
   Heading,
+  JdAnalysisCTABound,
   KeyValueList,
   LinkList,
   MetricGrid,
@@ -72,6 +73,7 @@ export const COMPOSE_COMPONENTS: Record<ComposeComponentName, ComposeComponent> 
   CoffeeCTA: CoffeeCTABound,
   ResumeCTA: ResumeCTABound,
   AdviceCTA: AdviceCTABound,
+  JdAnalysisCTA: JdAnalysisCTABound,
   Back: BackBound,
 };
 

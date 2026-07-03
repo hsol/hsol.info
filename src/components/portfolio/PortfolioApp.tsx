@@ -7,6 +7,11 @@ import { Foot, Plate, SiteDataProvider } from "@/components/portfolio/Atoms";
 import { DeferredChatDock } from "@/components/DeferredChatDock";
 import type { SiteData } from "@/content/schema";
 import type { AskHansolPageContext } from "@/lib/ask-hansol/client";
+import { AskFeatureDialog } from "@/components/portfolio/ask/AskFeatureDialog";
+import {
+  AskFeatureProvider,
+  useAskFeatureController,
+} from "@/components/portfolio/ask/ask-feature-context";
 import { personaFromPathname, type PersonaKey } from "@/components/portfolio/portfolio-types";
 import { useReportAskVisibleSection } from "@/components/portfolio/use-report-ask-visible-section";
 import { HomeView } from "@/components/portfolio/views/HomeView";
@@ -41,8 +46,8 @@ function PortfolioAppBody() {
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
   );
   const [askVisibleSection, setAskVisibleSection] = useState<string | undefined>();
-  const [jdOpenSignal, setJdOpenSignal] = useState(0);
-  const [adviceOpenSignal, setAdviceOpenSignal] = useState(0);
+  // 본문 상세 CTA(자문/JD)는 화면 중앙 모달 + 우측 도크 패널을 함께 연다(입력·제출 싱크).
+  const askFeature = useAskFeatureController();
   const [askTrackingReady, setAskTrackingReady] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
 
@@ -67,12 +72,9 @@ function PortfolioAppBody() {
   const back = useCallback(() => {
     router.push("/");
   }, [router]);
-  const triggerJdAnalysis = useCallback(() => {
-    setJdOpenSignal((prev) => prev + 1);
-  }, []);
-  const triggerAdvice = useCallback(() => {
-    setAdviceOpenSignal((prev) => prev + 1);
-  }, []);
+  const { openDialog } = askFeature;
+  const triggerJdAnalysis = useCallback(() => openDialog("jd"), [openDialog]);
+  const triggerAdvice = useCallback(() => openDialog("advice"), [openDialog]);
 
   const viewKey = persona ?? "home";
   useReportAskVisibleSection(shellRef, viewKey, setAskVisibleSection, askTrackingReady);
@@ -110,21 +112,23 @@ function PortfolioAppBody() {
   else body = <HomeView onPick={pick} />;
 
   return (
-    <div className={"app-layout" + (persona !== null ? " has-dock" : "")}>
-      <div className="shell" ref={shellRef}>
-        {/* 사이트 신원 바를 <main> 밖에 두어 banner 랜드마크로 인식되게 한다(홈에서만 노출). */}
-        {isHome && <Plate />}
-        <main id="main-content">{body}</main>
-        <Foot />
+    <AskFeatureProvider value={askFeature}>
+      <div className={"app-layout" + (persona !== null ? " has-dock" : "")}>
+        <div className="shell" ref={shellRef}>
+          {/* 사이트 신원 바를 <main> 밖에 두어 banner 랜드마크로 인식되게 한다(홈에서만 노출). */}
+          {isHome && <Plate />}
+          <main id="main-content">{body}</main>
+          <Foot />
+        </div>
+        <DeferredChatDock
+          defaultOpen={persona !== null && !isMobileViewport}
+          inline={persona !== null}
+          pageContext={pageContext}
+          openSignal={askFeature.dockOpenSignal}
+        />
+        <AskFeatureDialog />
       </div>
-      <DeferredChatDock
-        defaultOpen={persona !== null && !isMobileViewport}
-        inline={persona !== null}
-        pageContext={pageContext}
-        jdOpenSignal={jdOpenSignal}
-        adviceOpenSignal={adviceOpenSignal}
-      />
-    </div>
+    </AskFeatureProvider>
   );
 }
 

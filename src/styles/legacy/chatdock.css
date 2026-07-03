@@ -281,6 +281,114 @@
   padding: 14px 18px;
   border-top: 1px solid var(--bp-line, #1f4861);
   background: rgba(127, 180, 208, 0.04);
+  /* 진입 시 슬라이드업+페이드 — 도크가 이미 펼쳐져 있어도 '떴다'는 모션 신호를 준다. */
+  animation: chatdock-panel-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes chatdock-panel-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chatdock-jd-panel { animation: none; }
+}
+
+/* ===== Ask 기능 모달(본문 상세 CTA 진입점) =====================================
+   챗독 패널과 동일한 입력 UI 를 화면 중앙에 띄운다. 네이티브 <dialog> 로 Esc·백드롭·
+   포커스 트랩·top-layer 를 처리하고, 색/폰트는 도크와 공유한다. */
+.ask-dialog {
+  margin: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  width: min(560px, 92vw);
+  max-width: 92vw;
+  color: var(--ink, #f2f7fa);
+  overflow: visible;
+}
+.ask-dialog::backdrop {
+  background: rgba(4, 12, 20, 0.66);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.ask-dialog[open] { animation: ask-dialog-fade 200ms ease; }
+.ask-dialog-card {
+  display: flex;
+  flex-direction: column;
+  max-height: 86vh;
+  background: rgba(8, 24, 36, 0.98);
+  border: 1px solid var(--bp-line, #1f4861);
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  transform-origin: center;
+  animation: ask-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* 닫힘: 인라인 transform/opacity(런타임 측정)로 도크 방향 축소·이동을 트랜지션한다. */
+  transition: transform 360ms cubic-bezier(0.5, 0, 0.75, 0.15), opacity 340ms ease-in;
+}
+/* 닫히는 동안 진입 애니메이션·상호작용 차단(트랜지션만 남긴다). */
+.ask-dialog-card.is-closing {
+  animation: none;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.ask-dialog.is-closing::backdrop {
+  animation: ask-dialog-backfade 340ms ease forwards;
+}
+@keyframes ask-dialog-backfade {
+  to { opacity: 0; }
+}
+.ask-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--bp-line, #1f4861);
+}
+.ask-dialog-eyebrow {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bp-glow, #7fb4d0);
+}
+.ask-dialog-title {
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--ink, #f2f7fa);
+  margin-top: 5px;
+}
+.ask-dialog-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px;
+}
+.ask-dialog-thinking {
+  color: var(--ink-2, #c8d8e0);
+  font-style: italic;
+  opacity: 0.85;
+}
+/* 패널은 챗독 것과 동일(.chatdock-jd-panel). 모달 안에선 진입 애니메이션만 끈다(카드가 이미 애니메이션). */
+.ask-dialog-panel { animation: none; }
+.ask-dialog-again { align-self: flex-start; }
+
+@keyframes ask-dialog-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ask-dialog-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-dialog[open] { animation: none; }
+  .ask-dialog-card { animation: none; transition: none; }
 }
 .chatdock-jd-head {
   display: flex;
