@@ -20,9 +20,11 @@ async function fetchFromBlob(): Promise<string | null> {
   if (!token) return null;
   const url = await resolveBlobUrl(token, getBlobPrefix(), ONEPAGER_BLOB_PATH);
   if (!url) return null;
+  // no-store: 가변 Blob 을 force-cache 로 읽으면 Next 데이터 캐시에 고정돼 갱신이 안 보인다.
+  // 아래 인메모리 캐시(CACHE_TTL_MS)가 호출량을 억제한다. (site-data 로더와 동일한 이유)
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
-    cache: "force-cache",
+    cache: "no-store",
   }).catch(() => null);
   if (!response || !response.ok) return null;
   const text = await response.text();
