@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: rootDir,
   /** 동적 OG 이미지(satori)가 런타임에 읽는 한글 폰트를 람다 번들에 포함. */
   outputFileTracingIncludes: {
+    "/news/opengraph-image": ["./src/app/fonts/LINESeedKR-Bd.ttf"],
     "/news/[slug]/opengraph-image": ["./src/app/fonts/LINESeedKR-Bd.ttf"],
   },
   /** Claude Design `TweaksPanel` — gradually add types in `src/components/TweaksPanel.tsx` */

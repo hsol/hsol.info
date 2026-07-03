@@ -19,19 +19,19 @@ export const metadata: Metadata = {
     types: { "application/rss+xml": `${NEWS_URL}/feed.xml` },
   },
   robots: { index: true, follow: true },
+  // og/twitter 이미지는 명시하지 않는다 — 세그먼트의 opengraph-image.tsx
+  // (뉴스룸 전용 마스트헤드 카드)가 파일 컨벤션으로 자동 적용된다.
   openGraph: {
     type: "website",
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: NEWS_URL,
     siteName: PUBLICATION,
-    images: [{ url: "/og.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
-    images: ["/og.png"],
   },
 };
 
