@@ -22,9 +22,12 @@ async function fetchSiteDataFromBlob(): Promise<SiteData> {
     throw new Error(`Blob file not found: ${SITE_DATA_PATH}`);
   }
 
+  // no-store: 가변 private Blob 을 force-cache 로 읽으면 Next 데이터 캐시에 무기한 고정돼
+  // 콘텐츠 갱신(refresh)이 배포보다 늦게 도착하면 옛 데이터가 계속 서빙된다. 아래 인메모리
+  // 캐시(CACHE_TTL_MS)가 호출량을 억제하므로, 원본 fetch 는 항상 신선하게 가져온다.
   const response = await fetch(blobUrl, {
     headers: { Authorization: `Bearer ${token}` },
-    cache: "force-cache",
+    cache: "no-store",
   }).catch(() => null);
 
   if (!response || !response.ok) {
