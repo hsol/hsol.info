@@ -72,9 +72,9 @@ export const DEFAULT_LAYOUT: SiteLayout = {
           type: "callout",
           props: {
             dataSection: "collab/advice",
-            eyebrow: "저라면 어떻게 볼까 · AI 자문",
-            body: "지금 풀고 있는 이슈를 적어 주시면, 제 의사결정 방식(문제 재정의 · 작은 검증 · 구체화)을 그 상황에 적용해 저라면 어떻게 볼지 같이 짚어 드릴게요. 정해진 정답이 아니라 제 사고 틀을 빌린 관점이에요.",
-            buttonLabel: "당신의 이슈에 대한 제 관점은요 →",
+            eyebrow: "AI 자문 · 한솔님은 어떻게 보시나요?",
+            body: "결정 앞에서 막힌 고민을 적어 주시면, 제 의사결정 방식(문제 재정의 · 작은 검증 · 구체화)을 그 상황에 대입해 1인칭으로 짚어 드려요. 정답이 아니라, 제 사고 틀을 빌린 관점이에요.",
+            buttonLabel: "고민 적고 자문받기 →",
             action: "advice",
           },
         },

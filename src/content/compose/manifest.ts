@@ -263,6 +263,16 @@ export const COMPOSE_MANIFEST = {
     propsHint: "title?, sub?. 링크(/resume, /resume/pdf)는 고정.",
     propsSchema: z.object({ title: z.string().optional(), sub: z.string().optional() }).strict(),
   },
+  AdviceCTA: {
+    name: "AdviceCTA",
+    purpose:
+      "'저라면 어떻게 볼지'(의사결정 자문) Ask Hansol 진입 CTA. collab(협업·자문) 관점의 핵심 진입점.",
+    shape: "AI 자문 콜아웃 카드(안내 문구 + '고민 적고 자문받기' 버튼) — 클릭 시 자문 도크 오픈",
+    container: false,
+    dataBound: true,
+    propsHint: "title?(콜아웃 eyebrow), sub?(설명 문구). 둘 다 기본값 있음. 동작(자문 도크 오픈)은 고정.",
+    propsSchema: z.object({ title: z.string().optional(), sub: z.string().optional() }).strict(),
+  },
   Back: {
     name: "Back",
     purpose: "뒤로가기 바. 페이지 시작 골격.",

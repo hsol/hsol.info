@@ -13,6 +13,7 @@
 import type { ReactNode } from "react";
 import { COMPOSE_MANIFEST, type ComposeComponentName } from "@/content/compose/manifest";
 import {
+  AdviceCTABound,
   BackBound,
   Callout,
   CardGrid,
@@ -70,6 +71,7 @@ export const COMPOSE_COMPONENTS: Record<ComposeComponentName, ComposeComponent> 
   Pillars: PillarsBound,
   CoffeeCTA: CoffeeCTABound,
   ResumeCTA: ResumeCTABound,
+  AdviceCTA: AdviceCTABound,
   Back: BackBound,
 };
 
