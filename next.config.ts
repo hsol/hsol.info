@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: rootDir,
   /** 동적 OG 이미지(satori)가 런타임에 읽는 한글 폰트를 람다 번들에 포함. */
   outputFileTracingIncludes: {
+    "/news/opengraph-image": ["./src/app/fonts/LINESeedKR-Bd.ttf"],
     "/news/[slug]/opengraph-image": ["./src/app/fonts/LINESeedKR-Bd.ttf"],
   },
   /** Claude Design `TweaksPanel` — gradually add types in `src/components/TweaksPanel.tsx` */
@@ -38,14 +39,18 @@ const nextConfig: NextConfig = {
     return config;
   },
   async headers() {
-    const sitemapHeaders = [
-      { key: "Content-Type", value: "application/xml" },
-      { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600" },
-    ];
+    // sitemap 응답 헤더(Content-Type·Cache-Control)는 이제 라우트 핸들러
+    // (app/sitemap.xml·app/sitemap·app/news/sitemap)가 직접 설정한다.
     const fontCache = {
       key: "Cache-Control",
       value: "public, max-age=31536000, immutable",
     };
+    /** RSS 피드용 XSLT 스타일시트(public/feed.xsl) — nosniff 하에서도 브라우저가 XSL 로 파싱하도록
+        명시 타입 지정. 정적 파일이라 라우트 핸들러가 없어 여기서 응답 헤더를 붙인다. */
+    const xslHeaders = [
+      { key: "Content-Type", value: "text/xsl; charset=utf-8" },
+      { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600" },
+    ];
     /** 표준 권장 보안 헤더 — 응답 헤더가 메타 태그보다 강하다(HSTS·nosniff 등). */
     const securityHeaders = [
       {
@@ -82,8 +87,7 @@ const nextConfig: NextConfig = {
       },
     ];
     return [
-      { source: "/sitemap.xml", headers: sitemapHeaders },
-      { source: "/sitemap", headers: sitemapHeaders },
+      { source: "/feed.xsl", headers: xslHeaders },
       {
         source: "/_next/static/media/:path*.woff2",
         headers: [fontCache],

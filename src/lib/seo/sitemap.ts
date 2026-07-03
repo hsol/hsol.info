@@ -1,25 +1,23 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
+import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "@/content/site-structure";
 
 /**
- * 직접 작성한 sitemap 빌더.
+ * 메인 sitemap(hsol.info) 빌더 — **런타임 단일 진실 원천**.
  *
- * next-sitemap이 자동 주입하는 deprecated `xmlns:mobile` 네임스페이스와
- * 실제로 쓰지 않는 news/image/video/xhtml 네임스페이스를 제거하기 위해 자체 생성한다.
+ * 예전엔 `scripts/build-sitemap.ts` 가 빌드 시 `public/sitemap.xml`·`public/sitemap` 두 정적
+ * 파일로 굽던 것을, 라우트 핸들러(`app/sitemap.xml`·`app/sitemap`)가 이 함수를 호출해 동적으로
+ * 응답하도록 이관했다. 정적/동적 sitemap 이 서로 다른 시점에 생성돼 **버전이 어긋나는 문제**와,
+ * 확장자 있는 경로가 미들웨어 라우팅을 우회하던 문제를 함께 해소한다.
  *
- * - `SITE_URL`은 trailing slash 없음 (각 페이지 `<link rel="canonical">`과 정확히 일치시키기 위함).
- * - `<lastmod>`는 빌드 시각으로 통일 (SSR 사이트라 페이지별 정확한 변경 시각을 알기 어렵다).
- * - 엔트리 순서는 priority 내림차순으로 정렬해 사람이 읽기 쉽게.
- * - 동일 본문을 `public/sitemap.xml`과 `public/sitemap`에 모두 쓴다(리다이렉트 없이 공존).
+ * - `SITE_URL` 은 trailing slash 없음 (각 페이지 canonical 과 정확히 일치).
+ * - `<lastmod>` 는 렌더 시각으로 통일 (SSR 사이트라 페이지별 정확한 변경 시각을 알기 어렵다).
+ *   라우트에 `revalidate` 를 걸어 재검증 주기 동안은 값이 고정된다.
+ * - 엔트리 순서는 priority 내림차순 정렬 (사람이 읽기 쉽게).
  *
- * 뉴스룸(news.hsol.info)의 개별 기사는 **별도 sitemap** 으로 분리한다 — 이 메인 sitemap 에는 넣지 않고,
- * `src/app/news/sitemap/route.ts` 가 news.hsol.info/sitemap 으로 독립 제공한다.
- * 대신 서브도메인 **루트 URL**(blog/news)은 SUBDOMAIN_ENTRIES 로 여기에 포함해
- * 메인 sitemap 을 통해서도 크롤러가 서브도메인을 발견하도록 한다.
+ * 뉴스룸(news.hsol.info)의 개별 기사는 **별도 sitemap**(`app/news/sitemap`)이 책임진다.
+ * 여기서는 서브도메인 **루트 URL**(blog/news)만 SUBDOMAIN_ENTRIES 로 실어, 메인 sitemap 을
+ * 통해서도 크롤러가 서브도메인을 발견하게 한다.
  */
 const SITE_URL = "https://hsol.info";
-const OUTPUT_PATHS = ["public/sitemap.xml", "public/sitemap"] as const;
 
 type ChangeFreq =
   | "always"
@@ -97,7 +95,9 @@ function buildEntries(now: string): UrlEntry[] {
   );
 }
 
-function renderXml(entries: UrlEntry[]): string {
+/** 메인 sitemap XML 문자열을 생성한다. 라우트 핸들러가 이 결과를 그대로 응답한다. */
+export function buildMainSitemapXml(now: string = new Date().toISOString()): string {
+  const entries = buildEntries(now);
   const body = entries
     .map(
       (e) =>
@@ -116,21 +116,3 @@ function renderXml(entries: UrlEntry[]): string {
     `</urlset>\n`
   );
 }
-
-async function main() {
-  const now = new Date().toISOString();
-  const entries = buildEntries(now);
-  const xml = renderXml(entries);
-
-  for (const outputPath of OUTPUT_PATHS) {
-    await mkdir(path.dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, xml, "utf8");
-    console.log(`Generated ${outputPath} (${entries.length} urls)`);
-  }
-}
-
-main().catch((error) => {
-  console.error("Failed to generate sitemap");
-  console.error(error);
-  process.exit(1);
-});

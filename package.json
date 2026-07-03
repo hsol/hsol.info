@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev -p 9999",
     "build": "next build",
-    "postbuild": "tsx scripts/build-sitemap.ts",
     "start": "next start -p 9999",
     "lint": "next lint",
     "content:refresh:claude": "tsx scripts/refresh-site-data-with-claude.ts",
@@ -13,7 +12,6 @@
     "content:generate:onepager-pdf": "tsx scripts/generate-onepager-pdf.ts",
     "content:layout:snapshot": "tsx scripts/snapshot-layout-to-site-data.ts",
     "articles:sync": "tsx scripts/sync-articles.ts",
-    "sitemap:build": "tsx scripts/build-sitemap.ts",
     "assets:hansol-photo": "cwebp -q 82 public/hansol.png -o public/hansol.webp && avifenc -q 50 -s 6 public/hansol.png public/hansol.avif && cp public/hansol.webp public/hansol.avif assets/"
   },
   "dependencies": {

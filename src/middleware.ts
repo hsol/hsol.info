@@ -26,7 +26,14 @@ export function middleware(req: NextRequest) {
   }
 
   const url = req.nextUrl.clone();
-  url.pathname = pathname === "/" ? "/news" : `/news${pathname}`;
+  // sitemap.xml 은 뉴스 전용 sitemap 라우트가 확장자 없는 `/news/sitemap` 이므로 그쪽으로.
+  // (그냥 `/news${pathname}` 로 두면 `/news/sitemap.xml` → 404 가 되고, 미들웨어를 우회하면
+  //  메인 도메인의 `/sitemap.xml` 이 응답해 뉴스 속성에 메인 URL 이 새어 나간다.)
+  if (pathname === "/sitemap.xml") {
+    url.pathname = "/news/sitemap";
+  } else {
+    url.pathname = pathname === "/" ? "/news" : `/news${pathname}`;
+  }
   return NextResponse.rewrite(url);
 }
 
@@ -34,11 +41,11 @@ export const config = {
   /**
    * 재작성 대상에서 제외:
    *  - `_next/`·`api/` : 빌드 산출물·API 라우트
-   *  - 확장자 있는 경로(`.*\.`) : favicon·이미지·sitemap.xml 등 정적 자산.
+   *  - 확장자 있는 경로(`.*\.`) : favicon·이미지 등 정적 자산.
    *    news.hsol.info 로 로드되는 절대경로 자산이 /news/_next/... 로 깨지지 않게 한다.
    *
-   * 단, `/feed.xml` 만은 예외로 포함해 미들웨어가 /news/feed.xml 로 rewrite 하게 한다
-   * (RSS 자기참조 URL 이 news.hsol.info/feed.xml 이라 이 경로가 실제로 응답해야 함).
+   * 단, `/feed.xml`·`/sitemap.xml` 은 예외로 포함해 미들웨어가 뉴스 라우트로 rewrite 하게 한다
+   * (자기참조 RSS·sitemap URL 이 news.hsol.info/… 라 이 경로들이 실제로 응답해야 함).
    */
-  matcher: ["/((?!_next/|api/|.*\\.).*)", "/feed.xml"],
+  matcher: ["/((?!_next/|api/|.*\\.).*)", "/feed.xml", "/sitemap.xml"],
 };
