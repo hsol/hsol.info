@@ -65,6 +65,57 @@ const STYLE = `
   /* 좁은 화면에선 시트와 겹치므로 하단 가로 배치로 */
   .onepager-floatnav { top: auto; bottom: 18px; left: 18px; transform: none; flex-direction: row; }
 }
+
+/* 모바일: 조각 CSS 가 A4 고정폭(.onepager{width:210mm})을 쓰는데 시트는 overflow:hidden 이라
+   좁은 화면에서 오른쪽이 잘린다. 유동 폭·단일 컬럼으로 리플로우한다. 시트 내부 인라인 <style>
+   (.onepager …)을 덮으려면 .onepager-sheet 접두로 특이도를 올린다(!important 없이). PDF 경로는
+   이 STYLE 을 쓰지 않으므로 A4 레이아웃이 그대로 보존된다. */
+@media (max-width: 820px) {
+  /* 상하 배경 여백 제거: .shell 세로 패딩과 .foot margin-top 을 이 페이지 한정으로 0 으로.
+     (좌우는 아래 시트 풀블리드가 담당) */
+  .onepager-layout .shell { padding-top: 0; padding-bottom: 0; }
+  .onepager-layout .foot { margin-top: 0; }
+  .onepager-screen { padding: 0; }
+  /* 시트를 뷰포트 폭까지 풀블리드로 빼 .shell 좌우 패딩만큼의 배경 여백을 없앤다
+     (부모가 뷰포트 중앙 정렬이라 이 계산식으로 좌우 끝까지 닿는다). */
+  .onepager-sheet {
+    width: 100vw;
+    max-width: none;
+    margin-left: calc(50% - 50vw);
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .onepager-sheet .onepager {
+    width: auto;
+    padding: 22px 16px 28px;
+  }
+  /* 헤더: 이름·직함 위, 연락처 아래로 세로 적층(좌측 정렬) */
+  .onepager-sheet .onepager .op-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .onepager-sheet .onepager .op-contacts {
+    text-align: left;
+    line-height: 1.9;
+  }
+  /* 다단 그리드 → 단일 컬럼 */
+  .onepager-sheet .onepager .op-achievements,
+  .onepager-sheet .onepager .op-two-col,
+  .onepager-sheet .onepager .op-edu-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  /* 경력·프로젝트 헤더: 기간/메타가 겹치지 않게 줄바꿈 허용 */
+  .onepager-sheet .onepager .op-exp-header,
+  .onepager-sheet .onepager .op-proj-header {
+    flex-wrap: wrap;
+    gap: 2px 8px;
+  }
+  .onepager-sheet .onepager .op-exp-period,
+  .onepager-sheet .onepager .op-proj-meta {
+    margin-left: 0;
+  }
+}
 @media print {
   html, body { background: #ffffff !important; }
   body::before, body::after { display: none !important; }
@@ -113,7 +164,7 @@ export function OnePagerPage({ html }: { html: string | null }) {
   }, [html, reduceMotion]);
 
   return (
-    <div className="app-layout">
+    <div className="app-layout onepager-layout">
       <style>{STYLE}</style>
       <noscript>
         <style>{`.onepager-sheet.preanim .onepager > *:not(style){opacity:1!important}`}</style>
