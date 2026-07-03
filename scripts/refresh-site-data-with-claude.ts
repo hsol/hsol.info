@@ -1190,14 +1190,19 @@ function allComposeComponents(nodes: ComposeNode[]): string[] {
 
 /**
  * 필수 진입점 불변식(하드 가드): 관점 페이지에 반드시 있어야 하는 컴포넌트를 보장한다.
- * 현재 규칙 — collab 관점엔 자문 진입점(AdviceCTA)이 최소 1개. 프롬프트 지침(8-1)을 LLM 이
- * 어겨 누락하면 본문 상단부에 결정적으로 주입한다(중첩 포함 이미 있으면 무동작).
- * nodes 를 제자리에서 수정한다. AdviceCTA 는 본문 노드라 enforceCompositionSkeleton 의
- * strip 이 보존하므로 골격 재배치 전에 호출해도 안전하다.
+ * 현재 규칙 — collab 엔 자문 진입점(AdviceCTA), hire 엔 JD 적합도 진입점(JdAnalysisCTA)이
+ * 각각 최소 1개. 프롬프트 지침(8-1·8-2)을 LLM 이 어겨 누락하면 본문 상단부에 결정적으로
+ * 주입한다(중첩 포함 이미 있으면 무동작). nodes 를 제자리에서 수정한다. CTA 는 본문 노드라
+ * enforceCompositionSkeleton 의 strip 이 보존하므로 골격 재배치 전에 호출해도 안전하다.
  */
 function ensureRequiredComposeNodes(page: PageKey, nodes: ComposeNode[]): void {
-  if (page === "collab" && !allComposeComponents(nodes).includes("AdviceCTA")) {
-    nodes.splice(Math.min(1, nodes.length), 0, { component: "AdviceCTA" });
+  const required: Partial<Record<PageKey, string>> = {
+    collab: "AdviceCTA",
+    hire: "JdAnalysisCTA",
+  };
+  const need = required[page];
+  if (need && !allComposeComponents(nodes).includes(need)) {
+    nodes.splice(Math.min(1, nodes.length), 0, { component: need });
   }
 }
 
@@ -1277,6 +1282,7 @@ async function generateComposition(
    - 헤드라인은 **'무엇을 끝까지 책임질 수 있는가'(역량·도메인·임팩트)**. 기술은 그 보조 신호일 뿐.
 8) **이력서 진입점(ResumeCTA)**: 이력서·포트폴리오 원페이저(/resume)로 보내는 ResumeCTA 컴포넌트가 있다. **hire(채용) 관점에는 반드시 포함**해 PDF 이력서 진입점을 제공하라(보통 경력/하이라이트 근처나 본문 말미). collab·builder 도 적절하면 넣고, curious 는 선택.
 8-1) **자문 진입점(AdviceCTA)**: '저라면 어떻게 볼지'(의사결정 자문) 도크를 여는 AdviceCTA 컴포넌트가 있다. **collab(협업·자문) 관점에는 반드시 정확히 1개 포함**하라(보통 '일하는 방식/협업 원칙' 근처, 본문 상단부). collab 의 핵심 진입점이므로 빠뜨리면 안 된다. 다른 관점에는 넣지 않는다.
+8-2) **JD 적합도 진입점(JdAnalysisCTA)**: '채용 공고 적합도 분석' 모달/도크를 여는 JdAnalysisCTA 컴포넌트가 있다. **hire(채용) 관점에는 반드시 정확히 1개 포함**하라(보통 경력·하이라이트 근처나 ResumeCTA 부근). hire 의 핵심 진입점이므로 빠뜨리면 안 된다. 다른 관점에는 넣지 않는다.
    - **Divider 는 한 섹션 안(children)에서 묶음을 나눌 때만** 쓴다. **섹션과 섹션 사이(최상위)에 Divider 를 넣지 마라** — 섹션은 이미 충분히 떨어진다(중복·노이즈).
 9) **변화는 있어야**: 이번 회차 리서치 인사이트를 최소 1곳 구성에 반영하라(섹션 추가/순서/강조). 단 의미 없는 뒤섞기 금지.
 10) **레퍼런스는 링크로(중요)**: 본문이 가리키는 대상에 [참조 vault 컨텍스트]·data-bound 데이터에 **정식 URL 이 있으면 평문으로 두지 말고 클릭 가능한 링크로 건다**. 링크 수단은 LinkList(items[{label,href}]) 또는 CardGrid(items[{title,body,href}]) 의 href, 그리고 글·출판물은 data-bound Writing(자동 링크). **Prose 는 링크를 담지 못한다** — Prose 안에 URL 을 글자로 적지 말고, 링크가 필요한 항목은 위 컴포넌트로 올려라. URL 은 컨텍스트/데이터에 실제 있는 것만 쓰고 지어내지 않는다. 출처·조회 과정·저장소 이름을 드러내지 말라는 규칙은 '공개 가능한 정식 URL 링크'까지 금지하는 게 아니다(글·뉴스레터·출판물·외부 사이트의 공개 링크는 오히려 적극적으로 건다).

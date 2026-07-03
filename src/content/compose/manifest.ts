@@ -273,6 +273,16 @@ export const COMPOSE_MANIFEST = {
     propsHint: "title?(콜아웃 eyebrow), sub?(설명 문구). 둘 다 기본값 있음. 동작(자문 도크 오픈)은 고정.",
     propsSchema: z.object({ title: z.string().optional(), sub: z.string().optional() }).strict(),
   },
+  JdAnalysisCTA: {
+    name: "JdAnalysisCTA",
+    purpose:
+      "'채용 공고 적합도 분석'(JD 적합도) Ask Hansol 진입 CTA. hire(채용) 관점의 핵심 진입점.",
+    shape: "AI 분석 콜아웃 카드(안내 문구 + '채용 공고 넣고 적합도 보기' 버튼) — 클릭 시 분석 모달/도크 오픈",
+    container: false,
+    dataBound: true,
+    propsHint: "title?(콜아웃 eyebrow), sub?(설명 문구). 둘 다 기본값 있음. 동작(분석 모달 오픈)은 고정.",
+    propsSchema: z.object({ title: z.string().optional(), sub: z.string().optional() }).strict(),
+  },
   Back: {
     name: "Back",
     purpose: "뒤로가기 바. 페이지 시작 골격.",

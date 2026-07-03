@@ -369,6 +369,33 @@ export function AdviceCTABound({
   );
 }
 
+/**
+ * hire JD 적합도 분석 진입 CTA — Ask Hansol 의 '채용 공고 적합도 분석' 모달/도크를 연다.
+ * AdviceCTA(collab)·ResumeCTA 와 대칭인 본문 진입점. onAnalyzeJd 콜백이 있을 때만 렌더한다.
+ */
+export function JdAnalysisCTABound({
+  props,
+}: {
+  props: { title?: string; sub?: string };
+}) {
+  const cb = useBlockCallbacks();
+  if (!cb.onAnalyzeJd) return null;
+  return (
+    <div className="hire-jd-callout" data-ask-section="hire/jd">
+      <div className="hire-jd-callout-eyebrow">
+        {props.title ?? "AI 분석 · 채용 공고 적합도"}
+      </div>
+      <p className="hire-jd-callout-body">
+        {props.sub ??
+          "채용 공고(JD)를 붙여넣어 주시면, 제 경력·역량을 그 포지션 요건에 대입해 어디가 맞고 어디가 갭인지 솔직하게 짚어 드려요."}
+      </p>
+      <button type="button" className="hire-jd-callout-btn" onClick={cb.onAnalyzeJd}>
+        채용 공고 넣고 적합도 보기 →
+      </button>
+    </div>
+  );
+}
+
 /** 기본 팩트(연차·거점·학력·언어) + 이력서 링크. 어느 페이지에서나 공용. */
 export function FactsBound(_: { props: Record<string, never> }) {
   const D = useSiteData();
