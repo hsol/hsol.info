@@ -38,10 +38,8 @@ const nextConfig: NextConfig = {
     return config;
   },
   async headers() {
-    const sitemapHeaders = [
-      { key: "Content-Type", value: "application/xml" },
-      { key: "Cache-Control", value: "public, max-age=3600, s-maxage=3600" },
-    ];
+    // sitemap 응답 헤더(Content-Type·Cache-Control)는 이제 라우트 핸들러
+    // (app/sitemap.xml·app/sitemap·app/news/sitemap)가 직접 설정한다.
     const fontCache = {
       key: "Cache-Control",
       value: "public, max-age=31536000, immutable",
@@ -82,8 +80,6 @@ const nextConfig: NextConfig = {
       },
     ];
     return [
-      { source: "/sitemap.xml", headers: sitemapHeaders },
-      { source: "/sitemap", headers: sitemapHeaders },
       {
         source: "/_next/static/media/:path*.woff2",
         headers: [fontCache],
