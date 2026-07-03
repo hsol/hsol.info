@@ -341,6 +341,34 @@ export function ResumeCTABound({
   );
 }
 
+/**
+ * collab 자문 진입 CTA — Ask Hansol 의 '저라면 어떻게 볼지'(의사결정 자문) 도크를 연다.
+ * hire 의 ResumeCTA 와 대칭인 본문 진입점. onAskAdvice 콜백이 있을 때만 렌더한다.
+ * 시각은 JD 콜아웃(.hire-jd-callout)과 공유해 'AI 액션' 인상을 일관되게 준다.
+ */
+export function AdviceCTABound({
+  props,
+}: {
+  props: { title?: string; sub?: string };
+}) {
+  const cb = useBlockCallbacks();
+  if (!cb.onAskAdvice) return null;
+  return (
+    <div className="hire-jd-callout" data-ask-section="collab/advice">
+      <div className="hire-jd-callout-eyebrow">
+        {props.title ?? "AI 자문 · 한솔님은 어떻게 보시나요?"}
+      </div>
+      <p className="hire-jd-callout-body">
+        {props.sub ??
+          "결정 앞에서 막힌 고민을 적어 주시면, 제 의사결정 방식(문제 재정의 · 작은 검증 · 구체화)을 그 상황에 대입해 1인칭으로 짚어 드려요. 정답이 아니라, 제 사고 틀을 빌린 관점이에요."}
+      </p>
+      <button type="button" className="hire-jd-callout-btn" onClick={cb.onAskAdvice}>
+        고민 적고 자문받기 →
+      </button>
+    </div>
+  );
+}
+
 /** 기본 팩트(연차·거점·학력·언어) + 이력서 링크. 어느 페이지에서나 공용. */
 export function FactsBound(_: { props: Record<string, never> }) {
   const D = useSiteData();

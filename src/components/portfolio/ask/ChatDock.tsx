@@ -430,7 +430,7 @@ export function ChatDock({
         {adviceFeatureEnabled && adviceMode && (
           <div className="chatdock-jd-panel">
             <div className="chatdock-jd-head">
-              <span className="chatdock-jd-title">저라면 어떻게 볼지</span>
+              <span className="chatdock-jd-title">임한솔의 AI 클론 의사결정 자문요청</span>
               <button
                 type="button"
                 className="chatdock-jd-close"
@@ -466,7 +466,7 @@ export function ChatDock({
             className="chatdock-jd-toggle"
             onClick={() => setAdviceMode(true)}
           >
-            저라면 어떻게 볼지
+            AI 자문 · 한솔님은 어떻게 보시나요?
           </button>
         )}
         <form
