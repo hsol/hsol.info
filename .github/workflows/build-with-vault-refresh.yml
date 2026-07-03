@@ -46,6 +46,9 @@ jobs:
           CONTENT_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
           # 빌드 로그(build_log 테이블) 적층용. 없으면 로그 적층만 건너뛰고 리프레시는 정상.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # 파이프라인 종류별 LLM 동작 토글(contentPipeline). 없으면 코드 기본값으로 폴백(빌드 정상).
+          # → 대시보드 Edge Config 에서 불리언만 바꾸면 다음 빌드가 반영. GitHub secret 로 등록 필요.
+          EDGE_CONFIG: ${{ secrets.EDGE_CONFIG }}
         run: npm run content:refresh:claude
 
       - name: Commit and push vault updates to hsol-info-blob submodule

@@ -12,6 +12,7 @@ import { layoutSchema, type SiteLayout } from "../src/content/layout-types";
 import { DEFAULT_LAYOUT } from "../src/content/default-layout";
 import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
+import { loadPipelineFlags } from "./lib/pipeline-flags";
 import { renderCatalogForPrompt } from "../src/content/layout-catalog";
 import {
   pageCompositionSchema,
@@ -57,14 +58,9 @@ const EMIT_LAYOUT_TOOL_NAME = "emit_layout";
 const EMIT_COMPOSITION_TOOL_NAME = "emit_composition";
 const SITE_DATA_TEMPLATE = JSON.stringify(HSOL_DATA, null, 2);
 
-/**
- * 컴포지션(생성형 컴포넌트-트리) 빌더 게이트. **기본 비활성(점진 도입)**.
- * COMPOSITION_BUILDER=1 일 때만 동작하고, 대상 페이지는 COMPOSITION_PAGES(CSV)로 제한(기본 curious 파일럿).
- */
-const COMPOSITION_BUILDER_ENABLED = (() => {
-  const v = (process.env.COMPOSITION_BUILDER ?? "0").trim().toLowerCase();
-  return v === "1" || v === "true" || v === "yes";
-})();
+// 파이프라인 종류별 on/off(siteData·research·layout·composition·onepager)는 이제
+// Edge Config `contentPipeline` 로 통합 관리한다 → main() 의 loadPipelineFlags() 참조.
+// (env 오버라이드·기본값은 scripts/lib/pipeline-flags.ts 가 담당)
 /** 컴포지션 빌더 대상 = 네 관점(persona) 페이지 전부. COMPOSITION_PAGES(CSV)로 좁힐 수 있다. */
 const DEFAULT_COMPOSITION_PAGES: PageKey[] = ["hire", "collab", "builder", "curious"];
 const COMPOSITION_PAGES: PageKey[] = (() => {
@@ -78,11 +74,6 @@ const COMPOSITION_PAGES: PageKey[] = (() => {
 })();
 const COMPOSITION_MAX_TOKENS = Number(process.env.COMPOSITION_EMIT_MAX_TOKENS ?? 16000);
 
-/** 레이아웃 빌더 비활성화: LAYOUT_RESEARCH=0 또는 LAYOUT_BUILDER=0 이면 레이아웃 생성/리서치를 건너뛴다. */
-const LAYOUT_BUILDER_ENABLED = (() => {
-  const v = (process.env.LAYOUT_BUILDER ?? process.env.LAYOUT_RESEARCH ?? "1").trim().toLowerCase();
-  return v !== "0" && v !== "false" && v !== "no";
-})();
 const RESEARCH_MAX_ROUNDS = Number(process.env.LAYOUT_RESEARCH_MAX_ROUNDS ?? 6);
 const RESEARCH_MAX_TOKENS = Number(process.env.LAYOUT_RESEARCH_MAX_TOKENS ?? 6000);
 const LAYOUT_MAX_TOKENS = Number(process.env.LAYOUT_EMIT_MAX_TOKENS ?? 16000);
@@ -113,11 +104,6 @@ const EMIT_ONEPAGER_TOOL_NAME = "emit_one_pager";
 const ONEPAGER_HTML_PATH =
   process.env.VAULT_ONEPAGER_HTML_PATH ??
   "hsol-info-blob/vault/object-views/onepager-ko.html";
-/** 원페이저 빌더 비활성화: ONEPAGER_BUILDER=0 이면 건너뛴다(기존 파일 보존). */
-const ONEPAGER_BUILDER_ENABLED = (() => {
-  const v = (process.env.ONEPAGER_BUILDER ?? "1").trim().toLowerCase();
-  return v !== "0" && v !== "false" && v !== "no";
-})();
 const ONEPAGER_MAX_TOKENS = Number(process.env.ONEPAGER_EMIT_MAX_TOKENS ?? 20000);
 /** 원페이저 근거 = vault 온톨로지 원본. 척추(큐레이트 뷰) + objects/* 글롭. */
 const ONEPAGER_SPINE_FILES = [
@@ -1568,6 +1554,16 @@ ${args.contextText}
 
 async function main() {
   logStep("Refresh started.");
+
+  // 파이프라인 종류별 LLM 동작 토글(Edge Config `contentPipeline` ?? env ?? 기본값).
+  const { flags, source, edgeConfigOk } = await loadPipelineFlags();
+  logStep(
+    `Pipeline flags (${edgeConfigOk ? "edge-config" : "no edge-config → env/default"}): ` +
+      (Object.keys(flags) as (keyof typeof flags)[])
+        .map((k) => `${k}=${flags[k] ? "on" : "off"}(${source[k]})`)
+        .join(", "),
+  );
+
   // AI Gateway 인증: 로컬은 AI_GATEWAY_API_KEY 또는 VERCEL_OIDC_TOKEN, CI/배포는 OIDC 자동.
   // apiKey 변수는 하위 호출부 시그니처 호환을 위한 마커일 뿐(실제 인증은 Gateway가 처리).
   const apiKey = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN ?? "";
@@ -1639,7 +1635,20 @@ ${contextText}
   let validationHint = "";
   let siteData: SiteData | null = null;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  // siteData 갱신 off + 기존 site-data 존재 → LLM 본문 생성 스킵, 기존을 베이스로 재사용.
+  // (레이아웃·컴포지션만 재진화하고 본문 카피는 손대지 않고 싶을 때. 기존이 없으면 어쩔 수 없이 생성.)
+  if (!flags.siteData && hasExistingSiteData) {
+    const reused = siteDataSchema.safeParse(parseJsonWithFallback(currentSiteDataText));
+    if (!reused.success) {
+      throw new Error(
+        "flags.siteData=off 인데 기존 site-data.json 이 스키마 불일치 — siteData 를 켜서 재생성하거나 파일을 고치세요.",
+      );
+    }
+    siteData = reused.data;
+    logStep("site-data 본문 갱신 스킵(flags.siteData=off) — 기존 site-data 를 베이스로 재사용.");
+  }
+
+  for (let attempt = 1; siteData === null && attempt <= 3; attempt += 1) {
     const prompt = validationHint
       ? `${basePrompt}\n\n이전 시도 검증 오류:\n${validationHint}\n오류를 반영해 다시 생성하라.`
       : basePrompt;
@@ -1703,15 +1712,20 @@ ${contextText}
     throw err;
   }
 
+  // 리서치 게이트: flags.research=off 면 웹 리서치(web_search/web_fetch)를 건너뛰고 빈 노트로.
+  // 빌더 자체는 그대로 돌고(빈 researchNotes 는 각 빌더가 이미 안전 처리), 웹툴 과금만 아낀다.
+  const maybeResearch = (lens: string): Promise<string> =>
+    flags.research ? researchPortfolioReferences(apiKey, lens) : Promise.resolve("");
+
   // --- 레이아웃 빌더: 현재 레이아웃을 앵커로, 매 회차 다른 포트폴리오를 리서치해 점진 개선 ---
   const existingLayout = extractExistingLayout(currentSiteDataText);
   let buildLens: string | undefined;
   let buildChanges: string[] = [];
-  if (LAYOUT_BUILDER_ENABLED) {
+  if (flags.layout) {
     const lens = RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
     buildLens = lens;
     logStep(`Researching portfolio references (lens: ${lens})...`);
-    const researchNotes = await researchPortfolioReferences(apiKey, lens);
+    const researchNotes = await maybeResearch(lens);
     logStep(researchNotes ? `Research notes collected (${researchNotes.length} chars).` : "Research notes empty.");
     // git 으로 회차별 레이아웃 변화 이력을 컴팩트하게 뽑아 넣어 핑퐁(반복·되돌리기)을 막는다.
     const layoutHistory = await getLayoutOrderTimeline(8);
@@ -1729,10 +1743,10 @@ ${contextText}
 
   // --- 컴포지션 빌더(점진 도입, 게이트): 디자인시스템 컴포넌트 트리로 페이지를 조합 + 내용 작성 ---
   const compositionChanges: string[] = [];
-  if (COMPOSITION_BUILDER_ENABLED) {
+  if (flags.composition) {
     const lens = buildLens ?? RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
     logStep(`Composition builder enabled. Pages: ${COMPOSITION_PAGES.join(", ")} (lens: ${lens}).`);
-    const researchNotes = await researchPortfolioReferences(apiKey, lens);
+    const researchNotes = await maybeResearch(lens);
     const compositionContext = await loadOnePagerContext(changedVaultFiles);
     logStep("Loaded ontology context for composition.");
 
@@ -1794,13 +1808,13 @@ ${contextText}
   // --- 원페이저 빌더: vault 온톨로지 근거로 이력서/포트폴리오 한 장(HTML). 안정성 우선(KEEP/PATCH/OVERHAUL). ---
   // site-data.json 에는 넣지 않고 별도 아티팩트(onepager-ko.html)로 분리한다(비대화 방지).
   const onePagerChanges: string[] = [];
-  if (ONEPAGER_BUILDER_ENABLED) {
+  if (flags.onepager) {
     const currentHtml = await getExistingOnePagerHtml();
     const onePagerContext = await loadOnePagerContext(changedVaultFiles);
     logStep("Loaded one-pager ontology context.");
     const lens = buildLens ?? RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
     // 첫 생성일 때만 디자인 리서치(기존이 있으면 안정성 우선이라 생략, 비용·핑퐁 방지).
-    const researchNotes = currentHtml ? "" : await researchPortfolioReferences(apiKey, lens);
+    const researchNotes = currentHtml ? "" : await maybeResearch(lens);
     logStep("Generating one-pager (vault ontology grounded)...");
     const onePager = await generateOnePager(apiKey, {
       contextText: onePagerContext,

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Back, Foot, Plate, SecHead } from "@/components/portfolio/Atoms";
 import { ViewHead } from "@/components/portfolio/view-primitives";
+import { Pagination } from "@/components/ui/Pagination";
 import type { BuildLogRow } from "@/lib/db/build-log";
 
 /**
@@ -19,7 +20,21 @@ function formatAt(at: string): string {
   return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`;
 }
 
-export function BuildLogPage({ entries }: { entries: BuildLogRow[] }) {
+export function BuildLogPage({
+  entries,
+  page,
+  pageCount,
+  total,
+  offset,
+}: {
+  entries: BuildLogRow[];
+  page: number;
+  pageCount: number;
+  /** 페이지네이션 이전 전체 회차 수 — 전역 회차 번호 매김에 쓴다. */
+  total: number;
+  /** 현재 페이지 첫 항목의 전역 0-기반 인덱스. */
+  offset: number;
+}) {
   const router = useRouter();
   return (
     <div className="app-layout">
@@ -42,7 +57,8 @@ export function BuildLogPage({ entries }: { entries: BuildLogRow[] }) {
                 <div className="sec" key={e.id}>
                   <SecHead
                     title={`build ${e.version}`}
-                    num={String(entries.length - i).padStart(2, "0")}
+                    // 회차 번호는 페이지가 넘어가도 이어지도록 전역 위치(total - offset - i)로 매긴다.
+                    num={String(total - offset - i).padStart(2, "0")}
                     meta={e.lens ?? undefined}
                   />
                   <p className="career-curation-note">{formatAt(e.created_at)}</p>
@@ -54,6 +70,13 @@ export function BuildLogPage({ entries }: { entries: BuildLogRow[] }) {
                 </div>
               ))
             )}
+
+            <Pagination
+              page={page}
+              pageCount={pageCount}
+              basePath="/build-log"
+              label="빌드 로그 페이지"
+            />
           </div>
         </main>
         <Foot />

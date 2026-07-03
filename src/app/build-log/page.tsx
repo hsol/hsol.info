@@ -3,9 +3,13 @@ import { SiteDataProvider } from "@/components/portfolio/Atoms";
 import { BuildLogPage } from "@/components/portfolio/BuildLogPage";
 import { getSiteData } from "@/lib/content/site-data";
 import { listBuildLog } from "@/lib/db/build-log";
+import { paginate, resolvePage } from "@/lib/pagination";
 
 // DB(build_log)를 읽어 렌더하므로 빌드·CDN에 고정하지 않고 요청 시 동적 렌더한다.
 export const dynamic = "force-dynamic";
+
+/** 한 페이지에 노출할 빌드 로그 회차 수. */
+const PER_PAGE = 15;
 
 export const metadata: Metadata = {
   title: "빌드 로그 — hsol.info",
@@ -15,11 +19,30 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default async function BuildLogRoutePage() {
-  const [siteData, entries] = await Promise.all([getSiteData(), listBuildLog()]);
+export default async function BuildLogRoutePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[] }>;
+}) {
+  const [siteData, entries, { page }] = await Promise.all([
+    getSiteData(),
+    listBuildLog(),
+    searchParams,
+  ]);
+  const { items, page: current, pageCount, total, offset } = paginate(
+    entries,
+    resolvePage(page),
+    PER_PAGE,
+  );
   return (
     <SiteDataProvider data={siteData}>
-      <BuildLogPage entries={entries} />
+      <BuildLogPage
+        entries={items}
+        page={current}
+        pageCount={pageCount}
+        total={total}
+        offset={offset}
+      />
     </SiteDataProvider>
   );
 }
