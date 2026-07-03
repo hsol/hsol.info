@@ -1,0 +1,88 @@
+/*
+ * 페이지네이션 — 테마 무의존. 색을 하드코딩하지 않고 currentColor 에서 파생해
+ * 라이트(뉴스룸)·다크(빌드 로그) 어느 배경에서도 자연스럽게 녹아든다.
+ * font 도 inherit 이라 각 페이지의 산세리프/모노 서체를 그대로 따른다.
+ */
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 2.5rem 0 0;
+  font: inherit;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* 링크·숫자·이전/다음 공통 셀 */
+.item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.6rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  color: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+a.item:hover {
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  border-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+/* 현재 페이지 — 색 반전 대신 강한 테두리 + 옅은 채움 + 볼드로 구분.
+   전부 currentColor 파생이라 라이트/다크 어느 배경에서도 일관되게 읽힌다. */
+.current {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-color: currentColor;
+  font-weight: 700;
+  cursor: default;
+}
+
+/* 비활성(맨앞/맨끝의 이전·다음) */
+.disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* 생략 부호 */
+.ellipsis {
+  min-width: 1.5rem;
+  padding: 0 0.2rem;
+  border: 0;
+  opacity: 0.55;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 이전/다음 라벨 — 좁은 화면에선 숨기고 화살표만. */
+.edgeLabel {
+  margin: 0 0.15rem;
+}
+
+@media (max-width: 480px) {
+  .edgeLabel {
+    display: none;
+  }
+  .item {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.45rem;
+  }
+}

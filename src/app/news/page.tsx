@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { NewsHub } from "@/components/news/NewsHub";
 import { listPublishedArticles } from "@/lib/db/articles";
 import { buildNewsHubJsonLd, NEWS_URL, PUBLICATION } from "@/lib/news/seo";
+import { paginate, resolvePage } from "@/lib/pagination";
 import "./news.css";
 
-export const revalidate = 600;
+/** 허브 한 페이지에 노출할 기사 수(카드가 커서 한 화면 스캔 분량으로 제한). */
+const PER_PAGE = 10;
 
 const PAGE_TITLE = `${PUBLICATION} 뉴스룸 — 임한솔 취재기록`;
 const PAGE_DESCRIPTION =
@@ -35,9 +37,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function NewsHubPage() {
+export default async function NewsHubPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string | string[] }>;
+}) {
   const articles = await listPublishedArticles();
+  // JSON-LD 는 전체 컬렉션을 대표하도록 페이지네이션 이전의 전체 목록으로 유지한다.
   const jsonLd = buildNewsHubJsonLd(articles);
+
+  const { page } = await searchParams;
+  const { items, page: current, pageCount } = paginate(articles, resolvePage(page), PER_PAGE);
 
   return (
     <>
@@ -45,7 +55,7 @@ export default async function NewsHubPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <NewsHub articles={articles} />
+      <NewsHub articles={items} page={current} pageCount={pageCount} />
     </>
   );
 }

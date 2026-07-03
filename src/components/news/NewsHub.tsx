@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ArticleRow } from "@/types/article";
+import { Pagination } from "@/components/ui/Pagination";
 import { SITE_URL } from "@/lib/news/seo";
 
 const DATE_FMT = new Intl.DateTimeFormat("ko-KR", {
@@ -16,7 +17,15 @@ function formatDate(value: string | null): { iso: string; label: string } | null
 }
 
 /** 뉴스룸 허브 — 발행 기사 목록(내부 링크 클러스터의 중심). */
-export function NewsHub({ articles }: { articles: ArticleRow[] }) {
+export function NewsHub({
+  articles,
+  page,
+  pageCount,
+}: {
+  articles: ArticleRow[];
+  page: number;
+  pageCount: number;
+}) {
   return (
     <main id="main-content" className="news-page">
       <nav className="news-back" aria-label="뒤로">
@@ -77,6 +86,10 @@ export function NewsHub({ articles }: { articles: ArticleRow[] }) {
           })}
         </ul>
       )}
+
+      {/* basePath 는 내부 라우트 "/news". 서브도메인에선 미들웨어 rewrite +
+          NewsUrlNormalizer 가 주소창을 "/…"·"?page=" 로 정규화한다(search 보존). */}
+      <Pagination page={page} pageCount={pageCount} basePath="/news" label="뉴스룸 페이지" />
     </main>
   );
 }
