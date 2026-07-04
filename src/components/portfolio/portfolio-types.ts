@@ -23,6 +23,10 @@ export type ChatMsg = {
   role: "user" | "hansol";
   text: string;
   streaming?: boolean;
+  /** assistant 답변의 DB 메시지 id — 있으면 별점·의견 평가를 이 답변에 연결한다. */
+  messageId?: string | null;
+  /** 이미 평가한 답변 — 히스토리 조회 시 판정하며, true면 평가 UI를 숨긴다. */
+  rated?: boolean;
 };
 
 export type AskDraft = {

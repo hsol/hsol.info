@@ -7,7 +7,7 @@
 @media (min-width: 900px) {
   .app-layout.has-dock {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 400px;
+    grid-template-columns: minmax(0, 1fr) var(--chatdock-width, 400px);
     align-items: stretch;
     min-height: 100vh;
   }
@@ -68,7 +68,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 380px;
+  width: var(--chatdock-width, 380px);
   max-width: 92vw;
   background: rgba(8,24,36,0.98);
   border-left: 1px solid var(--bp-line, #1f4861);
@@ -79,6 +79,42 @@
   transition: transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .chatdock.is-open { transform: translateX(0); }
+
+/* 좌측 너비 조절 손잡이 — 드래그로 시트 너비를 바꾼다(세션별 localStorage 저장) */
+.chatdock-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  transform: translateX(-50%);
+  z-index: 3;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.chatdock-resize::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 42px;
+  border-radius: 2px;
+  background: var(--bp-line, #1f4861);
+  transition: background 160ms ease, height 160ms ease;
+}
+.chatdock-resize:hover::before,
+.chatdock-resize.is-dragging::before {
+  background: var(--bp-glow, #7fb4d0);
+  height: 72px;
+}
+/* 드래그 중엔 콘텐츠 전환 애니메이션을 끊어 즉각 반응하게 한다 */
+.chatdock-resize.is-dragging ~ * { pointer-events: none; }
+/* 좁은 화면(플로팅 모드가 전체를 덮는 구간)에선 조절 손잡이를 숨긴다 */
+@media (max-width: 560px) {
+  .chatdock-resize { display: none; }
+}
 
 .chatdock-head {
   display: flex;
@@ -233,6 +269,141 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   word-break: break-all;
+}
+
+/* 답변 평가 — 말풍선 아래에 살짝 나오는 별점·의견 */
+.answer-feedback {
+  max-width: 92%;
+  margin-top: 2px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+/* 말풍선 hover 시, 그리고 별점을 눌렀거나 입력 중이면(is-engaged) 또렷하게 유지 */
+.chatdock-msg--hansol:hover .answer-feedback,
+.answer-feedback:focus-within,
+.answer-feedback.is-engaged {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+@media (hover: none) {
+  /* 터치 기기엔 hover가 없으므로 항상 은은하게 보인다 */
+  .answer-feedback {
+    opacity: 0.72;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+.answer-feedback-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.answer-feedback-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #7aa3b8);
+}
+.answer-feedback-stars {
+  display: inline-flex;
+  gap: 1px;
+}
+.answer-feedback-star {
+  border: none;
+  background: none;
+  padding: 0 1px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--bp-line, #1f4861);
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+.answer-feedback-star:hover { transform: scale(1.15); }
+.answer-feedback-star.is-filled { color: #f0b429; }
+.answer-feedback-comment-btn {
+  border: 1px solid var(--bp-line, #1f4861);
+  background: none;
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2, #c8d8e0);
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+.answer-feedback-comment-btn:hover {
+  border-color: var(--bp-glow, #7fb4d0);
+  color: #fff;
+}
+.answer-feedback-editor {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.answer-feedback-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 44px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--bp-line, #1f4861);
+  background: rgba(20, 56, 79, 0.4);
+  color: var(--ink, #f2f7fa);
+}
+.answer-feedback-textarea:focus {
+  outline: none;
+  border-color: var(--bp-glow, #7fb4d0);
+}
+.answer-feedback-textarea::placeholder { color: var(--ink-faint, #7aa3b8); }
+.answer-feedback-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.answer-feedback-cancel {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute, #7a8a93);
+}
+.answer-feedback-cancel:hover { color: var(--ink-2, #c8d8e0); }
+.answer-feedback-cancel:disabled { cursor: default; opacity: 0.5; }
+.answer-feedback-send {
+  border: none;
+  border-radius: 3px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  background: var(--accent, #287099);
+  color: #fff;
+  transition: background 0.12s ease;
+}
+.answer-feedback-send:hover { background: var(--bp-glow, #7fb4d0); }
+.answer-feedback-send:disabled {
+  background: var(--bp-line, #1f4861);
+  color: var(--ink-mute, #7a8a93);
+  cursor: default;
+}
+.answer-feedback-thanks {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--bp-glow, #7fb4d0);
 }
 
 /* JD 적합도 분석 — Hire 상세 진입점 */

@@ -16,6 +16,7 @@ import {
 } from "@/lib/ask-hansol/shared";
 import {
   insertAskHansolMessage,
+  insertAskHansolMessageReturningId,
   isAskHansolDbConfigured,
   listAskHansolMessages,
 } from "@/lib/db/ask-hansol-messages";
@@ -152,17 +153,19 @@ ${readmeBlock}
 ${faq.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n")}`;
 }
 
+/** 저장 후 assistant 메시지 id를 반환한다(답변 평가를 이 id에 연결). DB 미설정·오류 시 null. */
 async function persistAskExchange(
   sessionId: string,
   userText: string,
   assistantText: string,
-): Promise<void> {
-  if (!isAskHansolDbConfigured()) return;
+): Promise<string | null> {
+  if (!isAskHansolDbConfigured()) return null;
   try {
     await insertAskHansolMessage(sessionId, "user", userText);
-    await insertAskHansolMessage(sessionId, "assistant", assistantText);
+    return await insertAskHansolMessageReturningId(sessionId, "assistant", assistantText);
   } catch {
     /* DB 없거나 일시 오류 — 응답은 그대로 */
+    return null;
   }
 }
 
@@ -260,11 +263,12 @@ export async function POST(req: Request) {
     );
     const llmAnswer = await askAnthropicChat(systemPrompt, priorForClaude, latestUserText);
     const answer = llmAnswer ?? ASK_HANSOL_FALLBACK_MESSAGE;
+    let messageId: string | null = null;
     if (sessionId) {
-      await persistAskExchange(sessionId, displayText, answer);
+      messageId = await persistAskExchange(sessionId, displayText, answer);
       await refreshSessionMemoryRollup(sessionId, tailLimit, summarizeMemoryMerge);
     }
-    return NextResponse.json({ answer });
+    return NextResponse.json({ answer, messageId });
   } catch {
     return NextResponse.json({ answer: ASK_HANSOL_FALLBACK_MESSAGE });
   }

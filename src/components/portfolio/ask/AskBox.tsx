@@ -26,9 +26,10 @@ export function AskBox({ pageContext }: { pageContext?: AskHansolPageContext }) 
       setLoading(true);
       setA({ q: finalQ, text: "", streaming: true });
 
-      let answerText;
+      let answerText: string;
       try {
-        answerText = await askHansolViaApi(finalQ, getOrCreateAskHansolSessionId(), pageContext);
+        answerText = (await askHansolViaApi(finalQ, getOrCreateAskHansolSessionId(), pageContext))
+          .answer;
       } catch {
         answerText = ASK_HANSOL_FALLBACK_MESSAGE;
       }
