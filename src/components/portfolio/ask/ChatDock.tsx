@@ -1,7 +1,7 @@
 "use client";
 
 import "@/styles/legacy/chatdock.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useSiteData } from "@/components/portfolio/Atoms";
 import {
   analyzeJobDescriptionViaApi,
@@ -14,8 +14,13 @@ import {
   streamAnswerText,
 } from "@/lib/ask-hansol/client";
 import {
+  ASK_HANSOL_DOCK_WIDTH_MIN,
+  clampAskHansolDockWidth,
+  clearAskHansolDockWidth,
   getOrCreateAskHansolSessionId,
   peekAskHansolSessionId,
+  readAskHansolDockWidth,
+  writeAskHansolDockWidth,
 } from "@/lib/ask-hansol/browser-session";
 import {
   onAskOpen,
@@ -49,12 +54,14 @@ export function ChatDock({
   const [sessionId, setSessionId] = useState("");
   const [historyReady, setHistoryReady] = useState(false);
   const [selectionDraft, setSelectionDraft] = useState<AskDraft | null>(null);
+  const [resizing, setResizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollInnerRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
   const historyRequestedRef = useRef(false);
   const handledDraftIdRef = useRef<string | null>(null);
   const handledSubmitRef = useRef(0);
+  const dockWidthRef = useRef<number | null>(null);
 
   // JD 적합도·자문 패널의 입력·활성·제출은 모달(AskFeatureDialog)과 공유한다(완전 싱크).
   const af = useAskFeature();
@@ -65,6 +72,67 @@ export function ChatDock({
   const adviceFeatureEnabled = pageContext?.view === "collab";
 
   const suggestions = ASK_HANSOL_SUGGESTIONS;
+
+  // 도크(시트) 너비는 --chatdock-width CSS 변수로 인라인 그리드·플로팅 두 모드가 공유한다.
+  // 변수가 없으면 CSS 기본값(인라인 400px·플로팅 380px)을 그대로 쓴다.
+  const applyDockWidth = useCallback((rawWidth: number) => {
+    if (typeof window === "undefined") return null;
+    // 조절 범위 안에서 클램프하고, 좁은 화면에선 92vw를 넘지 않게 한 번 더 제한한다.
+    const viewportCap = Math.max(
+      ASK_HANSOL_DOCK_WIDTH_MIN,
+      Math.floor(window.innerWidth * 0.92),
+    );
+    const width = Math.min(clampAskHansolDockWidth(rawWidth), viewportCap);
+    document.documentElement.style.setProperty("--chatdock-width", `${width}px`);
+    dockWidthRef.current = width;
+    return width;
+  }, []);
+
+  // 저장된(세션 페어) 너비를 세션 확정 시 1회 적용.
+  useEffect(() => {
+    if (!sessionId) return;
+    const saved = readAskHansolDockWidth(sessionId);
+    if (saved != null) applyDockWidth(saved);
+  }, [sessionId, applyDockWidth]);
+
+  // 좌측 손잡이 드래그로 너비 조절. 도크가 우측에 고정이라 너비 = 화면폭 − 커서X.
+  const onResizeStart = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const handle = e.currentTarget;
+      handle.setPointerCapture(e.pointerId);
+      setResizing(true);
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev: PointerEvent) => {
+        applyDockWidth(window.innerWidth - ev.clientX);
+      };
+      const onUp = () => {
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        handle.removeEventListener("pointercancel", onUp);
+        document.body.style.userSelect = "";
+        setResizing(false);
+        const sid = sessionId || peekAskHansolSessionId();
+        if (sid && dockWidthRef.current != null) {
+          writeAskHansolDockWidth(sid, dockWidthRef.current);
+        }
+      };
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+      handle.addEventListener("pointercancel", onUp);
+    },
+    [applyDockWidth, sessionId],
+  );
+
+  // 손잡이 더블클릭 → 기본 너비로 초기화(변수 제거 + 저장값 삭제).
+  const onResizeReset = useCallback(() => {
+    if (typeof window === "undefined") return;
+    document.documentElement.style.removeProperty("--chatdock-width");
+    dockWidthRef.current = null;
+    const sid = sessionId || peekAskHansolSessionId();
+    if (sid) clearAskHansolDockWidth(sid);
+  }, [sessionId]);
 
   useEffect(() => {
     // StrictMode 이중 실행 가드 — 첫 실행이 세션을 새로 만들면 두 번째 실행이
@@ -88,6 +156,7 @@ export function ChatDock({
           role: row.role === "assistant" ? ("hansol" as const) : ("user" as const),
           text: row.content,
           messageId: row.role === "assistant" ? row.id : null,
+          rated: row.role === "assistant" ? Boolean(row.has_feedback) : false,
         }));
         // 로딩 중 사용자가 이미 보낸 로컬 메시지를 덮어쓰지 않도록 교체가 아니라 앞에 병합.
         // 같은 db 키는 걸러내 이펙트가 두 번 돌아도(StrictMode) 중복되지 않게 멱등 처리.
@@ -316,6 +385,15 @@ export function ChatDock({
         className={"chatdock" + (open ? " is-open" : "") + (inline ? " is-inline" : "")}
         data-no-translate
       >
+        <div
+          className={"chatdock-resize" + (resizing ? " is-dragging" : "")}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="시트 너비 조절 (드래그)"
+          title="드래그해서 시트 너비 조절 · 더블클릭 시 기본값"
+          onPointerDown={onResizeStart}
+          onDoubleClick={onResizeReset}
+        />
         <header className="chatdock-head">
           <div>
             <div className="chatdock-title">{D.portfolioCopy.ask.dockTitle}</div>
@@ -378,7 +456,7 @@ export function ChatDock({
             <div key={m.key} className={"chatdock-msg chatdock-msg--" + m.role}>
               {m.role === "hansol" && <div className="chatdock-msg-from">— Hansol</div>}
               <div className="chatdock-msg-body">{renderMarkdownText(m.text, m.streaming)}</div>
-              {m.role === "hansol" && !m.streaming && m.messageId && sessionId && (
+              {m.role === "hansol" && !m.streaming && m.messageId && !m.rated && sessionId && (
                 <AnswerFeedback sessionId={sessionId} messageId={m.messageId} />
               )}
             </div>

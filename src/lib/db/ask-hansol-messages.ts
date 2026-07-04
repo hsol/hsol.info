@@ -5,6 +5,8 @@ export type AskHansolMessageRow = {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  /** 이 세션이 이 답변(assistant 메시지)에 이미 별점·의견을 남겼는지 — 남겼으면 평가 UI를 숨긴다. */
+  has_feedback: boolean;
 };
 
 const LIST_LIMIT = 200;
@@ -23,11 +25,18 @@ export async function listAskHansolMessages(sessionId: string): Promise<AskHanso
   const sql = getSql();
   if (!sql) return [];
 
+  // 답변별 평가 존재 여부를 함께 가져온다(LEFT JOIN). f.id 가 있으면 이미 평가한 답변.
   const rows = await sql`
-    SELECT id::text AS id, role, content, created_at::text AS created_at
-    FROM ask_hansol_messages
-    WHERE session_id = ${sessionId}
-    ORDER BY id ASC
+    SELECT m.id::text AS id,
+      m.role,
+      m.content,
+      m.created_at::text AS created_at,
+      (f.id IS NOT NULL) AS has_feedback
+    FROM ask_hansol_messages m
+    LEFT JOIN ask_hansol_feedback f
+      ON f.message_id = m.id AND f.session_id = m.session_id
+    WHERE m.session_id = ${sessionId}
+    ORDER BY m.id ASC
     LIMIT ${LIST_LIMIT}
   `;
   return rows as AskHansolMessageRow[];

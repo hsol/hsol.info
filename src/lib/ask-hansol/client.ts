@@ -16,6 +16,8 @@ export type AskHansolHistoryMessage = {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  /** 이 답변에 이미 평가를 남겼으면 true — 평가 UI를 다시 띄우지 않는다. */
+  has_feedback?: boolean;
 };
 
 export async function fetchAskHansolHistory(

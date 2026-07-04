@@ -7,7 +7,7 @@
 @media (min-width: 900px) {
   .app-layout.has-dock {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 400px;
+    grid-template-columns: minmax(0, 1fr) var(--chatdock-width, 400px);
     align-items: stretch;
     min-height: 100vh;
   }
@@ -68,7 +68,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 380px;
+  width: var(--chatdock-width, 380px);
   max-width: 92vw;
   background: rgba(8,24,36,0.98);
   border-left: 1px solid var(--bp-line, #1f4861);
@@ -79,6 +79,42 @@
   transition: transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .chatdock.is-open { transform: translateX(0); }
+
+/* 좌측 너비 조절 손잡이 — 드래그로 시트 너비를 바꾼다(세션별 localStorage 저장) */
+.chatdock-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  transform: translateX(-50%);
+  z-index: 3;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.chatdock-resize::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 42px;
+  border-radius: 2px;
+  background: var(--bp-line, #1f4861);
+  transition: background 160ms ease, height 160ms ease;
+}
+.chatdock-resize:hover::before,
+.chatdock-resize.is-dragging::before {
+  background: var(--bp-glow, #7fb4d0);
+  height: 72px;
+}
+/* 드래그 중엔 콘텐츠 전환 애니메이션을 끊어 즉각 반응하게 한다 */
+.chatdock-resize.is-dragging ~ * { pointer-events: none; }
+/* 좁은 화면(플로팅 모드가 전체를 덮는 구간)에선 조절 손잡이를 숨긴다 */
+@media (max-width: 560px) {
+  .chatdock-resize { display: none; }
+}
 
 .chatdock-head {
   display: flex;
