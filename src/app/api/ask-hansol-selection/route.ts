@@ -88,8 +88,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "ask route failed" }, { status: response.status });
     }
 
-    const data = (await response.json()) as { answer?: string };
-    return NextResponse.json({ answer: data.answer ?? "" });
+    const data = (await response.json()) as { answer?: string; messageId?: string | null };
+    return NextResponse.json({ answer: data.answer ?? "", messageId: data.messageId ?? null });
   } catch {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }

@@ -45,3 +45,19 @@ export async function insertAskHansolMessage(
     VALUES (${sessionId}, ${role}, ${content})
   `;
 }
+
+/** insert 후 새 행 id 반환 — 답변 평가(피드백)를 이 id에 연결하려면 필요하다. DB 미설정 시 null. */
+export async function insertAskHansolMessageReturningId(
+  sessionId: string,
+  role: "user" | "assistant",
+  content: string,
+): Promise<string | null> {
+  const sql = getSql();
+  if (!sql) return null;
+  const rows = await sql`
+    INSERT INTO ask_hansol_messages (session_id, role, content)
+    VALUES (${sessionId}, ${role}, ${content})
+    RETURNING id::text AS id
+  `;
+  return (rows[0] as { id?: string } | undefined)?.id ?? null;
+}

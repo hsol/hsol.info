@@ -8,6 +8,7 @@ import {
   askHansolAdviceViaApi,
   askHansolSelectionViaApi,
   askHansolViaApi,
+  type AskHansolAnswer,
   type AskHansolPageContext,
   fetchAskHansolHistory,
   streamAnswerText,
@@ -25,6 +26,7 @@ import { ASK_HANSOL_FALLBACK_MESSAGE, ASK_HANSOL_SUGGESTIONS } from "@/lib/ask-h
 import type { AskDraft, ChatMsg } from "@/components/portfolio/portfolio-types";
 import { useAskFeature } from "./ask-feature-context";
 import { renderMarkdownText } from "./render-markdown-text";
+import { AnswerFeedback } from "./AnswerFeedback";
 
 export function ChatDock({
   defaultOpen = false,
@@ -85,6 +87,7 @@ export function ChatDock({
           key: `db-${row.id}`,
           role: row.role === "assistant" ? ("hansol" as const) : ("user" as const),
           text: row.content,
+          messageId: row.role === "assistant" ? row.id : null,
         }));
         // 로딩 중 사용자가 이미 보낸 로컬 메시지를 덮어쓰지 않도록 교체가 아니라 앞에 병합.
         // 같은 db 키는 걸러내 이펙트가 두 번 돌아도(StrictMode) 중복되지 않게 멱등 처리.
@@ -124,6 +127,18 @@ export function ChatDock({
     return () => observer.disconnect();
   }, [open, historyReady]);
 
+  // 답변 스트리밍이 끝나면(!streaming) messageId가 붙은 봇 메시지에만 평가 UI를 노출한다.
+  const attachMessageId = useCallback((botKey: string, messageId: string | null) => {
+    if (!messageId) return;
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.key === botKey);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], messageId };
+      return next;
+    });
+  }, []);
+
   const ask = useCallback(
     async (query?: string, options?: { selectedText?: string }) => {
       // 히스토리 로딩(historyReady 이전)을 기다리지 않는다 — 로드 완료 시 병합되므로
@@ -141,17 +156,18 @@ export function ChatDock({
         { key: botKey, role: "hansol", text: "", streaming: true },
       ]);
 
-      let answerText;
+      let result: AskHansolAnswer;
       try {
-        answerText = options?.selectedText
+        result = options?.selectedText
           ? await askHansolSelectionViaApi(options.selectedText, sid, pageContext)
           : await askHansolViaApi(finalQ, sid, pageContext);
       } catch {
-        answerText = ASK_HANSOL_FALLBACK_MESSAGE;
+        result = { answer: ASK_HANSOL_FALLBACK_MESSAGE, messageId: null };
       }
 
+      attachMessageId(botKey, result.messageId);
       streamAnswerText(
-        answerText,
+        result.answer,
         (text, streaming) => {
           setMessages((prev) => {
             const next = [...prev];
@@ -163,7 +179,7 @@ export function ChatDock({
         () => setLoading(false),
       );
     },
-    [q, loading, sessionId, pageContext],
+    [q, loading, sessionId, pageContext, attachMessageId],
   );
 
   useEffect(() => {
@@ -213,15 +229,16 @@ export function ChatDock({
       { key: botKey, role: "hansol", text: "", streaming: true },
     ]);
 
-    let answerText;
+    let result: AskHansolAnswer;
     try {
-      answerText = await analyzeJobDescriptionViaApi(finalJd, sid, pageContext);
+      result = await analyzeJobDescriptionViaApi(finalJd, sid, pageContext);
     } catch {
-      answerText = ASK_HANSOL_FALLBACK_MESSAGE;
+      result = { answer: ASK_HANSOL_FALLBACK_MESSAGE, messageId: null };
     }
 
+    attachMessageId(botKey, result.messageId);
     streamAnswerText(
-      answerText,
+      result.answer,
       (text, streaming) => {
         setMessages((prev) => {
           const next = [...prev];
@@ -232,7 +249,7 @@ export function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [af, loading, sessionId, pageContext]);
+  }, [af, loading, sessionId, pageContext, attachMessageId]);
 
   const askAdvice = useCallback(async () => {
     const finalIssue = af.text.trim();
@@ -251,15 +268,16 @@ export function ChatDock({
       { key: botKey, role: "hansol", text: "", streaming: true },
     ]);
 
-    let answerText;
+    let result: AskHansolAnswer;
     try {
-      answerText = await askHansolAdviceViaApi(finalIssue, sid, pageContext);
+      result = await askHansolAdviceViaApi(finalIssue, sid, pageContext);
     } catch {
-      answerText = ASK_HANSOL_FALLBACK_MESSAGE;
+      result = { answer: ASK_HANSOL_FALLBACK_MESSAGE, messageId: null };
     }
 
+    attachMessageId(botKey, result.messageId);
     streamAnswerText(
-      answerText,
+      result.answer,
       (text, streaming) => {
         setMessages((prev) => {
           const next = [...prev];
@@ -270,7 +288,7 @@ export function ChatDock({
       },
       () => setLoading(false),
     );
-  }, [af, loading, sessionId, pageContext]);
+  }, [af, loading, sessionId, pageContext, attachMessageId]);
 
   // 제출 신호(모달·패널 공용) → 현재 활성 기능의 실제 분석/자문을 실행한다.
   useEffect(() => {
@@ -360,6 +378,9 @@ export function ChatDock({
             <div key={m.key} className={"chatdock-msg chatdock-msg--" + m.role}>
               {m.role === "hansol" && <div className="chatdock-msg-from">— Hansol</div>}
               <div className="chatdock-msg-body">{renderMarkdownText(m.text, m.streaming)}</div>
+              {m.role === "hansol" && !m.streaming && m.messageId && sessionId && (
+                <AnswerFeedback sessionId={sessionId} messageId={m.messageId} />
+              )}
             </div>
           ))}
           </div>

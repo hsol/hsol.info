@@ -1,4 +1,7 @@
-type AskHansolResponse = { answer?: string };
+type AskHansolResponse = { answer?: string; messageId?: string | null };
+
+/** 답변 텍스트와, 평가(피드백)를 연결할 assistant 메시지 id(DB 미설정 시 null). */
+export type AskHansolAnswer = { answer: string; messageId: string | null };
 
 export type AskHansolPageContext = {
   view: "home" | "hire" | "collab" | "builder" | "curious";
@@ -32,7 +35,7 @@ export async function askHansolViaApi(
   query: string,
   sessionId: string,
   pageContext?: AskHansolPageContext,
-): Promise<string> {
+): Promise<AskHansolAnswer> {
   const response = await fetch("/api/ask-hansol", {
     method: "POST",
     cache: "no-store",
@@ -50,14 +53,14 @@ export async function askHansolViaApi(
   if (!data.answer) {
     throw new Error("empty answer");
   }
-  return data.answer;
+  return { answer: data.answer, messageId: data.messageId ?? null };
 }
 
 export async function askHansolSelectionViaApi(
   selectedText: string,
   sessionId: string,
   pageContext?: AskHansolPageContext,
-): Promise<string> {
+): Promise<AskHansolAnswer> {
   const response = await fetch("/api/ask-hansol-selection", {
     method: "POST",
     cache: "no-store",
@@ -75,14 +78,14 @@ export async function askHansolSelectionViaApi(
   if (!data.answer) {
     throw new Error("empty answer");
   }
-  return data.answer;
+  return { answer: data.answer, messageId: data.messageId ?? null };
 }
 
 export async function analyzeJobDescriptionViaApi(
   jdText: string,
   sessionId: string,
   pageContext?: AskHansolPageContext,
-): Promise<string> {
+): Promise<AskHansolAnswer> {
   const response = await fetch("/api/ask-hansol-jd", {
     method: "POST",
     cache: "no-store",
@@ -100,14 +103,14 @@ export async function analyzeJobDescriptionViaApi(
   if (!data.answer) {
     throw new Error("empty answer");
   }
-  return data.answer;
+  return { answer: data.answer, messageId: data.messageId ?? null };
 }
 
 export async function askHansolAdviceViaApi(
   issue: string,
   sessionId: string,
   pageContext?: AskHansolPageContext,
-): Promise<string> {
+): Promise<AskHansolAnswer> {
   const response = await fetch("/api/ask-hansol-advice", {
     method: "POST",
     cache: "no-store",
@@ -125,7 +128,36 @@ export async function askHansolAdviceViaApi(
   if (!data.answer) {
     throw new Error("empty answer");
   }
-  return data.answer;
+  return { answer: data.answer, messageId: data.messageId ?? null };
+}
+
+/**
+ * 답변 평가(별점·의견) 전송. 별점만/의견만/둘 다 가능하며 같은 답변엔 서버가 upsert 한다.
+ * 실패해도 던지지 않고 false를 반환 — UI는 낙관적으로 처리한다.
+ */
+export async function submitAskHansolFeedback(input: {
+  sessionId: string;
+  messageId: string;
+  rating?: number | null;
+  comment?: string | null;
+}): Promise<boolean> {
+  if (!input.sessionId || !input.messageId) return false;
+  try {
+    const response = await fetch("/api/ask-hansol-feedback", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: input.sessionId,
+        messageId: input.messageId,
+        rating: input.rating ?? undefined,
+        comment: input.comment ?? undefined,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export function streamAnswerText(

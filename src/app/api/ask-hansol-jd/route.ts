@@ -9,7 +9,11 @@ import {
 } from "@/lib/ask-hansol/blob-context";
 import { summarizeMemoryMerge } from "@/lib/ask-hansol/memory-summarize";
 import { ASK_HANSOL_FALLBACK_MESSAGE, isValidAskHansolSessionId } from "@/lib/ask-hansol/shared";
-import { insertAskHansolMessage, isAskHansolDbConfigured } from "@/lib/db/ask-hansol-messages";
+import {
+  insertAskHansolMessage,
+  insertAskHansolMessageReturningId,
+  isAskHansolDbConfigured,
+} from "@/lib/db/ask-hansol-messages";
 import { rawHistoryMessageTailLimit, refreshSessionMemoryRollup } from "@/lib/db/ask-hansol-memory";
 
 /** DB 영속화·메모리 롤업이 있으므로 매 요청 동적 처리. */
@@ -135,15 +139,16 @@ async function persistJdExchange(
   sessionId: string,
   jdText: string,
   assistantText: string,
-): Promise<void> {
-  if (!isAskHansolDbConfigured()) return;
+): Promise<string | null> {
+  if (!isAskHansolDbConfigured()) return null;
   const persistedJd = jdText.slice(0, JD_PERSIST_CHARS);
   const userRecord = `[채용 공고 적합도 분석 요청]\n\n${persistedJd}`;
   try {
     await insertAskHansolMessage(sessionId, "user", userRecord);
-    await insertAskHansolMessage(sessionId, "assistant", assistantText);
+    return await insertAskHansolMessageReturningId(sessionId, "assistant", assistantText);
   } catch {
     /* DB 없거나 일시 오류 — 응답은 그대로 */
+    return null;
   }
 }
 
@@ -184,8 +189,9 @@ export async function POST(req: Request) {
     const analysis = await analyzeJdWithAnthropic(systemPrompt, jdText);
     const answer = analysis ?? ASK_HANSOL_FALLBACK_MESSAGE;
 
+    let messageId: string | null = null;
     if (sessionId) {
-      await persistJdExchange(sessionId, jdText, answer);
+      messageId = await persistJdExchange(sessionId, jdText, answer);
       await refreshSessionMemoryRollup(
         sessionId,
         rawHistoryMessageTailLimit(),
@@ -193,7 +199,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ answer });
+    return NextResponse.json({ answer, messageId });
   } catch {
     return NextResponse.json({ answer: ASK_HANSOL_FALLBACK_MESSAGE });
   }
