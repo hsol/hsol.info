@@ -1,7 +1,7 @@
-import Link from "next/link";
 import type { ArticleRow } from "@/types/article";
 import { Pagination } from "@/components/ui/Pagination";
 import { SITE_URL } from "@/lib/news/seo";
+import { NewsCardLink } from "@/components/news/NewsCardLink";
 
 const DATE_FMT = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
@@ -56,7 +56,7 @@ export function NewsHub({
               : "news-card-thumb news-card-thumb--og-fallback";
             return (
               <li key={a.slug} className="news-list-item">
-                <Link href={`/news/${a.slug}`} className="news-card">
+                <NewsCardLink href={`/news/${a.slug}`} slug={a.slug} section={a.section ?? null} className="news-card">
                   <span className="news-card-text">
                     <span className="news-card-kicker">{a.section}</span>
                     <h2 className="news-card-headline">{a.headline}</h2>
@@ -80,7 +80,7 @@ export function NewsHub({
                     height={630}
                     loading="lazy"
                   />
-                </Link>
+                </NewsCardLink>
               </li>
             );
           })}

@@ -7,6 +7,7 @@ import {
   hasSelectionAskSubscriber,
   requestSelectionAsk,
 } from "@/components/ask-selection/selection-bridge";
+import { trackEvent } from "@/lib/analytics";
 
 type Nudge = { text: string; x: number; y: number; placeAbove: boolean };
 
@@ -94,6 +95,7 @@ export function SelectionAsk() {
     const selectedText = nudge.text;
     const preview =
       selectedText.length > 220 ? `${selectedText.slice(0, 220)}...` : selectedText;
+    trackEvent("selection_ask_click");
     requestSelectionAsk({
       id: crypto.randomUUID(),
       displayQuery: `아래 인용문을 현재 페이지 문맥에 맞춰 보강 설명해 주세요.\n\n"${preview}"`,
