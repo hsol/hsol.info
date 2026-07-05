@@ -32,6 +32,7 @@ import type { AskDraft, ChatMsg } from "@/components/portfolio/portfolio-types";
 import { useAskFeature } from "./ask-feature-context";
 import { renderMarkdownText } from "./render-markdown-text";
 import { AnswerFeedback } from "./AnswerFeedback";
+import { trackEvent } from "@/lib/analytics";
 
 export function ChatDock({
   defaultOpen = false,
@@ -117,6 +118,9 @@ export function ChatDock({
         if (sid && dockWidthRef.current != null) {
           writeAskHansolDockWidth(sid, dockWidthRef.current);
         }
+        if (dockWidthRef.current != null) {
+          trackEvent("ask_dock_resize", { width_px: dockWidthRef.current });
+        }
       };
       handle.addEventListener("pointermove", onMove);
       handle.addEventListener("pointerup", onUp);
@@ -132,6 +136,7 @@ export function ChatDock({
     dockWidthRef.current = null;
     const sid = sessionId || peekAskHansolSessionId();
     if (sid) clearAskHansolDockWidth(sid);
+    trackEvent("ask_dock_resize_reset");
   }, [sessionId]);
 
   useEffect(() => {
@@ -177,7 +182,8 @@ export function ChatDock({
     if (typeof openSignal !== "number") return;
     if (openSignal <= 0) return;
     setOpen(true);
-  }, [openSignal]);
+    trackEvent("ask_open", { persona: pageContext?.view ?? null, trigger: "signal" });
+  }, [openSignal, pageContext?.view]);
 
   // 바닥 고정 스크롤 — 히스토리 로드·새 메시지·스트리밍은 물론, 마크다운 청크가 늦게
   // 로드되며 콘텐츠 높이가 자랄 때도 ResizeObserver 로 바닥을 유지한다(한 번만 내리면
@@ -209,11 +215,16 @@ export function ChatDock({
   }, []);
 
   const ask = useCallback(
-    async (query?: string, options?: { selectedText?: string }) => {
+    async (query?: string, options?: { selectedText?: string; source?: "input" | "suggestion" | "selection_ask" }) => {
       // 히스토리 로딩(historyReady 이전)을 기다리지 않는다 — 로드 완료 시 병합되므로
       // 로딩 중 입력·전송도 안전하다. 입력을 막으면 초기 몇 초간 도크가 죽은 것처럼 보인다.
       const finalQ = (query ?? q).trim();
       if (!finalQ || loading) return;
+      trackEvent("ask_submit", {
+        persona: pageContext?.view ?? null,
+        source: options?.source ?? (options?.selectedText ? "selection_ask" : query !== undefined ? "suggestion" : "input"),
+        char_count: finalQ.length,
+      });
       const sid = sessionId || getOrCreateAskHansolSessionId();
       if (!sessionId && sid) setSessionId(sid);
       setQ("");
@@ -256,8 +267,9 @@ export function ChatDock({
     if (handledDraftIdRef.current === draftToAsk.id) return;
     handledDraftIdRef.current = draftToAsk.id;
     setOpen(true);
-    void ask(draftToAsk.displayQuery, { selectedText: draftToAsk.selectedText });
-  }, [draftToAsk, ask]);
+    trackEvent("ask_open", { persona: pageContext?.view ?? null, trigger: "draft" });
+    void ask(draftToAsk.displayQuery, { selectedText: draftToAsk.selectedText, source: "selection_ask" });
+  }, [draftToAsk, ask, pageContext?.view]);
 
   // 전역 드래그→질문 브리지 구독(+ 마운트 전 발생분 1회 흡수).
   useEffect(() => {
@@ -278,12 +290,14 @@ export function ChatDock({
     if (handledDraftIdRef.current === selectionDraft.id) return;
     handledDraftIdRef.current = selectionDraft.id;
     setOpen(true);
-    void ask(selectionDraft.displayQuery, { selectedText: selectionDraft.selectedText });
-  }, [selectionDraft, ask]);
+    trackEvent("ask_open", { persona: pageContext?.view ?? null, trigger: "selection" });
+    void ask(selectionDraft.displayQuery, { selectedText: selectionDraft.selectedText, source: "selection_ask" });
+  }, [selectionDraft, ask, pageContext?.view]);
 
   const analyzeJd = useCallback(async () => {
     const finalJd = af.text.trim();
     if (finalJd.length < 40 || loading) return;
+    trackEvent("ask_jd_submit", { char_count: finalJd.length });
     const sid = sessionId || getOrCreateAskHansolSessionId();
     if (!sessionId && sid) setSessionId(sid);
     af.closePanel(); // 입력 비우고 패널을 닫는다(답변은 도크 대화로 스트리밍).
@@ -323,6 +337,7 @@ export function ChatDock({
   const askAdvice = useCallback(async () => {
     const finalIssue = af.text.trim();
     if (finalIssue.length < 20 || loading) return;
+    trackEvent("ask_advice_submit", { char_count: finalIssue.length });
     const sid = sessionId || getOrCreateAskHansolSessionId();
     if (!sessionId && sid) setSessionId(sid);
     af.closePanel();
@@ -373,7 +388,10 @@ export function ChatDock({
         <button
           type="button"
           className="chatdock-fab"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            trackEvent("ask_open", { persona: pageContext?.view ?? null, trigger: "fab" });
+          }}
           aria-label="Ask Hansol"
           data-no-translate
         >
@@ -399,7 +417,7 @@ export function ChatDock({
             <div className="chatdock-title">{D.portfolioCopy.ask.dockTitle}</div>
             <div className="chatdock-sub">{D.portfolioCopy.ask.dockSub}</div>
           </div>
-          <button type="button" className="chatdock-x" onClick={() => setOpen(false)} aria-label="Close">
+          <button type="button" className="chatdock-x" onClick={() => { setOpen(false); trackEvent("ask_close", { persona: pageContext?.view ?? null }); }} aria-label="Close">
             ×
           </button>
         </header>
@@ -427,7 +445,7 @@ export function ChatDock({
               <p>{D.portfolioCopy.ask.dockEmptyIntro}</p>
               <div className="chatdock-suggest">
                 {suggestions.map((s, i) => (
-                  <button key={i} type="button" className="chatdock-chip" onClick={() => ask(s)}>
+                  <button key={i} type="button" className="chatdock-chip" onClick={() => ask(s, { source: "suggestion" })}>
                     {s}
                   </button>
                 ))}
@@ -436,7 +454,7 @@ export function ChatDock({
                 <button
                   type="button"
                   className="chatdock-jd-cta"
-                  onClick={() => af.openPanel("jd")}
+                  onClick={() => { af.openPanel("jd"); trackEvent("ask_jd_panel_open"); }}
                 >
                   채용 공고(JD) 붙여넣고 적합도 보기
                 </button>
@@ -445,7 +463,7 @@ export function ChatDock({
                 <button
                   type="button"
                   className="chatdock-jd-cta"
-                  onClick={() => af.openPanel("advice")}
+                  onClick={() => { af.openPanel("advice"); trackEvent("ask_advice_panel_open"); }}
                 >
                   고민이 있으신가요? 제게 말씀해주세요.
                 </button>
@@ -497,7 +515,7 @@ export function ChatDock({
           <button
             type="button"
             className="chatdock-jd-toggle"
-            onClick={() => af.openPanel("jd")}
+            onClick={() => { af.openPanel("jd"); trackEvent("ask_jd_panel_open"); }}
           >
             채용 공고(JD) 적합도 분석
           </button>
@@ -536,7 +554,7 @@ export function ChatDock({
           <button
             type="button"
             className="chatdock-jd-toggle"
-            onClick={() => af.openPanel("advice")}
+            onClick={() => { af.openPanel("advice"); trackEvent("ask_advice_panel_open"); }}
           >
             AI 자문 · 한솔님은 어떻게 보시나요?
           </button>

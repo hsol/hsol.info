@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { submitAskHansolFeedback } from "@/lib/ask-hansol/client";
+import { trackEvent } from "@/lib/analytics";
 
 /**
  * Hansol 답변 말풍선 아래에 살짝 나오는 평가 UI.
@@ -27,6 +28,7 @@ export function AnswerFeedback({
   const pickRating = (value: number) => {
     if (phase === "done") return;
     setRating(value);
+    trackEvent("ask_feedback_rating", { rating: value });
     // 별점은 클릭 즉시 저장(낙관적). 실패해도 UI는 계속 진행한다.
     void submitAskHansolFeedback({ sessionId, messageId, rating: value });
     setPhase("commenting");
@@ -37,6 +39,7 @@ export function AnswerFeedback({
     if (sending) return;
     if (!text && rating === null) return;
     setSending(true);
+    trackEvent("ask_feedback_comment", { has_rating: rating !== null, has_comment: text.length > 0 });
     if (text) {
       await submitAskHansolFeedback({ sessionId, messageId, rating, comment: text });
     }

@@ -13,6 +13,7 @@ import {
   useAskFeatureController,
 } from "@/components/portfolio/ask/ask-feature-context";
 import { personaFromPathname, type PersonaKey } from "@/components/portfolio/portfolio-types";
+import { trackEvent } from "@/lib/analytics";
 import { useReportAskVisibleSection } from "@/components/portfolio/use-report-ask-visible-section";
 import { HomeView } from "@/components/portfolio/views/HomeView";
 
@@ -65,6 +66,7 @@ function PortfolioAppBody() {
 
   const pick = useCallback(
     (key: PersonaKey) => {
+      trackEvent("persona_select", { persona: key });
       router.push(`/${key}`);
     },
     [router],
