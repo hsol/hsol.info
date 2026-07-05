@@ -16,6 +16,7 @@ const MAX_SCALE = 3;
 type View = { scale: number; tx: number; ty: number };
 
 export function MermaidPanZoomViewport({ children }: { children: ReactElement }) {
+  const stackRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const transformRef = useRef<HTMLDivElement>(null);
   const userAdjustedRef = useRef(false);
@@ -32,6 +33,7 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
 
   const [view, setView] = useState<View>({ scale: 1, tx: 0, ty: 0 });
   const [dragging, setDragging] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const fitBounds = useCallback((force = false) => {
     if (userAdjustedRef.current && !force) return;
@@ -73,6 +75,27 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
     window.clearTimeout(debounceRef.current);
     debounceRef.current = undefined;
     queueMicrotask(() => fitBounds(true));
+  }, [fitBounds]);
+
+  const toggleFullscreen = useCallback(() => {
+    const stack = stackRef.current;
+    if (!stack) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void stack.requestFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const active = document.fullscreenElement === stackRef.current;
+      setIsFullscreen(active);
+      userAdjustedRef.current = false;
+      queueMicrotask(() => fitBounds(true));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, [fitBounds]);
 
   useEffect(() => {
@@ -180,11 +203,19 @@ export function MermaidPanZoomViewport({ children }: { children: ReactElement })
   }, []);
 
   return (
-    <div className="mermaid-panzoom-stack">
+    <div ref={stackRef} className={"mermaid-panzoom-stack" + (isFullscreen ? " is-fullscreen" : "")}>
       <div className="mermaid-panzoom-toolbar">
         <span className="mermaid-panzoom-hint">휠로 확대·축소, 드래그로 이동</span>
         <button type="button" className="mermaid-panzoom-reset" onClick={resetView}>
           초기화
+        </button>
+        <button
+          type="button"
+          className="mermaid-panzoom-fullscreen"
+          onClick={toggleFullscreen}
+          aria-pressed={isFullscreen ? "true" : "false"}
+        >
+          {isFullscreen ? "전체화면 종료" : "전체화면"}
         </button>
       </div>
       <div

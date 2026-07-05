@@ -571,6 +571,46 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   border-color: var(--accent);
 }
 
+.mermaid-panzoom-fullscreen {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 6px 10px;
+  border: 1px solid var(--bp-line-2);
+  background: rgba(8, 24, 36, 0.45);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+
+.mermaid-panzoom-fullscreen:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+/* 전체화면 진입 시 뷰포트가 화면 전체를 채우도록 */
+.mermaid-panzoom-stack:fullscreen {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  padding: 14px 16px;
+  background: var(--bp-deep);
+  box-sizing: border-box;
+}
+
+.mermaid-panzoom-stack.is-fullscreen .mermaid-panzoom-toolbar {
+  flex: 0 0 auto;
+}
+
+.mermaid-panzoom-stack.is-fullscreen .mermaid-panzoom-viewport {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: none;
+}
+
 .mermaid-panzoom-viewport {
   position: relative;
   width: 100%;
