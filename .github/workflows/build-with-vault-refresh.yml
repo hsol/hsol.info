@@ -34,6 +34,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync hsol-info-blob to latest origin/main
+        # 부모 repo의 서브모듈 pin(gitlink)은 이 워크플로가 자동으로 올리지 않고 한솔님이 수동으로만
+        # 갱신한다(chore(submodule): ... 포인터 갱신 커밋). 그래서 체크아웃 직후 상태는 종종 오래된
+        # onepager-ko.html 스냅샷(또는 그 파일이 아예 없던 시점)을 가리킨다.
+        # 원페이저 빌더(getExistingOnePagerHtml)는 이 로컬 파일을 "기존 버전 유무" 판단 기준으로 쓰므로,
+        # pin 이 stale 하면 항상 hasCurrent=false 로 읽혀 mode 가 매번 NEW 로 찍히고, 그 사이 origin/main
+        # 에 쌓인 PATCH/OVERHAUL 개선분이 통째로 덮어써진다. 여기서 로컬 체크아웃만 origin/main 최신으로
+        # 맞춰 읽기 문제를 해소한다(부모 repo 의 pin 커밋 자체는 건드리지 않음 — vault change 감지는
+        # 부모 히스토리의 gitlink 비교로 별도 동작하므로 영향 없음).
+        run: |
+          cd hsol-info-blob
+          git fetch origin main
+          git checkout origin/main
+
       - name: Refresh site-data with Claude
         env:
           # Vercel AI Gateway 경유(직접 Anthropic 호출 없음). CI엔 OIDC가 없으므로 키 필수.

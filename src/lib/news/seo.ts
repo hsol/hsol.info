@@ -22,7 +22,8 @@ export const SITE_URL = "https://hsol.info";
  * canonical·og:url·JSON-LD·sitemap 이 모두 이 URL 을 가리켜 검색엔진에 단일 정규 주소를 준다.
  *   news.hsol.info        → 허브
  *   news.hsol.info/<slug> → 기사
- * (#person·#website 등 사이트 정체성 @id 는 메인 도메인 SITE_URL 을 계속 참조한다.)
+ * (#person 은 메인 도메인 SITE_URL 을 계속 참조하지만, #website 는 news.hsol.info 전용
+ * 노드를 따로 둔다 — 구글 사이트명 신호가 메인 사이트 이름("hsol.info")과 섞이지 않도록.)
  */
 export const NEWS_URL = "https://news.hsol.info";
 /** 매체명(마스트헤드) — author·publisher·og:siteName 에 쓰는 매체 이름. */
@@ -31,6 +32,29 @@ export const PUBLICATION = "한솔닷컴";
 export const NEWSROOM_NAME = "한솔닷컴 뉴스룸";
 export const NEWSROOM_ID = `${SITE_URL}/news#publisher`;
 const PERSON_ID = `${SITE_URL}/#person`;
+/**
+ * 뉴스룸 전용 WebSite 노드 @id — 메인 사이트(`${SITE_URL}/#website`, name="hsol.info")와
+ * 절대 공유하지 않는다. 구글은 사이트명을 정할 때 WebSite 구조화 데이터의 `name`을 최우선
+ * 신호로 본다. 뉴스 페이지가 메인 WebSite 노드를 isPartOf 로 가리키면, og:site_name·title이
+ * "한솔닷컴"이어도 구조화 데이터가 "hsol.info"라고 말해 그쪽이 채택될 수 있다. 그래서
+ * news.hsol.info 는 이름이 "한솔닷컴 뉴스룸"인 자체 WebSite 노드를 갖는다.
+ */
+const NEWS_WEBSITE_ID = `${NEWS_URL}/#website`;
+
+/** 뉴스룸 전용 WebSite 노드. name 이 곧 구글이 news.hsol.info 에 채택하길 바라는 사이트명. */
+function buildNewsWebsiteNode() {
+  return {
+    "@type": "WebSite",
+    "@id": NEWS_WEBSITE_ID,
+    url: NEWS_URL,
+    name: NEWSROOM_NAME,
+    alternateName: PUBLICATION,
+    description: "한솔닷컴 뉴스룸 — 임한솔(Hansol Lim)의 일과 사건을 취재해 싣는 개인 매체.",
+    inLanguage: "ko-KR",
+    publisher: { "@id": NEWSROOM_ID },
+    about: { "@id": PERSON_ID },
+  };
+}
 
 export function articleUrl(slug: string): string {
   return `${NEWS_URL}/${slug}`;
@@ -128,8 +152,9 @@ export function buildArticleJsonLd(article: ArticleRow) {
         publisher: { "@id": NEWSROOM_ID },
         about: { "@id": PERSON_ID },
         ...(citation.length ? { citation } : {}),
-        isPartOf: { "@id": `${SITE_URL}/#website` },
+        isPartOf: { "@id": NEWS_WEBSITE_ID },
       },
+      buildNewsWebsiteNode(),
       {
         "@type": "Organization",
         "@id": NEWSROOM_ID,
@@ -160,21 +185,26 @@ export function buildArticleJsonLd(article: ArticleRow) {
 export function buildNewsHubJsonLd(articles: ArticleRow[]) {
   return {
     "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    "@id": `${SITE_URL}/news#collection`,
-    url: NEWS_URL,
-    name: NEWSROOM_NAME,
-    inLanguage: "ko-KR",
-    isPartOf: { "@id": `${SITE_URL}/#website` },
-    about: { "@id": PERSON_ID },
-    mainEntity: {
-      "@type": "ItemList",
-      itemListElement: articles.map((a, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        url: articleUrl(a.slug),
-        name: a.headline,
-      })),
-    },
+    "@graph": [
+      buildNewsWebsiteNode(),
+      {
+        "@type": "CollectionPage",
+        "@id": `${SITE_URL}/news#collection`,
+        url: NEWS_URL,
+        name: NEWSROOM_NAME,
+        inLanguage: "ko-KR",
+        isPartOf: { "@id": NEWS_WEBSITE_ID },
+        about: { "@id": PERSON_ID },
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: articles.map((a, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            url: articleUrl(a.slug),
+            name: a.headline,
+          })),
+        },
+      },
+    ],
   };
 }
