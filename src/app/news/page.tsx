@@ -40,14 +40,16 @@ export const metadata: Metadata = {
 export default async function NewsHubPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{ page?: string | string[]; tag?: string | string[] }>;
 }) {
   const articles = await listPublishedArticles();
   // JSON-LD 는 전체 컬렉션을 대표하도록 페이지네이션 이전의 전체 목록으로 유지한다.
   const jsonLd = buildNewsHubJsonLd(articles);
 
-  const { page } = await searchParams;
-  const { items, page: current, pageCount } = paginate(articles, resolvePage(page), PER_PAGE);
+  const { page, tag: rawTag } = await searchParams;
+  const tag = (Array.isArray(rawTag) ? rawTag[0] : rawTag) || null;
+  const filtered = tag ? articles.filter((a) => a.tags.includes(tag)) : articles;
+  const { items, page: current, pageCount } = paginate(filtered, resolvePage(page), PER_PAGE);
 
   return (
     <>
@@ -55,7 +57,7 @@ export default async function NewsHubPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <NewsHub articles={items} page={current} pageCount={pageCount} />
+      <NewsHub articles={items} page={current} pageCount={pageCount} tag={tag} />
     </>
   );
 }

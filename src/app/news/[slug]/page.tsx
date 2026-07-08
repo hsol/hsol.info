@@ -6,9 +6,11 @@ import { DeferredChatDock } from "@/components/DeferredChatDock";
 import {
   getPublishedArticleBySlug,
   listPublishedArticleRefs,
+  listPublishedArticles,
 } from "@/lib/db/articles";
 import { getSiteData } from "@/lib/content/site-data";
 import { buildArticleJsonLd, buildArticleMetadata } from "@/lib/news/seo";
+import { pickRelatedArticles } from "@/lib/news/related";
 import "../news.css";
 
 /**
@@ -40,7 +42,11 @@ export default async function NewsArticlePage({ params }: Params) {
   if (!article) notFound();
 
   const jsonLd = buildArticleJsonLd(article);
-  const siteData = await getSiteData();
+  const [siteData, allArticles] = await Promise.all([
+    getSiteData(),
+    listPublishedArticles(),
+  ]);
+  const related = pickRelatedArticles(article, allArticles, 3);
 
   return (
     <>
@@ -48,7 +54,7 @@ export default async function NewsArticlePage({ params }: Params) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ArticleView article={article} />
+      <ArticleView article={article} related={related} />
       {/* Ask Hansol — 기사 독자가 맥락을 바로 물어볼 수 있게 FAB 도크를 띄운다.
           포트폴리오 뷰가 아니라 "둘러보기(curious)" 맥락에 기사 제목을 detail 로 실어 보낸다. */}
       <SiteDataProvider data={siteData}>
