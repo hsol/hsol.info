@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ArticleRow } from "@/types/article";
 import { Pagination } from "@/components/ui/Pagination";
 import { SITE_URL } from "@/lib/news/seo";
@@ -21,10 +22,12 @@ export function NewsHub({
   articles,
   page,
   pageCount,
+  tag = null,
 }: {
   articles: ArticleRow[];
   page: number;
   pageCount: number;
+  tag?: string | null;
 }) {
   return (
     <main id="main-content" className="news-page">
@@ -42,8 +45,17 @@ export function NewsHub({
         </p>
       </header>
 
+      {tag ? (
+        <p className="news-hub-filter">
+          <span className="news-tag">#{tag}</span> 태그로 필터링 중 ·{" "}
+          <Link href="/news">전체 보기</Link>
+        </p>
+      ) : null}
+
       {articles.length === 0 ? (
-        <p className="news-empty">아직 발행된 기사가 없습니다.</p>
+        <p className="news-empty">
+          {tag ? `#${tag} 태그가 붙은 기사가 없습니다.` : "아직 발행된 기사가 없습니다."}
+        </p>
       ) : (
         <ul className="news-list">
           {articles.map((a) => {
@@ -89,7 +101,13 @@ export function NewsHub({
 
       {/* basePath 는 내부 라우트 "/news". 서브도메인에선 미들웨어 rewrite +
           NewsUrlNormalizer 가 주소창을 "/…"·"?page=" 로 정규화한다(search 보존). */}
-      <Pagination page={page} pageCount={pageCount} basePath="/news" label="뉴스룸 페이지" />
+      <Pagination
+        page={page}
+        pageCount={pageCount}
+        basePath="/news"
+        label="뉴스룸 페이지"
+        query={tag ? { tag } : undefined}
+      />
     </main>
   );
 }

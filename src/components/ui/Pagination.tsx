@@ -23,6 +23,8 @@ type PaginationProps = {
   basePath: string;
   /** nav 의 aria-label(스크린리더용). */
   label?: string;
+  /** 페이지 번호 외 유지할 쿼리 파라미터(예: 뉴스룸 태그 필터 `{ tag: "..." }`). */
+  query?: Record<string, string>;
 };
 
 /** 현재 페이지 주변 + 양 끝만 남기고 나머지는 생략(…)하는 페이지 번호 목록. */
@@ -40,11 +42,14 @@ function pageWindow(page: number, pageCount: number): (number | "…")[] {
   return out;
 }
 
-function hrefFor(basePath: string, page: number): string {
-  return page <= 1 ? basePath : `${basePath}?${PAGE_PARAM}=${page}`;
+function hrefFor(basePath: string, page: number, query?: Record<string, string>): string {
+  const params = new URLSearchParams(query);
+  if (page > 1) params.set(PAGE_PARAM, String(page));
+  const qs = params.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
-export function Pagination({ page, pageCount, basePath, label = "페이지" }: PaginationProps) {
+export function Pagination({ page, pageCount, basePath, label = "페이지", query }: PaginationProps) {
   // 페이지가 하나뿐이면 렌더하지 않는다.
   if (pageCount <= 1) return null;
 
@@ -62,7 +67,7 @@ export function Pagination({ page, pageCount, basePath, label = "페이지" }: P
           ) : (
             <Link
               className={styles.item}
-              href={hrefFor(basePath, page - 1)}
+              href={hrefFor(basePath, page - 1, query)}
               rel="prev"
               aria-label="이전 페이지"
             >
@@ -86,7 +91,7 @@ export function Pagination({ page, pageCount, basePath, label = "페이지" }: P
             <li key={p}>
               <Link
                 className={styles.item}
-                href={hrefFor(basePath, p)}
+                href={hrefFor(basePath, p, query)}
                 aria-label={`${p}페이지`}
               >
                 {p}
@@ -103,7 +108,7 @@ export function Pagination({ page, pageCount, basePath, label = "페이지" }: P
           ) : (
             <Link
               className={styles.item}
-              href={hrefFor(basePath, page + 1)}
+              href={hrefFor(basePath, page + 1, query)}
               rel="next"
               aria-label="다음 페이지"
             >

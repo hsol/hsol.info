@@ -21,7 +21,13 @@ function formatDate(value: string | null): { iso: string; label: string } | null
  * 기사 상세 — 시맨틱 <article> 마크업. SEO 신호(시간·작성자·섹션)를 가시 텍스트로도 노출하고,
  * 본문은 마크다운으로 렌더한다. JSON-LD 는 라우트에서 별도 주입.
  */
-export function ArticleView({ article }: { article: ArticleRow }) {
+export function ArticleView({
+  article,
+  related = [],
+}: {
+  article: ArticleRow;
+  related?: ArticleRow[];
+}) {
   const published = formatDate(article.publishedAt);
   const modified = formatDate(article.updatedAt);
 
@@ -125,18 +131,55 @@ export function ArticleView({ article }: { article: ArticleRow }) {
           </section>
         ) : null}
 
-        {article.tags.length ? (
-          <footer className="news-tags" aria-label="태그">
-            {article.tags.map((tag) => (
-              <span key={tag} className="news-tag">
-                #{tag}
-              </span>
-            ))}
-          </footer>
+        <footer className="news-tags" aria-label="태그">
+          {article.tags.map((tag) => (
+            <Link key={tag} href={`/news?tag=${encodeURIComponent(tag)}`} className="news-tag">
+              #{tag}
+            </Link>
+          ))}
+          <Link href="/news" className="news-tags-link">
+            ← 한솔닷컴 뉴스룸 전체 보기
+          </Link>
+        </footer>
+
+        {related.length ? (
+          <section className="news-related" aria-label="관련 기사">
+            <h2 className="news-related-title">관련 기사</h2>
+            <ul className="news-related-list">
+              {related.map((r) => {
+                const date = formatDate(r.publishedAt);
+                return (
+                  <li key={r.slug} className="news-related-item">
+                    <Link href={`/news/${r.slug}`} className="news-related-link">
+                      <span className="news-related-kicker">{r.section}</span>
+                      <span className="news-related-headline">{r.headline}</span>
+                      {date ? (
+                        <time className="news-related-date" dateTime={date.iso}>
+                          {date.label}
+                        </time>
+                      ) : null}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ) : null}
 
-        <aside className="news-footer-nav">
-          <Link href="/news">← 한솔닷컴 뉴스룸 전체 보기</Link>
+        {/* 인물 카드 — "임한솔 결혼" 등 이름 오인으로 착지한 독자에게 '이 임한솔이 누구인지'를
+            가시 텍스트로 밝히고(동명이인 구분), 포트폴리오·Ask Hansol 로 전환 동선을 준다. */}
+        <aside className="news-person-card" aria-label="이 임한솔은 누구인가요">
+          <p className="news-person-eyebrow">이 임한솔은 누구인가요?</p>
+          <p className="news-person-body">
+            온라인의 기술과 오프라인의 운영을 잇는 개발자이자 <strong>프루퍼 주식회사</strong> 대표
+            임한솔(Hansol Lim)입니다. 정치인·변호사 임한솔과는 동명이인입니다.
+          </p>
+          <div className="news-person-actions">
+            <a className="news-person-link" href={SITE_URL}>
+              포트폴리오 보기 →
+            </a>
+            <AskHansolCta />
+          </div>
         </aside>
       </article>
     </main>
