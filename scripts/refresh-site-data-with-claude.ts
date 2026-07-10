@@ -13,6 +13,7 @@ import { DEFAULT_LAYOUT } from "../src/content/default-layout";
 import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
 import { loadPipelineFlags } from "./lib/pipeline-flags";
+import { parsePath, setByPath } from "./lib/site-data-patch";
 import { renderCatalogForPrompt } from "../src/content/layout-catalog";
 import {
   pageCompositionSchema,
@@ -56,6 +57,8 @@ const FAILURE_LOG_DIR =
 const EMIT_TOOL_NAME = "emit_site_data";
 const EMIT_LAYOUT_TOOL_NAME = "emit_layout";
 const EMIT_COMPOSITION_TOOL_NAME = "emit_composition";
+const EMIT_GATE_TOOL_NAME = "emit_relevance_gate";
+const EMIT_EVOLVE_TOOL_NAME = "emit_evolution";
 const SITE_DATA_TEMPLATE = JSON.stringify(HSOL_DATA, null, 2);
 
 // 파이프라인 종류별 on/off(siteData·research·layout·composition·onepager)는 이제
@@ -73,6 +76,8 @@ const COMPOSITION_PAGES: PageKey[] = (() => {
   return keys.length ? keys : DEFAULT_COMPOSITION_PAGES;
 })();
 const COMPOSITION_MAX_TOKENS = Number(process.env.COMPOSITION_EMIT_MAX_TOKENS ?? 16000);
+/** G2 콘텐츠 반영 게이트 출력 캡. 판단+targets 만 뱉으니 작게. */
+const GATE_MAX_TOKENS = Number(process.env.CONTENT_GATE_MAX_TOKENS ?? 1500);
 
 const RESEARCH_MAX_ROUNDS = Number(process.env.LAYOUT_RESEARCH_MAX_ROUNDS ?? 6);
 const RESEARCH_MAX_TOKENS = Number(process.env.LAYOUT_RESEARCH_MAX_TOKENS ?? 6000);
@@ -754,6 +759,18 @@ async function anthropicFetchJson(
         ? "tool_use"
         : "end_turn";
 
+  // 프롬프트 캐시 검증용: composition 4페이지 루프에서 1페이지=write>0, 2~4페이지=read>0 이면 캐시가
+  // Gateway 를 통과해 먹히는 것. 계속 0 이면 캐시 미적용(패스스루 안 됨) — 되돌리거나 원인 확인.
+  const cacheMeta = (result.providerMetadata?.anthropic ?? {}) as {
+    cacheCreationInputTokens?: number;
+    cacheReadInputTokens?: number;
+  };
+  const cacheWrite = cacheMeta.cacheCreationInputTokens ?? 0;
+  const cacheRead = cacheMeta.cacheReadInputTokens ?? 0;
+  if (cacheWrite || cacheRead) {
+    logStep(`Prompt cache: write=${cacheWrite} read=${cacheRead} tokens.`);
+  }
+
   return {
     content,
     stop_reason,
@@ -846,49 +863,348 @@ async function anthropicMessages(
   return { content: data.content ?? [], stop_reason: data.stop_reason };
 }
 
-/**
- * 매 실행 다른 "잘 만든 포트폴리오"를 web_search/web_fetch 로 리서치해,
- * 우리 블록 카탈로그로 적용 가능한 레이아웃·섹션 아이디어를 한국어 메모로 정리한다.
- * 네트워크/모델 오류는 빈 문자열로 흡수한다(레이아웃 단계가 죽지 않게).
- */
-async function researchPortfolioReferences(apiKey: string, lens: string): Promise<string> {
-  const prompt = `너는 포트폴리오 웹사이트 디자인 리서처다. 지금 주제는 "${lens}".
-web_search/web_fetch 로 **이번 회차에 새로 볼 만한, 잘 만든 실제 사례 2~3곳**을 찾아 살펴보고,
-그 사이트들이 잘한 점 중 **우리가 가진 블록 시스템으로 적용 가능한 레이아웃·섹션 구성·정보 순서 아이디어**만 한국어로 5~9개 불릿으로 정리하라.
-우리 사이트 제약: 페이지는 home/hire/collab/builder/curious/about/architecture 로 고정이고, 새 비주얼/컴포넌트는 못 만들며 기존 블록(섹션)들의 "순서·포함 여부·강조"만 바꿀 수 있다.
-따라서 "이 섹션을 위로", "이 관점에선 X를 먼저", "Y 섹션은 접어도 됨" 같은 **구성 차원의 실천 가능한 제안** 위주로 적어라. 추상적 미사여구·색/폰트 얘기는 빼라.
-마지막 줄에 "참고: <사이트1>, <사이트2>" 형식으로 본 사이트를 적어라.`;
+function isGateToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_GATE_TOOL_NAME;
+}
 
-  const tools = [
-    { type: "web_search_20260209", name: "web_search" },
-    { type: "web_fetch_20260209", name: "web_fetch" },
-  ];
-  let messages: Array<{ role: string; content: unknown }> = [{ role: "user", content: prompt }];
-  const texts: string[] = [];
+export type RelevanceGate = {
+  /** NONE=반영할 것 없음(전체 skip) · PATCH=일부만 · OVERHAUL=광범위(전체 재생성). */
+  scope: "NONE" | "PATCH" | "OVERHAUL";
+  /** PATCH 일 때 손볼 최상위 키/경로(예: "publications", "career", "faq"). */
+  targets: string[];
+  reason: string;
+};
+
+/**
+ * G2 — 콘텐츠 반영 게이트. vault 가 바뀌었어도 site-data 에 반영할 게 있는지 "생성 전에" 싼 판단으로 거른다.
+ * 출력이 작아(scope+targets+reason) 좋은 모델로도 저렴하다. 판단 불가/호출 실패면 null →
+ * 호출부는 fail-open(진행). 절감보다 정확성 우선 — 애매하면 스킵하지 말고 돌린다.
+ */
+async function gateContentRelevance(
+  apiKey: string,
+  args: { currentSiteDataText: string; changedContext: string },
+): Promise<RelevanceGate | null> {
+  const prompt = `너는 hsol.info 콘텐츠 반영 게이트다. 아래 "바뀐 vault 내용"이 현재 site-data.json 에 **실제로 반영해야 할 변화**를 담고 있는지 판단한다. 생성은 하지 말고 판단만 한다.
+
+기준:
+- 방문자에게 보이는 것(사실·고유명사·기간·수치·글/출판물 목록·경력·자격·FAQ·소개 문구 등)이 바뀌거나 추가됐는가?
+- vault 내부 메모·비공개 초안·이미 site-data 에 반영된 내용·오타/서식/줄바꿈만 바뀐 경우 → 반영 불필요.
+
+scope 하나를 고른다:
+- NONE: site-data 에 반영할 게 없다(현재 유지).
+- PATCH: 일부만 손보면 된다. targets 에 손볼 **가장 좁은 경로**를 적는다 — 넓게 잡을수록 재생성 비용이 커진다. 리스트 원소 하나면 인덱스로("career[2]"), 객체 하위 필드면 점 경로로("portfolioCopy.builder.blog", "viewHeaders.hire.lede"), 리스트 전체가 바뀌면 키만("publications"). 실제 바뀐 곳만 좁게 짚는다.
+- OVERHAUL: 광범위하게 바뀌어 전체 재생성이 낫다.
+의심스러우면 NONE 이 아니라 PATCH 다(놓치는 것보다 손보는 게 안전).
+
+[현재 site-data.json]
+${args.currentSiteDataText || "[MISSING]"}
+
+[바뀐 vault 내용]
+${args.changedContext || "(변경 파일 내용 없음)"}
+
+반드시 ${EMIT_GATE_TOOL_NAME} tool_use 로만 반환한다.`;
 
   try {
-    for (let round = 0; round < RESEARCH_MAX_ROUNDS; round += 1) {
-      const data = await anthropicMessages(apiKey, {
-        model: MODEL,
-        max_tokens: RESEARCH_MAX_TOKENS,
-        messages,
-        tools,
-      });
-      const content = data.content ?? [];
-      for (const block of content) {
-        if (isTextBlock(block) && block.text) texts.push(block.text);
-      }
-      if (data.stop_reason === "pause_turn") {
-        messages = [...messages, { role: "assistant", content }];
+    const data = await anthropicMessages(apiKey, {
+      model: MODEL,
+      max_tokens: GATE_MAX_TOKENS,
+      messages: [{ role: "user", content: prompt }],
+      tools: [
+        {
+          name: EMIT_GATE_TOOL_NAME,
+          description: "콘텐츠 반영 필요 여부(scope)와 손볼 대상(targets)을 판단해 반환한다. 일반 텍스트 금지.",
+          input_schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              scope: { type: "string", enum: ["NONE", "PATCH", "OVERHAUL"] },
+              targets: { type: "array", items: { type: "string" } },
+              reason: { type: "string" },
+            },
+            required: ["scope", "reason"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: EMIT_GATE_TOOL_NAME },
+    });
+    const toolInput = (data.content ?? []).find(isGateToolUseBlock)?.input as
+      | { scope?: unknown; targets?: unknown; reason?: unknown }
+      | undefined;
+    const scope = toolInput?.scope;
+    if (scope !== "NONE" && scope !== "PATCH" && scope !== "OVERHAUL") return null;
+    const targets = Array.isArray(toolInput?.targets)
+      ? (toolInput.targets as unknown[]).filter((t): t is string => typeof t === "string")
+      : [];
+    const reason = typeof toolInput?.reason === "string" ? toolInput.reason : "";
+    return { scope, targets, reason };
+  } catch (error) {
+    logStep(`Content gate 호출 실패 (${error instanceof Error ? error.message : String(error)}) — fail-open(진행).`);
+    return null;
+  }
+}
+
+/** 게이트 targets 를 유효한 경로만 남긴다(최상위 세그먼트가 site-data 키인 것). 경로 형태는 보존(세분화). */
+function validPatchTargets(rawTargets: string[]): string[] {
+  const validRoot = new Set<string>(REQUIRED_TOP_LEVEL_KEYS as readonly string[]);
+  const out = new Set<string>();
+  for (const t of rawTargets) {
+    const trimmed = t.trim();
+    if (!trimmed) continue;
+    const root = parsePath(trimmed)[0];
+    if (typeof root === "string" && validRoot.has(root)) out.add(trimmed);
+  }
+  return [...out];
+}
+
+/**
+ * 증분 2 — siteData 부분 갱신(PATCH). 게이트가 짚은 **경로**(최상위 키/객체 하위/배열 원소)만 새 값으로
+ * 바꿔 기존 site-data 에 병합한다. **출력 토큰**(비싼 쪽)을 바뀐 경로로 한정해 절감. 병합 결과를 전체
+ * 스키마로 검증하고, 실패하면 null → 호출부가 OVERHAUL(전체 재생성)로 폴백. 정확성 우선.
+ */
+async function generateSiteDataPatch(
+  apiKey: string,
+  args: {
+    currentSiteData: SiteData;
+    currentSiteDataText: string;
+    contextText: string;
+    targetPaths: string[];
+  },
+): Promise<SiteData | null> {
+  const { currentSiteData, currentSiteDataText, contextText, targetPaths } = args;
+
+  const prompt = `너는 site-data.json 을 **부분 갱신(PATCH)**하는 데이터 편집기다. 바뀐 vault 내용을 반영해 **아래 지정된 경로만** 새 값으로 바꾼다. 지정 경로 밖은 절대 건드리지 마라.
+
+바꿀 경로(이것만):
+${targetPaths.map((p) => `- ${p}`).join("\n")}
+
+출력: edits 배열. 각 원소 = { "path": 위 경로 중 하나(또는 그 하위 경로), "value": 그 경로에 넣을 **완성된 새 값 전체** }.
+- path 는 점·대괄호 표기(예: "portfolioCopy.builder.blog", "career[2].points", "publications"). 리스트 전체가 바뀌면 리스트 키 경로에 value=배열 전체.
+- value 는 [현재 site-data.json]의 해당 위치와 같은 형태(타입·필드)로 그 위치 값 전체를 준다. 배열 인덱스는 [현재 site-data.json]의 순서를 그대로 세어 정확히 지목한다.
+- 실제로 바뀔 게 없는 경로는 edits 에서 빼라(억지로 채우지 마라).
+
+규칙:
+1) 근거: 새 값은 아래 [바뀐 vault 컨텍스트]에 실제로 있는 사실·고유명사·기간·수치로만. 증거 없는 추측·새 주장·새 수치 금지. 애매하면 현재 값 유지(그 경로 제외).
+2) 산문 문체(방문자 노출 서술 전반): 존댓말. 문단·줄글 첫 문장을 "저는/임한솔은/본인은" 같은 1인칭·이름 고정 템플릿으로 시작하지 않는다(인접 두 문장 연속 1인칭 주어 금지). AI 티 특수문자(엠대시 —, 엔대시 –, 말줄임표 …, 곡선따옴표 " " ' ')는 쓰지 않고 하이픈·마침표·쉼표·괄호·곧은따옴표만.
+3) href: 항목이 가리키는 공개 대상의 정식 URL 이 컨텍스트에 있으면 평문 말고 href 로(추측 URL 금지, 없으면 기존 유지). publications 는 정식 출판물만(뉴스레터·블로그·연재 제외, 중복 금지).
+
+[현재 site-data.json — edits 밖 경로는 이 값이 그대로 유지된다]
+${currentSiteDataText}
+
+[바뀐 vault 컨텍스트]
+${contextText}
+
+반드시 ${EMIT_TOOL_NAME} tool_use(edits) 로만 반환한다.`;
+
+  try {
+    const data = await anthropicMessages(apiKey, {
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      messages: [{ role: "user", content: prompt }],
+      tools: [
+        {
+          name: EMIT_TOOL_NAME,
+          description: "지정된 경로만 바꾸는 edits 배열을 반환한다. 경로 밖 변경·마크다운·산문 금지.",
+          input_schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              edits: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    path: { type: "string" },
+                    value: {},
+                  },
+                  required: ["path", "value"],
+                },
+              },
+            },
+            required: ["edits"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: EMIT_TOOL_NAME },
+    });
+
+    const toolInput = (data.content ?? []).find(isEmitToolUseBlock)?.input as
+      | { edits?: unknown }
+      | undefined;
+    const rawEdits = Array.isArray(toolInput?.edits) ? (toolInput.edits as unknown[]) : [];
+    if (rawEdits.length === 0) {
+      logStep("siteData PATCH: edits 없음 — OVERHAUL 폴백.");
+      return null;
+    }
+
+    // 원본 변형 방지 위해 clone 에 경로별 setByPath 적용(존재하는 경로만).
+    const merged = JSON.parse(JSON.stringify(currentSiteData)) as unknown;
+    const validRoot = new Set<string>(REQUIRED_TOP_LEVEL_KEYS as readonly string[]);
+    let applied = 0;
+    const skipped: string[] = [];
+    for (const raw of rawEdits) {
+      const e = raw as { path?: unknown; value?: unknown };
+      if (typeof e?.path !== "string") continue;
+      const segments = parsePath(e.path);
+      const root = segments[0];
+      if (typeof root !== "string" || !validRoot.has(root)) {
+        skipped.push(e.path);
         continue;
       }
-      break;
+      const value = normalizeNestedJsonLikeStrings(e.value);
+      if (setByPath(merged, segments, value)) applied += 1;
+      else skipped.push(e.path);
     }
+    if (skipped.length) {
+      logStep(`siteData PATCH: 적용 못한 경로 ${skipped.length}개 무시(${skipped.slice(0, 5).join(", ")}).`);
+    }
+    if (applied === 0) {
+      logStep("siteData PATCH: 적용된 edit 0 — OVERHAUL 폴백.");
+      return null;
+    }
+
+    const validated = siteDataSchema.safeParse(coerceSiteDataCandidate(merged));
+    if (!validated.success) {
+      logStep(
+        `siteData PATCH 검증 실패 — OVERHAUL 폴백: ${validated.error.issues
+          .slice(0, 3)
+          .map((i) => i.message)
+          .join("; ")}`,
+      );
+      return null;
+    }
+    logStep(`siteData PATCH: ${applied}개 경로 적용.`);
+    return validated.data;
   } catch (error) {
-    logStep(`Portfolio research skipped (${error instanceof Error ? error.message : String(error)}).`);
-    return "";
+    logStep(
+      `siteData PATCH 호출 실패 (${error instanceof Error ? error.message : String(error)}) — OVERHAUL 폴백.`,
+    );
+    return null;
   }
-  return texts.join("\n").trim();
+}
+
+/** layout 요약: 페이지별 블록(섹션) 타입 순서만(순서·포함/제외 판단용, 컴팩트). */
+function layoutDigestText(layout: SiteLayout | undefined): string {
+  if (!layout) return "(아직 layout 없음 — 처음 만드는 경우)";
+  return (Object.entries(layout.pages) as Array<[string, { blocks?: Array<{ type?: string }> }]>)
+    .map(([page, v]) => `${page}: ${(v.blocks ?? []).map((b) => b.type ?? "?").join(" › ") || "(빈)"}`)
+    .join("\n");
+}
+
+/** composition 요약: 페이지별 섹션 헤더만(내용 없이 구조만 — 진화 필요 판단용). */
+function compositionDigestText(comp: SiteComposition | undefined): string {
+  if (!comp || !Object.keys(comp.pages).length) return "(아직 composition 없음 — 처음 만드는 경우)";
+  return (Object.entries(comp.pages) as Array<[string, PageComposition]>)
+    .map(([page, c]) => {
+      const heads = (c.nodes ?? [])
+        .filter((n) => n.component === "Section")
+        .map((n) => {
+          const x = (n.props ?? {}) as { num?: unknown; title?: unknown; eyebrow?: unknown };
+          return `§${x.num ?? "-"} ${x.title ?? x.eyebrow ?? ""}`.trim();
+        });
+      return `[${page}] ${heads.join(" / ") || "(섹션 없음)"}`;
+    })
+    .join("\n");
+}
+
+export type EvolveTarget = { evolve: boolean; notes: string };
+export type EvolutionAssessment = {
+  layout: EvolveTarget;
+  composition: EvolveTarget;
+  onepager: EvolveTarget;
+};
+
+function isEvolveToolUseBlock(
+  item: AnthropicContent,
+): item is Extract<AnthropicContent, { type?: "tool_use" }> {
+  return item.type === "tool_use" && item.name === EMIT_EVOLVE_TOOL_NAME;
+}
+
+/**
+ * 구조 진화 판정관(옛 research 대체). 현재 layout·composition·onepager 상태와 이번 변경을 보고 각각
+ * "이번 회차에 진화(개선)할 가치가 있나"를 자가판정한다. 출력이 작아 저렴하고, evolve=false 인 빌더는
+ * 호출 자체를 스킵(비용 0). 호출 실패면 null → 호출부 fail-safe(진화 안 함, 없는 산출물만 생성).
+ */
+async function assessEvolution(
+  apiKey: string,
+  args: {
+    lens: string;
+    changedContext: string;
+    contentGateNote: string;
+    layoutDigest: string;
+    compositionDigest: string;
+    onepagerDigest: string;
+  },
+): Promise<EvolutionAssessment | null> {
+  const prompt = `너는 hsol.info 포트폴리오의 **구조 진화 판정관**이다. 이번 vault 변경과 주제(lens: "${args.lens}")를 놓고, 산출물 3개(layout·composition·onepager) **각각** 이번 회차에 진화(개선)할 가치가 있는지 판정한다. 생성은 하지 말고 판정만 한다.
+
+원칙:
+- 이미 충분하고 이번 변경이 그 산출물에 영향이 없으면 evolve=false. 억지 변경·의미 없는 재배열 금지 — 확신 없으면 false.
+- evolve=true 면 notes 에 해당 빌더가 바로 적용할 **구체적 개선 1~3개**를 한국어로(막연한 말·색/폰트 얘기 금지).
+- 아직 없는 산출물(처음 만드는 경우)은 evolve=true.
+- **G2 콘텐츠 게이트가 NONE(방문자 노출 콘텐츠 사실에 변화 없음)이어도** layout·composition 은 여기서 독립으로 판단한다. 단 그 경우 **더 높은 바**를 적용: 콘텐츠 변화에 기댄 재배열이 아니라, 순수하게 구조·정보 순서·표현이 실제로 더 나아지는 확실한 경우에만 evolve=true("이러면 더 좋을 수도"·취향 수준은 false).
+- 각 산출물 성격:
+  - layout: 페이지별 블록(섹션)의 순서·포함/제외·강조만 바꿀 수 있다.
+  - composition: 관점 페이지(hire/collab/builder/curious) 컴포넌트 트리 구성.
+  - onepager: 이력서 한 장(HTML). 채용·협업자가 자주 보므로 **안정성 우선** — vault 사실이 실제로 바뀐 경우만 true, 아니면 false.
+
+[이번 vault 변경(요지·본문)]
+${args.changedContext}
+
+[콘텐츠 게이트(G2) 판정 — 이걸 감안해서 판단]
+${args.contentGateNote}
+
+[현재 layout 요약]
+${args.layoutDigest}
+
+[현재 composition 요약]
+${args.compositionDigest}
+
+[현재 onepager 요약]
+${args.onepagerDigest}
+
+반드시 ${EMIT_EVOLVE_TOOL_NAME} tool_use 로만 반환한다.`;
+
+  const targetShape = {
+    type: "object",
+    additionalProperties: false,
+    properties: { evolve: { type: "boolean" }, notes: { type: "string" } },
+    required: ["evolve"],
+  };
+  try {
+    const data = await anthropicMessages(apiKey, {
+      model: MODEL,
+      max_tokens: RESEARCH_MAX_TOKENS,
+      messages: [{ role: "user", content: prompt }],
+      tools: [
+        {
+          name: EMIT_EVOLVE_TOOL_NAME,
+          description: "layout·composition·onepager 각각의 진화 필요 여부(evolve)와 개선 노트를 판정해 반환한다. 일반 텍스트 금지.",
+          input_schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: { layout: targetShape, composition: targetShape, onepager: targetShape },
+            required: ["layout", "composition", "onepager"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: EMIT_EVOLVE_TOOL_NAME },
+    });
+    const raw = (data.content ?? []).find(isEvolveToolUseBlock)?.input as
+      | Record<string, unknown>
+      | undefined;
+    if (!raw) return null;
+    const pick = (v: unknown): EvolveTarget => {
+      const o = (v ?? {}) as { evolve?: unknown; notes?: unknown };
+      return { evolve: o.evolve === true, notes: typeof o.notes === "string" ? o.notes : "" };
+    };
+    return { layout: pick(raw.layout), composition: pick(raw.composition), onepager: pick(raw.onepager) };
+  } catch (error) {
+    logStep(`Evolution 판정 실패 (${error instanceof Error ? error.message : String(error)}) — fail-safe(진화 안 함).`);
+    return null;
+  }
 }
 
 function isEmitLayoutToolUseBlock(
@@ -1246,9 +1562,10 @@ async function generateComposition(
   };
   const databoundHint = DATABOUND_HINT[args.page] ? `\n이 관점에 잘 맞는 data-bound: ${DATABOUND_HINT[args.page]}` : "";
 
-  const basePrompt = `너는 hsol.info 포트폴리오의 **컴포지션 빌더**다. '${args.page}' 페이지를 디자인시스템 컴포넌트의 **트리**로 조합하고, content 컴포넌트의 내용을 **vault 근거로 직접 작성**한다.
-
-페이지 성격: ${personaRole}${databoundHint}
+  // sharedPrefix 는 COMPOSITION_PAGES 4개 호출에서 바이트 동일(원칙·리서치·카탈로그·vault 컨텍스트) →
+  // 아래 호출부에서 cache_control(ephemeral) breakpoint 를 걸어 2~4번째 페이지는 이 프리픽스 입력이
+  // 캐시 히트된다(입력 토큰 ~90% 절감). 페이지별로 달라지는 건 전부 perPageBody(캐시 breakpoint 뒤)로.
+  const sharedPrefix = `너는 hsol.info 포트폴리오의 **컴포지션 빌더**다. 대상 페이지를 디자인시스템 컴포넌트의 **트리**로 조합하고, content 컴포넌트의 내용을 **vault 근거로 직접 작성**한다.
 
 원칙(중요):
 1) **앵커 후 진화**: 아래 "현재 composition"이 있으면 그것을 기준으로 통째로 갈아엎지 말고 근거 있는 1~3가지 개선만 적용한다. 없으면 페이지 성격에 맞게 새로 구성한다.
@@ -1270,7 +1587,7 @@ async function generateComposition(
 8-1) **자문 진입점(AdviceCTA)**: '저라면 어떻게 볼지'(의사결정 자문) 도크를 여는 AdviceCTA 컴포넌트가 있다. **collab(협업·자문) 관점에는 반드시 정확히 1개 포함**하라(보통 '일하는 방식/협업 원칙' 근처, 본문 상단부). collab 의 핵심 진입점이므로 빠뜨리면 안 된다. 다른 관점에는 넣지 않는다.
 8-2) **JD 적합도 진입점(JdAnalysisCTA)**: '채용 공고 적합도 분석' 모달/도크를 여는 JdAnalysisCTA 컴포넌트가 있다. **hire(채용) 관점에는 반드시 정확히 1개 포함**하라(보통 경력·하이라이트 근처나 ResumeCTA 부근). hire 의 핵심 진입점이므로 빠뜨리면 안 된다. 다른 관점에는 넣지 않는다.
    - **Divider 는 한 섹션 안(children)에서 묶음을 나눌 때만** 쓴다. **섹션과 섹션 사이(최상위)에 Divider 를 넣지 마라** — 섹션은 이미 충분히 떨어진다(중복·노이즈).
-9) **변화는 있어야**: 이번 회차 리서치 인사이트를 최소 1곳 구성에 반영하라(섹션 추가/순서/강조). 단 의미 없는 뒤섞기 금지.
+9) **변화는 근거 있을 때만**: 이번 회차 리서치·vault 변경이 이 페이지에 실제로 관련될 때만 반영한다(섹션 추가/순서/강조). 관련 근거가 없으면 억지로 바꾸지 말고 현재 composition 을 그대로 둔다 — "변경 없음"도 정상 결과다. 의미 없는 뒤섞기·채우기용 변경 금지.
 10) **레퍼런스는 링크로(중요)**: 본문이 가리키는 대상에 [참조 vault 컨텍스트]·data-bound 데이터에 **정식 URL 이 있으면 평문으로 두지 말고 클릭 가능한 링크로 건다**. 링크 수단은 LinkList(items[{label,href}]) 또는 CardGrid(items[{title,body,href}]) 의 href, 그리고 글·출판물은 data-bound Writing(자동 링크). **Prose 는 링크를 담지 못한다** — Prose 안에 URL 을 글자로 적지 말고, 링크가 필요한 항목은 위 컴포넌트로 올려라. URL 은 컨텍스트/데이터에 실제 있는 것만 쓰고 지어내지 않는다. 출처·조회 과정·저장소 이름을 드러내지 말라는 규칙은 '공개 가능한 정식 URL 링크'까지 금지하는 게 아니다(글·뉴스레터·출판물·외부 사이트의 공개 링크는 오히려 적극적으로 건다).
 
 [이번 회차 리서치 메모 — 주제: ${args.lens}]
@@ -1278,30 +1595,46 @@ ${args.researchNotes || "(리서치 없음 — 현재 구성을 기준으로 작
 
 반드시 ${EMIT_COMPOSITION_TOOL_NAME} tool_use 로만 반환한다.
 - composition: { "nodes": [ ...노드 ] } (이 페이지의 트리)
-- changes: 무엇을·왜 바꿨는지(어떤 근거에서) 1~3개를 한국어 한 줄씩.
+- changes: 무엇을·왜 바꿨는지(어떤 근거에서) 한국어 한 줄씩. 근거 있는 변경만, 최대 1~3개. 변경 없이 유지했으면 "변경 없음(유지)" 한 줄만.
 
 ${catalog}
+
+[참조 vault 컨텍스트]
+${args.contextText}`;
+
+  // 페이지마다 달라지는 꼬리. 캐시 breakpoint 뒤라 여기 내용은 캐시되지 않는다(페이지 정체성·형제·앵커).
+  const perPageBody = `[이번에 만들/개선할 페이지]
+'${args.page}' — 페이지 성격: ${personaRole}${databoundHint}
 
 [형제 관점들의 현재 구성 — 한 사이트의 다른 방들. 한 사람이 만든 것처럼 형식·워딩·톤을 맞춰라]
 ${args.siblings}
 
 [현재 composition — 앵커]
-${anchor}
-
-[참조 vault 컨텍스트]
-${args.contextText}`;
+${anchor}`;
 
   let validationHint = "";
   for (let attempt = 1; attempt <= 3; attempt += 1) {
-    const prompt = validationHint
-      ? `${basePrompt}\n\n이전 시도 검증 오류:\n${validationHint}\n오류를 고쳐 다시 생성하라.`
-      : basePrompt;
+    const perPage = validationHint
+      ? `${perPageBody}\n\n이전 시도 검증 오류:\n${validationHint}\n오류를 고쳐 다시 생성하라.`
+      : perPageBody;
     let data;
     try {
       data = await anthropicMessages(apiKey, {
         model: MODEL,
         max_tokens: COMPOSITION_MAX_TOKENS,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: sharedPrefix,
+                providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+              },
+              { type: "text", text: perPage },
+            ],
+          },
+        ],
         tools: [
           {
             name: EMIT_COMPOSITION_TOOL_NAME,
@@ -1590,6 +1923,37 @@ async function main() {
     logStep(`Vault changed. Changed file hints: ${changedVaultFiles.length}`);
   }
 
+  // G2 — 콘텐츠 반영 게이트: vault 가 바뀌었어도 site-data 에 반영할 게 없으면 여기서 전체 skip.
+  // 첫 생성(!hasExistingSiteData)·force·변경파일 힌트 없음 이면 판단 생략하고 진행(fail-open).
+  // NONE 이 아닐 때의 scope/targets 는 증분 2(siteData 하이브리드 PATCH/OVERHAUL)에서 소비 예정.
+  // contents 스위치: 콘텐츠 파이프라인 on/off. contentsNeeded 는 **siteData 본문**만 게이트한다
+  // (contents=off 또는 G2=NONE 이면 false → 본문 재사용). layout·composition 은 아래 진화 판정이 독립 결정
+  // (G2=NONE 이어도 진화 가치 있으면 갱신). ★ onepager 도 return 없이 아래에서 별개 판단.
+  let gateResult: RelevanceGate | null = null;
+  let contentsNeeded = flags.contents;
+  if (!flags.contents) {
+    logStep("contents=off — 콘텐츠 파이프라인 스킵(기존 site-data 유지). onepager 는 별개 판단.");
+  } else if (hasExistingSiteData && !forceRefresh && changedVaultFiles.length > 0) {
+    const changedContext = await loadContextFiles({
+      highPriorityFiles: changedVaultFiles.map((relativePath) => toVaultContextPath(relativePath)),
+      regularFiles: [],
+    });
+    gateResult = await gateContentRelevance(apiKey, { currentSiteDataText, changedContext });
+    if (gateResult) {
+      logStep(
+        `Content gate: scope=${gateResult.scope}` +
+          (gateResult.targets.length ? ` targets=[${gateResult.targets.join(", ")}]` : "") +
+          ` — ${gateResult.reason}`,
+      );
+      if (gateResult.scope === "NONE") {
+        contentsNeeded = false;
+        logStep("Content gate=NONE — siteData 본문은 기존 유지. layout·composition 은 진화 판정이 별도로 결정(NONE 감안).");
+      }
+    } else {
+      logStep("Content gate 판단 없음 — 진행(fail-open).");
+    }
+  }
+
   const contextText = !hasExistingSiteData
     ? await loadContextFiles({
         highPriorityFiles: [VAULT_README_PATH],
@@ -1635,17 +1999,40 @@ ${contextText}
   let validationHint = "";
   let siteData: SiteData | null = null;
 
-  // siteData 갱신 off + 기존 site-data 존재 → LLM 본문 생성 스킵, 기존을 베이스로 재사용.
-  // (레이아웃·컴포지션만 재진화하고 본문 카피는 손대지 않고 싶을 때. 기존이 없으면 어쩔 수 없이 생성.)
-  if (!flags.siteData && hasExistingSiteData) {
+  // 콘텐츠 파이프라인을 안 돌리는 회차(contents=off 또는 G2=NONE)엔 기존 site-data 를 base 로 재사용한다.
+  // 아래 PATCH/OVERHAUL 은 siteData===null 일 때만 도므로, 여기서 채우면 콘텐츠 생성이 자연히 스킵된다.
+  // 파싱 실패(없음/깨짐)면 siteData=null 로 두어 아래 OVERHAUL 로 복구 생성한다.
+  if (!contentsNeeded && hasExistingSiteData) {
     const reused = siteDataSchema.safeParse(parseJsonWithFallback(currentSiteDataText));
-    if (!reused.success) {
-      throw new Error(
-        "flags.siteData=off 인데 기존 site-data.json 이 스키마 불일치 — siteData 를 켜서 재생성하거나 파일을 고치세요.",
-      );
+    if (reused.success) {
+      siteData = reused.data;
+      logStep("콘텐츠 파이프라인 미실행 — 기존 site-data 를 base 로 재사용.");
+    } else {
+      logStep("콘텐츠 파이프라인 미실행이나 기존 site-data 파싱 실패 — 복구 위해 재생성.");
     }
-    siteData = reused.data;
-    logStep("site-data 본문 갱신 스킵(flags.siteData=off) — 기존 site-data 를 베이스로 재사용.");
+  }
+
+  // 증분 2 — siteData 하이브리드: 게이트가 PATCH 면 대상 키만 재생성(출력 토큰 절감). 실패하면
+  // siteData=null 유지 → 아래 for 루프가 OVERHAUL(전체 재생성)로 폴백. gate=OVERHAUL·없음 이면 이 블록 건너뜀.
+  if (siteData === null && gateResult?.scope === "PATCH") {
+    const patchTargets = validPatchTargets(gateResult.targets);
+    const currentParsed = siteDataSchema.safeParse(parseJsonWithFallback(currentSiteDataText));
+    if (patchTargets.length > 0 && currentParsed.success) {
+      logStep(`siteData PATCH 시도: paths=[${patchTargets.join(", ")}]`);
+      siteData = await generateSiteDataPatch(apiKey, {
+        currentSiteData: currentParsed.data,
+        currentSiteDataText,
+        contextText,
+        targetPaths: patchTargets,
+      });
+      logStep(
+        siteData
+          ? "siteData PATCH 성공 — 대상 키만 갱신, 나머지 유지."
+          : "siteData PATCH 미성공 — OVERHAUL(전체 재생성)로 진행.",
+      );
+    } else {
+      logStep("siteData PATCH 불가(대상 키 없음/현재 site-data 파싱 실패) — OVERHAUL 로 진행.");
+    }
   }
 
   for (let attempt = 1; siteData === null && attempt <= 3; attempt += 1) {
@@ -1712,54 +2099,83 @@ ${contextText}
     throw err;
   }
 
-  // 리서치 게이트: flags.research=off 면 웹 리서치(web_search/web_fetch)를 건너뛰고 빈 노트로.
-  // 빌더 자체는 그대로 돌고(빈 researchNotes 는 각 빌더가 이미 안전 처리), 웹툴 과금만 아낀다.
-  const maybeResearch = (lens: string): Promise<string> =>
-    flags.research ? researchPortfolioReferences(apiKey, lens) : Promise.resolve("");
-
-  // --- 레이아웃 빌더: 현재 레이아웃을 앵커로, 매 회차 다른 포트폴리오를 리서치해 점진 개선 ---
+  // --- 구조 진화 판정: 현재 layout·composition·onepager 상태를 보고 각각 "이번 회차에 진화할 가치가 있나"를
+  //     자가판정 → 산출물별 개별 게이팅. layout·composition 은 contents 아래(+G2 통과), onepager 는 독립.
+  //     evolve=false 면 해당 빌더 호출 스킵(비용 0). ---
   const existingLayout = extractExistingLayout(currentSiteDataText);
-  let buildLens: string | undefined;
+  const existingSiteComposition = ((): SiteComposition | undefined => {
+    try {
+      const obj = JSON.parse(currentSiteDataText || "{}") as { composition?: unknown };
+      const parsed = siteCompositionSchema.safeParse(obj.composition);
+      return parsed.success ? parsed.data : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+  const currentOnepagerHtml = flags.onepager ? await getExistingOnePagerHtml() : "";
+
+  const lens = RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
+  const buildLens = lens;
   let buildChanges: string[] = [];
-  if (flags.layout) {
-    const lens = RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
-    buildLens = lens;
-    logStep(`Researching portfolio references (lens: ${lens})...`);
-    const researchNotes = await maybeResearch(lens);
-    logStep(researchNotes ? `Research notes collected (${researchNotes.length} chars).` : "Research notes empty.");
-    // git 으로 회차별 레이아웃 변화 이력을 컴팩트하게 뽑아 넣어 핑퐁(반복·되돌리기)을 막는다.
+
+  // 판정은 contents 나 onepager 중 하나라도 켜져 있으면(공유 1회 콜). layout·composition 은 G2=NONE 이어도
+  // 여기서 독립 판단하므로 contentsNeeded 로 게이팅하지 않는다 — G2 는 siteData 본문만 게이트한다.
+  const needAssessment = flags.contents || flags.onepager;
+  const contentGateNote = !flags.contents
+    ? "contents=off — 콘텐츠 파이프라인 미실행."
+    : gateResult
+      ? `G2 콘텐츠 게이트=${gateResult.scope}. 이유: ${gateResult.reason}`
+      : "G2 미실행(강제 새로고침·첫 생성·변경힌트 없음) — 콘텐츠 변화 여부 불명(보수적으로 변화 있다고 간주).";
+  const assessment = needAssessment
+    ? await assessEvolution(apiKey, {
+        lens,
+        changedContext: contextText,
+        contentGateNote,
+        layoutDigest: layoutDigestText(existingLayout),
+        compositionDigest: compositionDigestText(existingSiteComposition),
+        onepagerDigest: currentOnepagerHtml ? `있음 (${currentOnepagerHtml.length}자)` : "(아직 없음 — 처음)",
+      })
+    : null;
+
+  // layout·composition 은 contents 아래지만 evolve 판정으로 결정(G2=NONE 이어도 진화 가능). onepager 는 독립.
+  // 없는 산출물은 강제 생성(첫 빌드). 있으면 evolve 판정에 따름.
+  const runLayout = flags.contents && ((assessment?.layout.evolve ?? false) || !existingLayout);
+  const runComposition = flags.contents && (assessment?.composition.evolve ?? false);
+  const runOnepager = flags.onepager && ((assessment?.onepager.evolve ?? false) || !currentOnepagerHtml);
+  logStep(
+    !needAssessment
+      ? "구조 진화 판정 생략(contents·onepager 모두 off)."
+      : assessment
+        ? `Evolve 판정 — layout=${runLayout}(want ${assessment.layout.evolve}) composition=${runComposition}(want ${assessment.composition.evolve}) onepager=${runOnepager}(want ${assessment.onepager.evolve})` +
+          ` | layout: ${assessment.layout.notes || "-"} | comp: ${assessment.composition.notes || "-"} | one: ${assessment.onepager.notes || "-"}`
+        : "Evolve 판정 실패 — fail-safe(아직 없는 산출물만 생성).",
+  );
+
+  // --- 레이아웃 빌더: 현재 레이아웃을 앵커로 점진 개선 ---
+  if (runLayout) {
+    // git 으로 회차별 레이아웃 변화 이력을 컴팩트하게 뽑아 핑퐁(반복·되돌리기)을 막는다.
     const layoutHistory = await getLayoutOrderTimeline(8);
-    logStep("Loaded layout change history from git for context.");
     logStep("Generating layout (anchor + evolve)...");
-    const generated = await generateLayout(apiKey, { currentLayout: existingLayout, researchNotes, lens, layoutHistory });
+    const generated = await generateLayout(apiKey, {
+      currentLayout: existingLayout,
+      researchNotes: assessment?.layout.notes ?? "",
+      lens,
+      layoutHistory,
+    });
     siteData.layout = stripAiTypographyDeep(buildFinalLayout(existingLayout, generated?.layout ?? null));
     buildChanges = generated?.changes ?? [];
     logStep(generated ? "Layout updated from builder." : "Layout builder yielded nothing — kept anchor/DEFAULT layout.");
   } else if (existingLayout) {
-    // 빌더 비활성화: 기존 layout 을 보존(떨구지 않음).
-    siteData.layout = buildFinalLayout(existingLayout, null);
-    logStep("Layout builder disabled — preserved existing layout.");
+    siteData.layout = buildFinalLayout(existingLayout, null); // 진화 스킵 → 기존 layout 보존
+    logStep("Layout 진화 스킵(evolve=false) — 기존 layout 보존.");
   }
 
-  // --- 컴포지션 빌더(점진 도입, 게이트): 디자인시스템 컴포넌트 트리로 페이지를 조합 + 내용 작성 ---
+  // --- 컴포지션 빌더: 디자인시스템 컴포넌트 트리로 관점 페이지 조합 ---
   const compositionChanges: string[] = [];
-  if (flags.composition) {
-    const lens = buildLens ?? RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
-    logStep(`Composition builder enabled. Pages: ${COMPOSITION_PAGES.join(", ")} (lens: ${lens}).`);
-    const researchNotes = await maybeResearch(lens);
+  if (runComposition) {
+    logStep(`Composition builder: pages ${COMPOSITION_PAGES.join(", ")} (lens: ${lens}).`);
     const compositionContext = await loadOnePagerContext(changedVaultFiles);
     logStep("Loaded ontology context for composition.");
-
-    // 기존 전체 composition 을 앵커로 보존하고, 대상 페이지만 새로 생성/갱신한다.
-    const existingSiteComposition = (() => {
-      try {
-        const obj = JSON.parse(currentSiteDataText || "{}") as { composition?: unknown };
-        const parsed = siteCompositionSchema.safeParse(obj.composition);
-        return parsed.success ? parsed.data : undefined;
-      } catch {
-        return undefined;
-      }
-    })();
     const pages: SiteComposition["pages"] = { ...(existingSiteComposition?.pages ?? {}) };
 
     for (const page of COMPOSITION_PAGES) {
@@ -1769,7 +2185,7 @@ ${contextText}
         currentComposition: current,
         contextText: compositionContext,
         lens,
-        researchNotes,
+        researchNotes: assessment?.composition.notes ?? "",
         siblings: siblingCompositionDigest(pages, page),
       });
       if (gen) {
@@ -1791,35 +2207,23 @@ ${contextText}
     } else if (!built.success) {
       logStep(`Composition assembly failed validation — skipped: ${built.error.issues.slice(0, 5).map((i) => i.message).join("; ")}`);
     }
-  } else {
-    // 빌더 비활성: 기존 site-data 에 composition 이 있었으면 떨구지 말고 보존.
-    try {
-      const obj = JSON.parse(currentSiteDataText || "{}") as { composition?: unknown };
-      const parsed = siteCompositionSchema.safeParse(obj.composition);
-      if (parsed.success && Object.keys(parsed.data.pages).length > 0) {
-        siteData.composition = parsed.data;
-        logStep("Composition builder disabled — preserved existing composition.");
-      }
-    } catch {
-      /* 무시: composition 없거나 깨짐 → 그대로 blocks 사용 */
-    }
+  } else if (existingSiteComposition && Object.keys(existingSiteComposition.pages).length > 0) {
+    siteData.composition = existingSiteComposition; // 진화 스킵 → 기존 composition 보존
+    logStep("Composition 진화 스킵(evolve=false) — 기존 composition 보존.");
   }
 
-  // --- 원페이저 빌더: vault 온톨로지 근거로 이력서/포트폴리오 한 장(HTML). 안정성 우선(KEEP/PATCH/OVERHAUL). ---
+  // --- 원페이저 빌더: evolve 판정으로 외부 게이팅(evolve=false → 호출 자체 스킵 → 비용 0). ---
   // site-data.json 에는 넣지 않고 별도 아티팩트(onepager-ko.html)로 분리한다(비대화 방지).
   const onePagerChanges: string[] = [];
-  if (flags.onepager) {
-    const currentHtml = await getExistingOnePagerHtml();
+  if (runOnepager) {
     const onePagerContext = await loadOnePagerContext(changedVaultFiles);
     logStep("Loaded one-pager ontology context.");
-    const lens = buildLens ?? RESEARCH_LENSES[new Date().getUTCDate() % RESEARCH_LENSES.length];
-    // 첫 생성일 때만 디자인 리서치(기존이 있으면 안정성 우선이라 생략, 비용·핑퐁 방지).
-    const researchNotes = currentHtml ? "" : await maybeResearch(lens);
+    const onePagerResearch = currentOnepagerHtml ? "" : (assessment?.onepager.notes ?? "");
     logStep("Generating one-pager (vault ontology grounded)...");
     const onePager = await generateOnePager(apiKey, {
       contextText: onePagerContext,
-      currentHtml,
-      researchNotes,
+      currentHtml: currentOnepagerHtml,
+      researchNotes: onePagerResearch,
       lens,
     });
     if (onePager && onePager.mode !== "KEEP") {
@@ -1833,6 +2237,8 @@ ${contextText}
     } else {
       logStep("One-pager builder yielded nothing — existing file preserved.");
     }
+  } else if (flags.onepager) {
+    logStep("One-pager 진화 스킵(evolve=false) — 기존 파일 보존.");
   }
 
   // --- 빌드 버전 스탬프(footer) + 개선 의도 로그를 DB(build_log)에 적층 ---
