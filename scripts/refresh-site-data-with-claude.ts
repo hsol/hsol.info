@@ -1132,6 +1132,7 @@ async function assessEvolution(
   args: {
     lens: string;
     changedContext: string;
+    contentGateNote: string;
     layoutDigest: string;
     compositionDigest: string;
     onepagerDigest: string;
@@ -1143,6 +1144,7 @@ async function assessEvolution(
 - 이미 충분하고 이번 변경이 그 산출물에 영향이 없으면 evolve=false. 억지 변경·의미 없는 재배열 금지 — 확신 없으면 false.
 - evolve=true 면 notes 에 해당 빌더가 바로 적용할 **구체적 개선 1~3개**를 한국어로(막연한 말·색/폰트 얘기 금지).
 - 아직 없는 산출물(처음 만드는 경우)은 evolve=true.
+- **G2 콘텐츠 게이트가 NONE(방문자 노출 콘텐츠 사실에 변화 없음)이어도** layout·composition 은 여기서 독립으로 판단한다. 단 그 경우 **더 높은 바**를 적용: 콘텐츠 변화에 기댄 재배열이 아니라, 순수하게 구조·정보 순서·표현이 실제로 더 나아지는 확실한 경우에만 evolve=true("이러면 더 좋을 수도"·취향 수준은 false).
 - 각 산출물 성격:
   - layout: 페이지별 블록(섹션)의 순서·포함/제외·강조만 바꿀 수 있다.
   - composition: 관점 페이지(hire/collab/builder/curious) 컴포넌트 트리 구성.
@@ -1150,6 +1152,9 @@ async function assessEvolution(
 
 [이번 vault 변경(요지·본문)]
 ${args.changedContext}
+
+[콘텐츠 게이트(G2) 판정 — 이걸 감안해서 판단]
+${args.contentGateNote}
 
 [현재 layout 요약]
 ${args.layoutDigest}
@@ -1921,9 +1926,9 @@ async function main() {
   // G2 — 콘텐츠 반영 게이트: vault 가 바뀌었어도 site-data 에 반영할 게 없으면 여기서 전체 skip.
   // 첫 생성(!hasExistingSiteData)·force·변경파일 힌트 없음 이면 판단 생략하고 진행(fail-open).
   // NONE 이 아닐 때의 scope/targets 는 증분 2(siteData 하이브리드 PATCH/OVERHAUL)에서 소비 예정.
-  // contents 스위치: 콘텐츠 파이프라인(G2 → siteData → layout·composition) 전체 on/off.
-  // contentsNeeded = 이번 회차에 콘텐츠 작업을 할지. contents=off 또는 G2=NONE 이면 false → 기존 site-data 유지.
-  // ★ onepager 는 여기서 return 하지 않는다 — 아래에서 별개(자체 진화 판정)로 판단한다.
+  // contents 스위치: 콘텐츠 파이프라인 on/off. contentsNeeded 는 **siteData 본문**만 게이트한다
+  // (contents=off 또는 G2=NONE 이면 false → 본문 재사용). layout·composition 은 아래 진화 판정이 독립 결정
+  // (G2=NONE 이어도 진화 가치 있으면 갱신). ★ onepager 도 return 없이 아래에서 별개 판단.
   let gateResult: RelevanceGate | null = null;
   let contentsNeeded = flags.contents;
   if (!flags.contents) {
@@ -1942,7 +1947,7 @@ async function main() {
       );
       if (gateResult.scope === "NONE") {
         contentsNeeded = false;
-        logStep("Content gate=NONE — 콘텐츠(siteData·layout·composition) 스킵(기존 유지). onepager 는 별개.");
+        logStep("Content gate=NONE — siteData 본문은 기존 유지. layout·composition 은 진화 판정이 별도로 결정(NONE 감안).");
       }
     } else {
       logStep("Content gate 판단 없음 — 진행(fail-open).");
@@ -2113,28 +2118,35 @@ ${contextText}
   const buildLens = lens;
   let buildChanges: string[] = [];
 
-  // 판정은 contents(layout·composition)나 onepager 중 하나라도 작업 가능성이 있을 때만(공유 1회 콜).
-  const needAssessment = (flags.contents && contentsNeeded) || flags.onepager;
+  // 판정은 contents 나 onepager 중 하나라도 켜져 있으면(공유 1회 콜). layout·composition 은 G2=NONE 이어도
+  // 여기서 독립 판단하므로 contentsNeeded 로 게이팅하지 않는다 — G2 는 siteData 본문만 게이트한다.
+  const needAssessment = flags.contents || flags.onepager;
+  const contentGateNote = !flags.contents
+    ? "contents=off — 콘텐츠 파이프라인 미실행."
+    : gateResult
+      ? `G2 콘텐츠 게이트=${gateResult.scope}. 이유: ${gateResult.reason}`
+      : "G2 미실행(강제 새로고침·첫 생성·변경힌트 없음) — 콘텐츠 변화 여부 불명(보수적으로 변화 있다고 간주).";
   const assessment = needAssessment
     ? await assessEvolution(apiKey, {
         lens,
         changedContext: contextText,
+        contentGateNote,
         layoutDigest: layoutDigestText(existingLayout),
         compositionDigest: compositionDigestText(existingSiteComposition),
         onepagerDigest: currentOnepagerHtml ? `있음 (${currentOnepagerHtml.length}자)` : "(아직 없음 — 처음)",
       })
     : null;
 
-  // layout·composition 은 contents 파이프라인 아래(+G2 통과 contentsNeeded). onepager 는 독립(자체 evolve).
+  // layout·composition 은 contents 아래지만 evolve 판정으로 결정(G2=NONE 이어도 진화 가능). onepager 는 독립.
   // 없는 산출물은 강제 생성(첫 빌드). 있으면 evolve 판정에 따름.
-  const runLayout = flags.contents && contentsNeeded && ((assessment?.layout.evolve ?? false) || !existingLayout);
-  const runComposition = flags.contents && contentsNeeded && (assessment?.composition.evolve ?? false);
+  const runLayout = flags.contents && ((assessment?.layout.evolve ?? false) || !existingLayout);
+  const runComposition = flags.contents && (assessment?.composition.evolve ?? false);
   const runOnepager = flags.onepager && ((assessment?.onepager.evolve ?? false) || !currentOnepagerHtml);
   logStep(
     !needAssessment
-      ? "구조 진화 판정 생략(contents·onepager 모두 작업 없음)."
+      ? "구조 진화 판정 생략(contents·onepager 모두 off)."
       : assessment
-        ? `Evolve 판정 — layout=${runLayout}(want ${assessment.layout.evolve}) composition=${runComposition} onepager=${runOnepager}(want ${assessment.onepager.evolve})` +
+        ? `Evolve 판정 — layout=${runLayout}(want ${assessment.layout.evolve}) composition=${runComposition}(want ${assessment.composition.evolve}) onepager=${runOnepager}(want ${assessment.onepager.evolve})` +
           ` | layout: ${assessment.layout.notes || "-"} | comp: ${assessment.composition.notes || "-"} | one: ${assessment.onepager.notes || "-"}`
         : "Evolve 판정 실패 — fail-safe(아직 없는 산출물만 생성).",
   );
