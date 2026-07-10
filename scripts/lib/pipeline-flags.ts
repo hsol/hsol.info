@@ -9,24 +9,18 @@ import { get } from "@vercel/edge-config";
  *   - `EDGE_CONFIG` 연결 문자열이 없거나 읽기 실패 시엔 env+기본값만으로 **오늘과 동일하게** 동작한다.
  */
 export type PipelineFlags = {
-  /** site-data.json 본문(emit_site_data) LLM 갱신. off 면 기존 site-data 를 그대로 베이스로 재사용. */
-  siteData: boolean;
-  /** 포트폴리오 레퍼런스 웹 리서치(web_search/web_fetch). off 면 리서치 없이 빌더만 돈다. */
-  research: boolean;
-  /** 레이아웃 빌더(섹션 순서·포함/제외 진화). */
-  layout: boolean;
-  /** 컴포지션 빌더(생성형 컴포넌트 트리, 점진 도입). */
-  composition: boolean;
-  /** 원페이저(이력서 한 장 HTML) 빌더. */
+  /**
+   * 콘텐츠 파이프라인 전체 스위치: G2 콘텐츠 게이트 → siteData(본문) + 구조 진화 판정 → layout·composition.
+   * off 면 이 전체를 스킵하고 기존 site-data 를 그대로 둔다. (옛 siteData·research 플래그를 하나로 합친 것.)
+   */
+  contents: boolean;
+  /** 원페이저(이력서 한 장 HTML). contents 와 **독립** — 자체 진화 판정으로 게이팅(G2 와 무관). */
   onepager: boolean;
 };
 
-/** Edge Config·env 모두 비었을 때의 기본값 = 기존 스크립트 동작과 동일. */
+/** Edge Config·env 모두 비었을 때의 기본값. */
 export const DEFAULT_PIPELINE_FLAGS: PipelineFlags = {
-  siteData: true,
-  research: true,
-  layout: true,
-  composition: false,
+  contents: true,
   onepager: true,
 };
 
@@ -41,12 +35,9 @@ function envOverride(...names: string[]): boolean | undefined {
   return undefined;
 }
 
-/** 각 플래그의 env 오버라이드 이름(기존 변수와 하위호환). */
+/** 각 플래그의 env 오버라이드 이름(기존 변수와 하위호환). 옛 CONTENT_SITE_DATA·CONTENT_RESEARCH 는 contents 로 통합. */
 const ENV_NAMES: Record<keyof PipelineFlags, string[]> = {
-  siteData: ["CONTENT_SITE_DATA"],
-  research: ["CONTENT_RESEARCH"],
-  layout: ["LAYOUT_BUILDER", "LAYOUT_RESEARCH"],
-  composition: ["COMPOSITION_BUILDER"],
+  contents: ["CONTENT_PIPELINE", "CONTENT_SITE_DATA", "CONTENT_RESEARCH"],
   onepager: ["ONEPAGER_BUILDER"],
 };
 
