@@ -11,6 +11,9 @@ import {
 import { paginate, resolvePage } from "@/lib/pagination";
 import "@/styles/legacy/chatdock.css";
 
+import { CopyPermalink } from "./copy-permalink";
+import { ScrollToBottom } from "./scroll-to-bottom";
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -52,6 +55,7 @@ function Message({ m }: { m: ManageMessageRow }) {
           {m.comment && <span className="manage-rating-comment">“{m.comment}”</span>}
         </div>
       )}
+      <CopyPermalink messageId={m.id} />
     </div>
   );
 }
@@ -130,6 +134,7 @@ export default async function ManagePage({
               {messages.map((m) => (
                 <Message key={m.id} m={m} />
               ))}
+              <ScrollToBottom sessionId={activeId ?? ""} />
             </div>
           </div>
         )}
