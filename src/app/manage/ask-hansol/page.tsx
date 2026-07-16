@@ -91,7 +91,7 @@ export default async function ManagePage({
   const pageQuery = (n: number) => `?page=${n}${activeId ? `&session=${activeId}` : ""}`;
 
   return (
-    <>
+    <div className="ask-hansol-split">
       <div className="manage-list-pane">
         <ul className="manage-list">
           {items.map((s) => {
@@ -148,6 +148,6 @@ export default async function ManagePage({
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

@@ -4,11 +4,19 @@
 
 .manage-shell {
   display: grid;
-  grid-template-columns: 180px 300px 1fr;
+  grid-template-columns: 180px 1fr;   /* 나브 + 콘텐츠 영역. 300px 분할은 각 기능이 내부에서. */
   height: 100vh;
   overflow: hidden;          /* 각 단이 알아서 스크롤한다 */
   position: relative;
   z-index: 1;                /* body::before/::after 그리드 오버레이 위로 */
+}
+
+/* Ask Hansol 뷰어 전용 2열 분할(세션 목록 + 대화). 콘솔 셸이 아니라 이 기능의 내부 레이아웃이다. */
+.ask-hansol-split {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 0;             /* 자식 패널이 내부 스크롤하도록 */
+  overflow: hidden;
 }
 
 /* ── 1단: 전체 LNB (관리 기능) ─────────────────────────── */
