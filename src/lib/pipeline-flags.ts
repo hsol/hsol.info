@@ -24,6 +24,25 @@ export const DEFAULT_PIPELINE_FLAGS: PipelineFlags = {
   onepager: true,
 };
 
+/** 유효한 플래그 키 목록(런타임 검증용). DEFAULT 에서 파생 — 플래그가 늘면 자동 반영. */
+export const PIPELINE_FLAG_KEYS = Object.keys(DEFAULT_PIPELINE_FLAGS) as (keyof PipelineFlags)[];
+
+/**
+ * HTTP 바디를 검증해 {key, value} 로 좁힌다. 유효하지 않으면 null.
+ * 알 수 없는 키·비불리언·형태 불량을 모두 걸러 라우트가 안전하게 쓴다.
+ */
+export function parsePipelineFlagPatch(
+  body: unknown,
+): { key: keyof PipelineFlags; value: boolean } | null {
+  if (!body || typeof body !== "object") return null;
+  const { key, value } = body as { key?: unknown; value?: unknown };
+  if (typeof value !== "boolean") return null;
+  if (typeof key !== "string" || !PIPELINE_FLAG_KEYS.includes(key as keyof PipelineFlags)) {
+    return null;
+  }
+  return { key: key as keyof PipelineFlags, value };
+}
+
 /** env 를 명시적으로 세팅했을 때만 boolean, 아니면 undefined(= 오버라이드 없음). */
 function envOverride(...names: string[]): boolean | undefined {
   for (const name of names) {
