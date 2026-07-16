@@ -262,6 +262,16 @@ function normalizeCareerPoints(args: {
   return deduped.slice(0, 5);
 }
 
+/** merged siteData 의 career[].points 를 스키마 상한(5)으로 in-place clamp 한다. min(3) 미달은 건드리지 않음. */
+function clampCareerPoints(merged: unknown): void {
+  const career = (merged as { career?: unknown })?.career;
+  if (!Array.isArray(career)) return;
+  for (const item of career) {
+    const pts = (item as { points?: unknown })?.points;
+    if (Array.isArray(pts) && pts.length > 5) (item as { points: unknown[] }).points = pts.slice(0, 5);
+  }
+}
+
 function dateRangeLabel(start: unknown, end: unknown): string {
   const s = typeof start === "string" && start.trim() ? start.trim() : "";
   const e = typeof end === "string" && end.trim() ? end.trim() : "현재";
@@ -1065,6 +1075,9 @@ ${contextText}
       return null;
     }
 
+    // ponytail: 모델이 career[].points 를 5개 초과로 내면 스키마(max 5) 위반 → 비싼 OVERHAUL 폴백을
+    // 유발한다. OVERHAUL 경로가 이미 하는 slice(0,5) 와 동일하게 여기서도 clamp 해 PATCH 를 살린다.
+    clampCareerPoints(merged);
     const validated = siteDataSchema.safeParse(coerceSiteDataCandidate(merged));
     if (!validated.success) {
       logStep(
