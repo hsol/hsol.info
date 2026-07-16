@@ -48,8 +48,17 @@ export async function middleware(req: NextRequest) {
     if (!(secret && token && (await verifySession(token, secret)))) {
       const authorize = new URL("/api/auth/authorize", req.url);
       authorize.searchParams.set("from", pathname + search);
-      return NextResponse.redirect(authorize);
+      const redirect = NextResponse.redirect(authorize);
+      redirect.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+      return redirect;
     }
+    // 로그인 상태의 관리 페이지도 색인 금지. 경로 접두로 판정하므로 앞으로 추가될
+    // /manage/<기능> 라우트가 자동으로 덮인다 — 페이지마다 metadata 를 다는 방식은
+    // 새 라우트에서 빠뜨리기 쉽다. (robots.txt 에는 적지 않는다 — 공개 파일이라
+    // 적는 순간 관리자 페이지의 존재를 광고하게 된다.)
+    const res = NextResponse.next();
+    res.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return res;
   }
 
   return NextResponse.next();
