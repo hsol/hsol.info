@@ -1,3 +1,11 @@
+## 최우선 규약: Vault-First
+
+프로젝트 관련 질문·작업이면 답변·수정 전에 `hsol-info-blob/vault/README.md` 를 먼저 읽고
+관련 디렉토리를 탐색한다. 대화 중 vault 에 없는 새 사실을 알게 되면 답변 직후 능동적으로
+vault 에 반영한다. 상세 트리거·절차·예외는 `hsol-info-blob/CLAUDE.md` 의 "절대 규칙" 두
+섹션을 그대로 따른다. 단 `object-views/site-data.json` 과 `datasources/<출처>/` 본문은
+생성기·sync 도구 전용이므로 직접 편집하지 않는다.
+
 ## Learned User Preferences
 
 - 일반 대화 응답에서는 저장소 안의 소스 경로나 파일명을 직접 나열하지 말고, 모듈·기능·역할로만 짚길 기대한다(코드 인용 블록이 꼭 필요한 경우는 예외).
@@ -23,4 +31,5 @@
 - Ask Hansol 답변 URL 처리는 `src/lib/ask-hansol/answer-linkify.ts`에서 마크다운·괄호 등을 평문으로 정리한 뒤 클라이언트에서 분리 렌더하며, `https`/`http`뿐 아니라 `www.` 접두·스킴 없는 호스트 형태·`mailto:` 등도 링크로 인식한다.
 - Preview Deployment Protection 환경에서 `ask-hansol-selection`이 `ask-hansol`로 서버-서버 재호출할 때는 원 요청의 `cookie`/`authorization`을 전달해야 내부 호출 401을 피할 수 있다.
 - Actions secret `SUBMODULES_PAT`는 서브모듈 체크아웃과 `hsol-info-blob` 원격 브랜치 푸시에 쓰이며, fine-grained PAT는 대상 저장소 **Contents 읽기·쓰기**(classic은 `repo`)와 조직 SSO authorize가 필요하다. `build-with-vault-refresh` 등에서 원격이 앞설 때는 fetch·작업 브랜치 재구성 또는 rebase 후 push 재시도로 non-fast-forward를 흡수한다. 포트폴리오 등에서 쓰는 대형 Mermaid `classDef` 클래스명은 페이지 전역 CSS(예: `.view`)와 선택자 충돌하지 않도록 `mermaid-` 같은 접두를 둔다. `siteData.career[].points`는 항목당 3개 이상 5개 이하만 유효하다(Zod 및 refresh 폴백이 맞춘다).
+- 페르소나 페이지(hire·collab·builder·curious)는 `composition.pages[key].nodes` 트리로 렌더되고(BlockList → composition 우선 → ComposeRenderer), 이 트리는 `scripts/refresh-site-data-with-claude.ts`의 `generateComposition`이 **한 페이지씩 독립 호출**로 생성한다. 페이지 간 통일성이 어긋나면(예: /collab만 헤더가 다르게 렌더) 산출물(site-data.json)을 직접 손대지 말고 이 생성기(프롬프트 원칙 #6 또는 `enforceCompositionSkeleton`/`ensureRequiredComposeNodes` 같은 결정적 가드레일)에서 고친다. **섹션 헤더 규약(네 페이지 동일, 프롬프트 #6에 명문화)**: `Section` props = `title`(한국어만, 제목 안 괄호 영문 금지) + `eyebrow`(영문 kicker 한 곳에만) + `num`("01" 2자리, § 직접 금지 — `SecHead`가 "§ " 자동 부착) + `dataSection`(필수 소문자 슬러그, Ask '지금 보는 섹션' 추적용). `meta`는 헤더 우측에 라벨을 또 렌더해 eyebrow와 이중 표기되므로 쓰지 않는다.
 - `/sitemap.xml`은 `next-sitemap` 대신 자체 빌더 `scripts/build-sitemap.ts`(postbuild)로 생성한다. URL 목록은 `PERSONA_PATH_KEYS` + `/architecture` + 루트. `<urlset>`은 sitemaps.org 단일 네임스페이스만 사용한다(deprecated `xmlns:mobile` 등 next-sitemap 기본 네임스페이스는 GSC 진단 노이즈 원인이라 제거). 루트 URL은 `<link rel="canonical">` 매칭을 위해 trailing slash 없이 `https://hsol.info`로 둔다. `robots.txt`(정적·동적 둘 다)에는 Yandex 전용 `Host:` 디렉티브를 두지 않는다.
