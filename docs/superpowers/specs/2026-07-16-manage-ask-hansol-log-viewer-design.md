@@ -35,6 +35,55 @@ DB(Neon) 실측치:
 **하지 않는 것 (YAGNI):** 검색창·필터·정렬 옵션(43세션은 브라우저 `Cmd+F` 로 충분),
 무한 스크롤, 세션 삭제, 평가 편집, 통계·차트, 모바일 레이아웃(아래 참조).
 
+## UI — 실제 ChatDock 디자인을 그대로 계승
+
+대화 패널은 방문자가 보는 Ask Hansol ChatDock 과 **같은 것으로 보여야 한다.**
+새 버블 스타일을 만들지 않고 **기존 자산을 그대로 쓴다.**
+
+### 재사용하는 것 (신규 CSS 없음)
+
+`src/styles/legacy/chatdock.css` 는 CSS 모듈이 아니라 **전역 클래스**이고,
+`ChatDock.tsx`·`DeferredChatDock.tsx` 가 각자 import 하는 구조다. `/manage` 도 똑같이 import 하면
+아래 클래스를 그대로 쓸 수 있다:
+
+| 클래스 | 역할 |
+|---|---|
+| `.chatdock-scroll` | 스크롤 컨테이너 (`flex:1; overflow-y:auto; padding:20px`) |
+| `.chatdock-scroll-inner` | 메시지 스택 (`flex column; gap:16px`) |
+| `.chatdock-msg` + `--user` / `--hansol` | 버블 정렬·색 |
+| `.chatdock-msg-from` | `— Hansol` 라벨 |
+| `.chatdock-msg-body` | 버블 본문 |
+
+색·폰트 변수(`--bp-deep`·`--ink`·`--accent`·`--bp-line`·`--mono` …)는 `main.css` 의 `:root` 에
+정의돼 `layout.tsx` 로 전역 적용되므로 `/manage` 가 자동 상속한다.
+
+마크다운은 기존 `renderMarkdownText(content)` 헬퍼(`render-markdown-text.tsx`)를 그대로 호출해
+도크와 **동일한 렌더 결과**를 얻는다. 서버 컴포넌트에서 호출해도 내부가 클라이언트 경계를 만든다.
+
+### 함정 — 역할 이름이 다르다
+
+**ChatDock 은 `"user" | "hansol"`, DB 는 `"user" | "assistant"` 다.**
+CSS 클래스가 `--hansol` 이므로 `/manage` 는 렌더 시 `assistant → hansol` 로 매핑해야 한다.
+이 매핑을 빠뜨리면 `.chatdock-msg--assistant` 라는 없는 클래스가 붙어 버블이 무스타일로 나온다.
+
+```ts
+const cls = `chatdock-msg chatdock-msg--${m.role === "assistant" ? "hansol" : "user"}`;
+```
+
+### 기존 셸의 Tailwind 를 걷어낸다
+
+현 `page.tsx` 는 `text-neutral-600 dark:text-neutral-400` 같은 Tailwind 중립 색을 쓰는데,
+**사이트 `body` 는 이미 `--bp-deep` 다크 블루프린트다.** 지금 셸이 사이트에서 튀는 쪽이었다.
+ChatDock 을 계승하면서 셸 헤더·로그아웃 버튼도 블루프린트 변수 기반으로 맞춘다.
+
+### 새로 만드는 것 (ChatDock 에 대응물이 없는 것만)
+
+- **LNB** — 도크에는 세션 목록이 없다. 다만 스타일은 블루프린트 관용구를 따른다:
+  경계선 `--bp-line`, 라벨 `--mono` + `letter-spacing`, 선택 항목 배경 `--bp-wall`.
+- **읽기 전용 평가 표시** — 도크의 `AnswerFeedback` 은 방문자가 **입력**하는 위젯이라 쓰지 않는다.
+  별점·의견을 그냥 보여주는 정적 표시를 만든다.
+- **permalink 복사 버튼**, **`:target` 하이라이트** — 도크에 없는 관리 전용 기능.
+
 ## 레이아웃
 
 데스크톱 2단 마스터-디테일:
@@ -70,9 +119,41 @@ DB(Neon) 실측치:
 - 평가가 하나라도 달린 세션에 `★` 표시.
 - 선택된 세션은 배경 강조.
 
+### 스크롤 모델
+
+화면 높이를 `100vh` 로 고정하고 **LNB 와 대화 패널이 각자 `overflow-y: auto`** 로 스크롤한다.
+페이지 전체가 스크롤되면 대화가 길 때 세션 목록이 같이 밀려 올라간다.
+
+### 초기 스크롤 위치 — 맨 아래(최신 메시지)
+
+세션을 열면 chat UI 관례대로 **마지막 메시지가 보이는 상태**로 시작한다.
+
+permalink(`#m-<id>`)로 들어온 경우와 충돌하면 안 되므로 규칙은 하나다:
+
+| 진입 | 초기 스크롤 | 담당 |
+|---|---|---|
+| `#m-<id>` 있음 | 해당 메시지 | 브라우저 (기본 동작) |
+| hash 없음 | 맨 아래 | `ScrollToBottom` 클라이언트 컴포넌트 |
+
+```tsx
+// src/app/manage/scroll-to-bottom.tsx  ("use client")
+useEffect(() => {
+  if (!window.location.hash) document.getElementById("chat-end")?.scrollIntoView();
+}, []);
+return <div id="chat-end" />;   // 대화 패널 맨 끝에 놓는다
+```
+
+**`flex-direction: column-reverse` 를 쓰지 않는 이유:** 그 CSS 트릭이면 JS 0줄로 맨 아래에
+붙지만 **DOM 에 메시지를 역순으로 심어야 한다.** 화면은 멀쩡해도 스크린리더 읽기 순서와
+텍스트 드래그 복사가 거꾸로 뒤집힌다. 접근성을 CSS 트릭과 바꾸지 않는다.
+
+`hash` 가 있으면 이 컴포넌트는 아무것도 하지 않고 브라우저 기본 스크롤에 양보한다 —
+두 동작이 경쟁하지 않는다.
+
 ### 페이징
 
 페이지당 20세션, 최신순(마지막 메시지 기준 내림차순). LNB 하단에 이전/다음 + `n/총페이지`.
+페이징 버튼은 LNB 스크롤과 무관하게 **하단 고정**한다.
 
 ### 모바일
 
@@ -220,18 +301,22 @@ export async function listAskHansolMessagesForManage(
 ## 컴포넌트 구성
 
 | 파일 | 역할 | 종류 |
-|---|---|---|
-| `src/app/manage/page.tsx` | searchParams 읽기 → 두 쿼리 실행 → 2단 렌더 | 서버 |
+| --- | --- | --- |
+| `src/app/manage/page.tsx` | searchParams 읽기 → 두 쿼리 실행 → 2단 렌더, `chatdock.css` import | 서버 |
 | `src/app/manage/copy-permalink.tsx` | 클릭 시 클립보드 복사 + "복사됨" | **클라이언트** |
+| `src/app/manage/scroll-to-bottom.tsx` | hash 없을 때만 맨 아래로 | **클라이언트** |
 
-기존 `page.tsx` 는 `dynamic = "force-dynamic"` 과 세션 표시·로그아웃 폼을 이미 갖고 있다 — 유지하고
-그 아래에 뷰어를 넣는다. 파일이 커지면 LNB/대화 패널을 같은 폴더 안 컴포넌트로 분리한다.
+클라이언트 컴포넌트는 이 둘뿐이다. 나머지는 전부 서버 렌더 + 브라우저 기본 동작 + CSS.
+
+기존 `page.tsx` 는 `dynamic = "force-dynamic"` 과 세션 표시·로그아웃 폼을 이미 갖고 있다 — 유지하되
+Tailwind 중립 색은 블루프린트 변수로 교체한다(위 UI 절). 파일이 커지면 LNB·대화 패널을
+같은 폴더 안 서버 컴포넌트로 분리한다.
 
 ## 에러 처리
 
 - DB 미설정/쿼리 실패 → 빈 상태 렌더(페이지 크래시 금지).
 - 없는 `session` id → 빈 상태.
-- 잘못된 `page` → 1페이지.
+- 범위 밖 `page` → **가장 가까운 유효 페이지로 클램프**(라우팅 절과 동일 규칙 — 1페이지로 튕기지 않음).
 - 클립보드 API 실패(비-HTTPS 등) → 복사 버튼이 실패를 조용히 무시하지 않고 "복사 실패" 표시.
 
 ## 테스트
