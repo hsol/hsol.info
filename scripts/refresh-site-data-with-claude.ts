@@ -12,7 +12,7 @@ import { layoutSchema, type SiteLayout } from "../src/content/layout-types";
 import { DEFAULT_LAYOUT } from "../src/content/default-layout";
 import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
-import { loadPipelineFlags } from "./lib/pipeline-flags";
+import { loadPipelineFlags } from "../src/lib/pipeline-flags";
 import { parsePath, setByPath } from "./lib/site-data-patch";
 import { renderCatalogForPrompt } from "../src/content/layout-catalog";
 import {
@@ -63,7 +63,7 @@ const SITE_DATA_TEMPLATE = JSON.stringify(HSOL_DATA, null, 2);
 
 // 파이프라인 종류별 on/off(siteData·research·layout·composition·onepager)는 이제
 // Edge Config `contentPipeline` 로 통합 관리한다 → main() 의 loadPipelineFlags() 참조.
-// (env 오버라이드·기본값은 scripts/lib/pipeline-flags.ts 가 담당)
+// (env 오버라이드·기본값은 src/lib/pipeline-flags.ts 가 담당)
 /** 컴포지션 빌더 대상 = 네 관점(persona) 페이지 전부. COMPOSITION_PAGES(CSV)로 좁힐 수 있다. */
 const DEFAULT_COMPOSITION_PAGES: PageKey[] = ["hire", "collab", "builder", "curious"];
 const COMPOSITION_PAGES: PageKey[] = (() => {
