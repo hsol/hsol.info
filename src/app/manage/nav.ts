@@ -9,4 +9,5 @@ export type ManageNavItem = { href: string; label: string };
 
 export const MANAGE_NAV: ManageNavItem[] = [
   { href: "/manage/ask-hansol", label: "Ask Hansol 로그" },
+  { href: "/manage/pipeline", label: "빌드 파이프라인" },
 ];

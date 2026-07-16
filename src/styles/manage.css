@@ -242,3 +242,52 @@
     color: var(--ink-faint);
   }
 }
+
+/* ── 콘텐츠 패널(빌드 파이프라인 등 설정형 기능 공통) ── */
+.manage-panel { padding: 28px 32px; overflow-y: auto; }
+.manage-panel-head { margin-bottom: 20px; }
+.manage-panel-title { font-size: 20px; font-weight: 600; margin: 0 0 6px; color: var(--ink); }
+.manage-panel-note { font-size: 12px; color: var(--ink-mute); margin: 0; line-height: 1.5; max-width: 560px; }
+.manage-flag-list { list-style: none; margin: 0; padding: 0; max-width: 560px; }
+.manage-flag-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--bp-line);
+}
+.manage-flag-info { display: flex; flex-direction: column; gap: 3px; }
+.manage-flag-label { font-size: 14px; color: var(--ink); }
+.manage-flag-desc { font-size: 11.5px; color: var(--ink-faint); }
+
+/* ── 토글 스위치 ── */
+.manage-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.manage-toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--bp-line-2);
+  background: var(--bp-floor);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.manage-toggle.is-on { background: var(--bp-bright); border-color: var(--bp-bright); }
+.manage-toggle.is-locked { opacity: 0.45; }
+.manage-toggle:disabled { cursor: not-allowed; }
+.manage-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 0.15s ease;
+}
+.manage-toggle.is-on .manage-toggle-knob { transform: translateX(18px); }
+.manage-toggle-note { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; color: var(--ink-faint); }
+.manage-toggle-error { font-family: var(--mono); font-size: 9.5px; color: #ffb086; }
