@@ -57,8 +57,11 @@ DB(Neon) 실측치:
 색·폰트 변수(`--bp-deep`·`--ink`·`--accent`·`--bp-line`·`--mono` …)는 `main.css` 의 `:root` 에
 정의돼 `layout.tsx` 로 전역 적용되므로 `/manage` 가 자동 상속한다.
 
-마크다운은 기존 `renderMarkdownText(content)` 헬퍼(`render-markdown-text.tsx`)를 그대로 호출해
-도크와 **동일한 렌더 결과**를 얻는다. 서버 컴포넌트에서 호출해도 내부가 클라이언트 경계를 만든다.
+마크다운은 기존 `<RenderMarkdownText text={...} />` 컴포넌트(`render-markdown-text.tsx`)를 써서
+도크와 **동일한 렌더 결과**를 얻는다. 서버 컴포넌트에서 렌더해도 내부가 클라이언트 경계를 만든다.
+
+**주의:** 같은 파일의 `renderMarkdownText(text, streaming)` 함수는 `@deprecated` 다
+(ChatDock 이 아직 쓰지만 신규 코드는 쓰지 말 것). 컴포넌트 쪽을 쓴다.
 
 ### 함정 — 역할 이름이 다르다
 
@@ -257,12 +260,29 @@ export type ManageSessionRow = {
   has_rating: boolean;
 };
 
-export async function listAskHansolSessionsForManage(
-  page: number,
-): Promise<{ rows: ManageSessionRow[]; total: number }>;
+/** 전체 세션을 최신순으로. 페이지 자르기는 기존 `paginate()` 가 인메모리로 한다(아래 참조). */
+export async function listAskHansolSessionsForManage(): Promise<ManageSessionRow[]>;
 ```
 
-한 쿼리로 집계 + 마지막 답변을 뽑는다:
+**페이징은 기존 `src/lib/pagination.ts` 를 재사용한다 — 새로 만들지 않는다.**
+
+`/news`·`/build-log` 가 이미 쓰는 `resolvePage(raw)` + `paginate(items, page, perPage)` 가
+`?page=` 정규화와 **범위 클램프([1, pageCount])** 를 그대로 해준다. 그 파일 주석이 이 저장소의
+관례를 명시한다 — *"목록 전체를 한 번에 로드하므로 인메모리 slice 로 충분하다."*
+
+세션 목록 행은 43개를 합쳐도 10KB 미만이라 SQL `LIMIT/OFFSET` 을 쓸 이유가 없다. 재사용하면:
+
+- 총 세션 수 **별도 count 쿼리 불필요** (`paginate` 가 `total`·`pageCount` 를 돌려준다)
+- 자체 `clampPage` 함수와 그 테스트 **불필요** (검증된 기존 코드가 이미 한다)
+- 쿼리가 **하나**로 줄고, `/news`·`/build-log` 와 페이징 동작이 저절로 일치한다
+
+```ts
+// page.tsx
+const all = await listAskHansolSessionsForManage();
+const { items, page, pageCount } = paginate(all, resolvePage(sp.page), MANAGE_SESSIONS_PER_PAGE);
+```
+
+한 쿼리로 집계 + 마지막 답변을 뽑는다(`LIMIT/OFFSET` 없음):
 
 ```sql
 WITH agg AS (
@@ -286,10 +306,11 @@ SELECT a.session_id, a.user_count, a.assistant_count, a.last_at::text AS last_at
 FROM agg a
 LEFT JOIN last_answer la ON la.session_id = a.session_id
 ORDER BY a.last_id DESC
-LIMIT 20 OFFSET <(page-1)*20>
 ```
 
-총 세션 수는 `SELECT count(DISTINCT session_id) FROM ask_hansol_messages` 로 별도 조회(페이징 표시용).
+`/news`·`/build-log` 와 동일하게 **상한을 두지 않는다.** 지금 43행이고 연 250행 남짓 늘어난다.
+임의의 `LIMIT` 은 세션을 조용히 사라지게 만들 뿐이다(silent cap 금지). 규모가 실제로 문제가 되면
+그때 세 페이지(news·build-log·manage)를 함께 SQL 페이징으로 옮긴다.
 
 ### 2) 세션 상세 (평가 본문 포함)
 
@@ -345,12 +366,12 @@ export async function listAskHansolMessagesForManage(
 Ponytail 원칙에 따라 **런타임 로직이 있는 곳에만** 검증을 남긴다.
 순수 함수 하나를 뽑아 기존 `src/lib/manage-auth.check.ts` 와 같은 assert 기반 self-check 로 검증한다:
 
-- `src/lib/db/ask-hansol-manage.check.ts` (또는 기존 check 파일에 합침)
-- 대상 1 — 페이지 클램프 `clampPage(raw, totalPages)`(`"abc"` → 1, `"-3"` → 1, `"99"` → 총페이지,
-  `"2"` → 2)와 OFFSET 계산. 이 산술이 틀리면 세션이 조용히 사라지거나 중복 표시된다.
-- 대상 2 — 어긋남 배지 판정 `mismatchLabel(userCount, assistantCount)`:
+- `src/lib/db/ask-hansol-manage.check.ts`, 실행: `npx tsx src/lib/db/ask-hansol-manage.check.ts`
+- **대상은 `mismatchLabel(userCount, assistantCount)` 하나뿐이다:**
   같으면 `null`, 답변이 적으면 `⚠ 답변 N 누락`, 많으면 `⚠ 질문 N 누락`.
   분기가 있으므로 순수 함수로 뽑아 검증한다.
+- 페이지 클램프는 **검증하지 않는다** — 기존 `resolvePage`/`paginate` 를 재사용하므로
+  우리 코드가 아니고, `/news`·`/build-log` 가 이미 쓰고 있다.
 
 SQL 자체는 실제 DB 로 한 번 실행해 결과를 눈으로 확인한다(모킹하지 않음).
 
