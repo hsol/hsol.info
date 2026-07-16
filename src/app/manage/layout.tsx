@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import Link from "next/link";
 
 import { MANAGE_COOKIE, verifySession } from "@/lib/manage-auth";
 import "@/styles/manage.css";
+
+import { MANAGE_NAV } from "./nav";
+import { ManageNavLink } from "./nav-link";
 
 /**
  * 관리 콘솔 공통 셸 — 1단 전체 LNB. 앞으로 /manage/<기능> 라우트를 추가하면
@@ -32,12 +34,11 @@ export default async function ManageLayout({ children }: { children: ReactNode }
         <nav className="manage-nav">
           <div className="manage-nav-brand">CONSOLE</div>
           <ul className="manage-nav-list">
-            <li>
-              {/* 활성 표시는 기능이 2개 이상 될 때 붙인다 — 지금은 항목이 하나라 무의미하다. */}
-              <Link className="manage-nav-item" href="/manage">
-                Ask 로그
-              </Link>
-            </li>
+            {MANAGE_NAV.map((item) => (
+              <li key={item.href}>
+                <ManageNavLink {...item} />
+              </li>
+            ))}
           </ul>
           <div className="manage-nav-foot">
             <div className="manage-nav-who">{who}</div>
