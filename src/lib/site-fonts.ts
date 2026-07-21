@@ -8,14 +8,11 @@ export const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-/** CDN @font-face 체인(HTML→CSS→jsdelivr) 제거 — next/font가 preload·자체 호스팅 처리 */
-export const lineSeedKR = localFont({
-  src: [
-    { path: "../app/fonts/LINESeedKR-Rg.woff2", weight: "400", style: "normal" },
-    { path: "../app/fonts/LINESeedKR-Bd.woff2", weight: "700", style: "normal" },
-  ],
-  variable: "--font-line-seed",
+/** Wanted Sans 가변 폰트(무게 100–900, 한글 전체 커버) — next/font가 preload·자체 호스팅 처리 */
+export const wantedSans = localFont({
+  src: [{ path: "../app/fonts/WantedSansVariable.woff2", weight: "100 900", style: "normal" }],
+  variable: "--font-wanted-sans",
   display: "swap",
 });
 
-export const siteFontVariables = `${jetbrainsMono.variable} ${lineSeedKR.variable}`;
+export const siteFontVariables = `${jetbrainsMono.variable} ${wantedSans.variable}`;

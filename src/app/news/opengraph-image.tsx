@@ -9,7 +9,7 @@ import { ImageResponse } from "next/og";
  * 기사 상세는 [slug]/opengraph-image.tsx(네이비 헤드라인 카드)가 더 깊은
  * 세그먼트라 그대로 우선 적용된다.
  *
- * 한글 렌더를 위해 LINE Seed KR(Bold) ttf 를 satori 에 직접 주입한다(woff2 미지원).
+ * 한글 렌더를 위해 Wanted Sans(Bold) ttf 를 satori 에 직접 주입한다(woff2 미지원).
  * Vercel 람다에 폰트 포함은 next.config 의 outputFileTracingIncludes 로 보장.
  */
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ const NAVY = "#0e2a3d";
 
 export default async function OgImage() {
   const fontData = await readFile(
-    join(process.cwd(), "src/app/fonts/LINESeedKR-Bd.ttf"),
+    join(process.cwd(), "src/app/fonts/WantedSans-Bold.ttf"),
   );
 
   return new ImageResponse(
@@ -37,7 +37,7 @@ export default async function OgImage() {
           background: "#ffffff",
           color: INK,
           padding: "56px 84px 48px",
-          fontFamily: "LINE Seed KR",
+          fontFamily: "Wanted Sans",
         }}
       >
         {/* 데이트라인 — 신문 상단의 발행 정보 행 */}
@@ -107,7 +107,7 @@ export default async function OgImage() {
     ),
     {
       ...size,
-      fonts: [{ name: "LINE Seed KR", data: fontData, weight: 700, style: "normal" }],
+      fonts: [{ name: "Wanted Sans", data: fontData, weight: 700, style: "normal" }],
     },
   );
 }

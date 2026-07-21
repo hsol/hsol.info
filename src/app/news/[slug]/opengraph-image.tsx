@@ -7,7 +7,7 @@ import { getPublishedArticleBySlug } from "@/lib/db/articles";
  * 기사별 동적 OG 이미지 (1200×630). 제목·섹션을 한솔닷컴 뉴스룸 브랜딩과 합성한다.
  * coverImage 가 있으면 metadata 가 그걸 우선 쓰고, 없을 때 이 이미지가 og/twitter 카드로 쓰인다.
  *
- * 한글 렌더를 위해 LINE Seed KR(Bold) ttf 를 satori 에 직접 주입한다(woff2 미지원).
+ * 한글 렌더를 위해 Wanted Sans(Bold) ttf 를 satori 에 직접 주입한다(woff2 미지원).
  * DB/로컬 vault 접근 + fs 폰트 읽기 때문에 nodejs 런타임.
  */
 export const runtime = "nodejs";
@@ -47,7 +47,7 @@ export default async function OgImage({
 
   // 폰트는 fs 로 읽는다. Vercel 람다 포함은 next.config 의 outputFileTracingIncludes 로 보장.
   const fontData = await readFile(
-    join(process.cwd(), "src/app/fonts/LINESeedKR-Bd.ttf"),
+    join(process.cwd(), "src/app/fonts/WantedSans-Bold.ttf"),
   );
 
   const headlineSize = headline.length > 38 ? 60 : headline.length > 24 ? 72 : 84;
@@ -64,7 +64,7 @@ export default async function OgImage({
           color: "#ffffff",
           padding: "72px 80px",
           justifyContent: "space-between",
-          fontFamily: "LINE Seed KR",
+          fontFamily: "Wanted Sans",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", fontSize: 30, color: ACCENT }}>
@@ -102,7 +102,7 @@ export default async function OgImage({
     ),
     {
       ...size,
-      fonts: [{ name: "LINE Seed KR", data: fontData, weight: 700, style: "normal" }],
+      fonts: [{ name: "Wanted Sans", data: fontData, weight: 700, style: "normal" }],
     },
   );
 }

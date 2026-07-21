@@ -1,6 +1,6 @@
 /* ==========================================================
    hsol.info v2 — architectural / spatial
-   LINE Seed KR · signature blue base · blueprint metaphor
+   Wanted Sans · signature blue base · blueprint metaphor
    ========================================================== */
 
 :root {
@@ -26,7 +26,7 @@
   --accent:     #287099;
   --accent-2:   #ff8765;   /* secondary warm */
 
-  --sans: var(--font-line-seed), -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --sans: var(--font-wanted-sans), -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
 
   --maxw: 1180px;
