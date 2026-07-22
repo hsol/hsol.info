@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useMermaid } from "react-x-mermaid";
-import { jetbrainsMono, lineSeedKR } from "@/lib/site-fonts";
+import { jetbrainsMono, wantedSans } from "@/lib/site-fonts";
 // 정적 import — lazy(ssr:false)로 지연 로드하면 콜드 캐시 첫 방문에서 청크가 뜨기 전에
 // useMermaid의 1회성 렌더 이펙트가 끝나 버려(ref 미부착) SVG가 영영 그려지지 않는다.
 // 컴포넌트가 작아(~2KB) 지연 로드 이득도 없다.
@@ -34,7 +34,7 @@ export function MermaidDiagram({
       securityLevel: "strict" as const,
       startOnLoad: false,
       suppressErrorRendering: true,
-      fontFamily: `${jetbrainsMono.style.fontFamily}, ${lineSeedKR.style.fontFamily}, sans-serif`,
+      fontFamily: `${jetbrainsMono.style.fontFamily}, ${wantedSans.style.fontFamily}, sans-serif`,
       themeVariables: {
         background: "#14384f",
         primaryColor: "#0e2a3d",
