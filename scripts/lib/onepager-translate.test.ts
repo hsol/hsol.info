@@ -49,6 +49,14 @@ assert.ok(
   "한국어가 남으면 거부해야 한다",
 );
 
+// 라이트형제는 Writebros 다. Wright Brothers 는 다른 회사다(PRF-407).
+assert.ok(
+  validateTranslation(skeleton, GOOD.replace("Platform Team Lead", "Wright Brothers")).some((p) =>
+    p.includes("Writebros"),
+  ),
+  "Wright Brothers 가 들어가면 거부해야 한다",
+);
+
 assert.ok(
   validateTranslation(skeleton, GOOD.replace("<!--ONEPAGER_STYLE-->", "")).some((p) =>
     p.includes("자리표"),
