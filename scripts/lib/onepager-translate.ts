@@ -71,6 +71,11 @@ export function validateTranslation(skeleton: string, output: string): string[] 
     }
   }
 
+  // 라이트형제의 영문 표기는 Writebros 다. Wright Brothers 는 실재하는 다른 회사라 경력이 오기된다.
+  if (/wright\s*brothers/i.test(trimmed)) {
+    problems.push("`Wright Brothers` 가 들어갔다. `라이트형제` 는 `Writebros` 로 옮겨야 한다.");
+  }
+
   // 고유명사 등 약간은 남을 수 있으나, 본문이 한국어로 남으면 번역 실패다.
   const source = hangulCount(skeleton);
   const left = hangulCount(trimmed);
@@ -130,6 +135,7 @@ export function buildPrompt(skeleton: string, hint: string): string {
 - 태그를 추가하거나 지우지 마라. 줄바꿈·들여쓰기도 원본 그대로 둔다.
 - \`${STYLE_SLOT}\` 주석은 그 자리에 그대로 남겨라(CSS 자리표다).
 - 이메일·URL·회사명·제품명·기술명 등 이미 영문이거나 고유명사인 것은 그대로 둔다.
+- \`라이트형제\`(회사)는 \`Writebros\` 로 옮긴다. \`Wright Brothers\` 는 같은 영문명을 쓰는 다른 회사가 있어 쓰면 안 된다.
 - 사람 이름은 \`Hansol Lim\` 으로 통일한다(\`임한솔 / Hansol Lim\` 같은 병기는 영문만 남긴다).
 - 숫자·날짜·기간·비율은 **절대 바꾸지 마라**. 사실이 틀리면 이력서로서 실패다.
 - 내용을 요약·보강·재배열하지 마라. 있는 것을 그대로 옮기기만 한다.
