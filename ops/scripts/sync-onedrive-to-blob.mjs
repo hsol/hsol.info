@@ -276,17 +276,23 @@ async function syncTrack(name, workDir) {
   const nextFiles = {};
   for (const [k, v] of Object.entries(prevFiles)) if (remote.has(k)) nextFiles[k] = v;
 
+  // 한 번의 rclone copy 로 바뀐 파일을 모두 받는다(파일마다 rclone 을 띄우면 경로 조회가 반복돼 매우 느리다).
+  const stage = path.join(workDir, name);
+  if (uploadKeys.size) {
+    const listFile = path.join(workDir, `${name}-files.txt`);
+    await writeFile(listFile, [...uploadKeys].map((k) => remote.get(k).srcPath).join("\n") + "\n");
+    await rclone(["copy", `od:${def.odRoot}`, stage, "--files-from-raw", listFile, "--transfers", "16", "--checkers", "16"]);
+  }
   await runWithConcurrency([...uploadKeys], CONCURRENCY, async (rel) => {
     const meta = remote.get(rel);
-    const localPath = path.join(workDir, name, rel);
-    await rclone(["copyto", `od:${def.odRoot}/${meta.srcPath}`, localPath]);
+    const localPath = path.join(stage, meta.srcPath);
     const pathname = `${def.prefix}/${rel}`;
     const contentType = contentTypeOf(rel);
     await putBlob(pathname, await readFile(localPath), contentType);
-    await rm(localPath, { force: true });
     nextFiles[rel] = { size: meta.size, hash: meta.hash, modTime: meta.modTime, contentType, pathname };
     console.log(`  업로드: ${pathname}`);
   });
+  await rm(stage, { recursive: true, force: true });
 
   const deletes = [...deleteKeys];
   for (let i = 0; i < deletes.length; i += 500) {
