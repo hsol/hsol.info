@@ -1,16 +1,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { put } from "@vercel/blob";
 import { pdfPageCount, renderOnePagerPdf } from "./lib/onepager-pdf";
 
 /**
- * 원페이저 HTML(onepager-<lang>.html) -> A4 PDF 변환 후 Vercel Blob 업로드.
+ * 원페이저 HTML(onepager-<lang>.html) -> A4 PDF 변환. 결과는 generated/onepager-<lang>.pdf 에 남기고,
+ * OneDrive 업로드는 다음 CI 스텝(ops/scripts/publish-generated.mjs)이 한다.
  * refresh(ko html 생성) → translate(en html 생성) 다음 CI 스텝에서 실행.
  * Playwright 인쇄 엔진이라 텍스트 선택 가능·벡터 출력.
- * BLOB 토큰이 없으면 로컬 파일만 남기고 업로드는 건너뛴다(빌드 실패시키지 않음).
  * EN HTML 이 아직 없으면 EN 만 건너뛴다 — KO 는 그대로 나간다.
  */
-const BLOB_PREFIX = (process.env.BLOB_PREFIX || "info").replace(/^\/+|\/+$/g, "");
 
 type Target = { lang: "ko" | "en"; htmlPath: string; localPdfPath: string };
 
@@ -31,7 +29,6 @@ const TARGETS: Target[] = [
 ];
 
 async function main() {
-  const token = process.env.BLOB_READ_WRITE_TOKEN ?? process.env.ASK_HANSOL_BLOB_TOKEN;
   let rendered = 0;
 
   for (const target of TARGETS) {
@@ -50,34 +47,6 @@ async function main() {
     console.log(
       `[onepager-pdf] Wrote local PDF: ${target.localPdfPath} (${pdf.length} bytes, ${pdfPageCount(pdf)} pages).`,
     );
-
-    if (!token) {
-      console.log("[onepager-pdf] No BLOB_READ_WRITE_TOKEN; skipped Blob upload (local only).");
-      continue;
-    }
-
-    const pdfResult = await put(`${BLOB_PREFIX}/resume/onepager-${target.lang}.pdf`, pdf, {
-      access: "private",
-      token,
-      allowOverwrite: true,
-      addRandomSuffix: false,
-      contentType: "application/pdf",
-    });
-    console.log(`[onepager-pdf] Uploaded ${target.lang} PDF to Blob: ${pdfResult.url}`);
-
-    // HTML 도 Blob 에 올려 런타임(getOnePagerHtml)이 submodule 없이도 읽게 한다.
-    const htmlResult = await put(
-      `${BLOB_PREFIX}/vault/object-views/onepager-${target.lang}.html`,
-      fragment,
-      {
-        access: "private",
-        token,
-        allowOverwrite: true,
-        addRandomSuffix: false,
-        contentType: "text/html; charset=utf-8",
-      },
-    );
-    console.log(`[onepager-pdf] Uploaded ${target.lang} HTML to Blob: ${htmlResult.url}`);
   }
 
   if (rendered === 0) console.log("[onepager-pdf] Nothing to render.");

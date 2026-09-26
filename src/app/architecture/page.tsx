@@ -12,7 +12,7 @@ import {
 const PAGE_URL = `${SITE_URL}/architecture`;
 const PAGE_NAME = "사이트 구조 — hsol.info";
 const PAGE_DESC =
-  "hsol.info의 저장소·콘텐츠·배포 관계를 한 장에 정리한 구조도. AI 클론 포트폴리오가 어떻게 vault·SSR·Vercel Blob을 잇는지 보여줍니다.";
+  "hsol.info의 저장소·콘텐츠·배포 관계를 한 장에 정리한 구조도. AI 클론 포트폴리오가 어떻게 vault·SSR·OneDrive를 잇는지 보여줍니다.";
 
 const ARCHITECTURE_JSON_LD = asGraph([
   buildWebPageNode({
@@ -30,7 +30,7 @@ const ARCHITECTURE_JSON_LD = asGraph([
 export const metadata: Metadata = {
   title: "사이트 구조 — hsol.info",
   description:
-    "hsol.info의 저장소·콘텐츠·배포 관계를 한 장에 정리한 구조도. AI 클론 포트폴리오가 어떻게 vault·SSR·Vercel Blob을 잇는지 보여줍니다.",
+    "hsol.info의 저장소·콘텐츠·배포 관계를 한 장에 정리한 구조도. AI 클론 포트폴리오가 어떻게 vault·SSR·OneDrive를 잇는지 보여줍니다.",
   alternates: { canonical: "/architecture" },
   openGraph: {
     type: "article",

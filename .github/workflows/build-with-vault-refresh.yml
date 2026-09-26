@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       vault_changed_files:
-        description: "바뀐 vault 경로(쉼표 구분). Sync OneDrive to Vercel Blob 이 채운다. 비우면 강제 리프레시"
+        description: "바뀐 vault 경로(쉼표 구분). Watch OneDrive 가 채운다. 비우면 강제 리프레시"
         type: string
         default: ""
   push:
     branches:
       - dev
 
-# 생성물을 같은 Blob 경로에 올리므로 두 실행이 겹치지 않게 한다.
+# 생성물을 같은 OneDrive 경로에 쓰므로 두 실행이 겹치지 않게 한다.
 concurrency:
   group: build-with-vault-refresh-${{ github.ref }}
   cancel-in-progress: false
@@ -34,17 +34,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # vault 콘텐츠의 정본은 개인 OneDrive 의 hsol-info-blob 폴더다(2026-09-27 hsol-info-blob 저장소 폐기).
-      # sync-onedrive-to-blob.yml 이 올린 Blob info/vault 를 hsol-info-blob/vault 로 내려받아 기존 스크립트 경로를 그대로 쓴다.
-      # 내려받은 직후의 생성물 해시를 적어 두고, 아래 업로드 스텝이 실제로 바뀐 것만 Blob 에 되올린다.
-      - name: Pull vault from Blob
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version | head -1
+
+      # 콘텐츠의 정본이자 유일한 저장소는 개인 OneDrive 의 hsol-info-blob 폴더다(2026-09-27 부터).
+      # vault 를 hsol-info-blob/vault 로 받아 기존 스크립트 경로를 그대로 쓴다. 사이트 생성기가 읽지 않는 경로는 받지 않는다.
+      # 받은 직후의 생성물 해시를 적어 두고, 뒤의 게시 스텝이 실제로 바뀐 것만 OneDrive 에 되쓴다.
+      - name: Pull vault from OneDrive
         env:
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-          # 사이트 생성기가 읽지 않는 경로는 받지 않는다(예전 Blob 에 남은 datasources 등).
-          BLOB_PULL_EXCLUDE: "datasources/,.obsidian/,Templates/,Attachments/"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
+          ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
         run: |
           set -euo pipefail
-          node ops/scripts/pull-blob-to-vault.mjs --vault-dir hsol-info-blob/vault --clean
+          node ops/scripts/with-onedrive.mjs -- rclone copy od:hsol-info-blob/vault hsol-info-blob/vault \
+            --exclude "datasources/**" --exclude ".obsidian/**" --exclude "Templates/**" --exclude "Attachments/**" \
+            --exclude "*.base" --exclude ".DS_Store" --transfers 16 --checkers 16 --stats-one-line --stats 30s
+          echo "받은 파일: $(find hsol-info-blob/vault -type f | wc -l)개"
           mkdir -p generated
           for f in vault/object-views/site-data.json vault/object-views/onepager-ko.html vault/object-views/onepager-en.html; do
             if [ -f "hsol-info-blob/$f" ]; then echo "$(sha1sum "hsol-info-blob/$f" | cut -d' ' -f1) $f"; fi
@@ -59,7 +67,7 @@ jobs:
           ANTHROPIC_MAX_TOKENS: "64000"
           GIT_DIFF_BASE_SHA: ${{ github.event.before }}
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
-          # vault 원본(OneDrive)이 바뀌면 동기화 워크플로가 바뀐 경로를 넘겨 디스패치한다 -> 그 목록으로 변경 판단.
+          # vault 원본(OneDrive)이 바뀌면 Watch OneDrive 가 바뀐 경로를 넘겨 디스패치한다 -> 그 목록으로 변경 판단.
           # 코드 push 에서는 목록이 없어 스킵. 목록 없이 수동 실행하면 명시적 의도로 보고 강제.
           VAULT_CHANGED_FILES: ${{ inputs.vault_changed_files }}
           CONTENT_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.vault_changed_files == '' && '1' || '' }}
@@ -85,49 +93,12 @@ jobs:
           AI_GATEWAY_MODEL: anthropic/claude-opus-4.7
         run: npm run content:translate:onepager
 
-      # 게이트를 여기서 한 번 더 돌린다. prebuild(Build 스텝)에서도 돌지만, 그건 아래 blob push 와
-      # PDF 업로드가 끝난 뒤라 위반이 이미 배포된 뒤에야 빌드를 세운다 — PDF 는 Blob 에서 바로
+      # 게이트를 여기서 한 번 더 돌린다. prebuild(Build 스텝)에서도 돌지만, 그건 아래 OneDrive 게시와
+      # PDF 업로드가 끝난 뒤라 위반이 이미 배포된 뒤에야 빌드를 세운다 — PDF 는 OneDrive 에서 바로
       # 내려가므로 빌드 실패와 무관하게 살아 있다(PRF-149). 재생성 직후·발행 직전이 유일하게
       # 유효한 지점이다.
       - name: Gate regenerated one-pager (self-designation)
         run: npm run check:self-designation
-
-      # 생성물(site-data, 원페이저)은 Blob 이 정본이다. 바뀐 것만 info/vault 로 올린다.
-      # OneDrive 로의 역미러는 hsol-info-blob 동기화 워크플로가 다음 회차에 한다.
-      - name: Upload regenerated vault outputs to Blob
-        env:
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-        run: |
-          set -euo pipefail
-          node --input-type=module -e '
-          import { readFileSync, existsSync } from "node:fs";
-          import { put } from "@vercel/blob";
-          const token = process.env.BLOB_READ_WRITE_TOKEN;
-          const pulled = new Map(
-            (existsSync("generated/pulled-generated.sha1") ? readFileSync("generated/pulled-generated.sha1", "utf8") : "")
-              .split("\n").filter(Boolean).map((l) => { const [h, f] = l.split(" "); return [f, h]; }),
-          );
-          const { createHash } = await import("node:crypto");
-          const files = ["vault/object-views/site-data.json", "vault/object-views/onepager-ko.html", "vault/object-views/onepager-en.html"];
-          const types = { json: "application/json", html: "text/html; charset=utf-8" };
-          const changed = [];
-          for (const f of files) {
-            const p = `hsol-info-blob/${f}`;
-            if (!existsSync(p)) continue;
-            const buf = readFileSync(p);
-            const h = createHash("sha1").update(buf).digest("hex");
-            if (pulled.get(f) === h) continue;
-            await put(`info/${f}`, buf, { access: "private", addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60, contentType: types[f.split(".").pop()], token });
-            changed.push(f);
-            console.log(`uploaded info/${f}`);
-          }
-          if (changed.length) {
-            const ref = { parentSha: process.env.GITHUB_SHA, parentRef: process.env.GITHUB_REF, workflowRunId: Number(process.env.GITHUB_RUN_ID), recordedAt: new Date().toISOString(), changed };
-            await put("info/vault/object-views/hsol-info-parent-ref.json", JSON.stringify(ref, null, 2), { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", token });
-          } else {
-            console.log("No regenerated vault outputs; skip upload.");
-          }
-          '
 
       - name: Upload content refresh failure dumps
         if: failure()
@@ -140,11 +111,16 @@ jobs:
       - name: Generate site.ts from vault
         run: npm run content:generate:site-ts
 
-      - name: Generate one-pager PDF (html -> pdf -> Blob)
-        env:
-          # 없으면 로컬 PDF만 만들고 업로드는 graceful skip(빌드 실패 안 함).
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      - name: Generate one-pager PDF (html -> pdf)
         run: npm run content:generate:onepager-pdf
+
+      # 사이트는 생성물을 OneDrive 에서 바로 읽는다. 바뀐 것만 vault/object-views 에 쓴다.
+      - name: Publish generated outputs to OneDrive
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
+          ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
+        run: node ops/scripts/publish-generated.mjs
 
       - name: Lint
         run: npm run lint

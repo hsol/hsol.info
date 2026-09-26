@@ -1,20 +1,18 @@
-import { list } from "@vercel/blob";
 import type { NextRequest } from "next/server";
 
-import { getBlobPrefix, getBlobToken } from "@/lib/content/blob";
+import { getItem, isOneDriveConfigured } from "@/lib/onedrive/graph";
 import { MANAGE_COOKIE, verifySession } from "@/lib/manage-auth";
 
 /**
  * 바이너리 에셋 서빙: /files/<visibility>/<경로>
  *
- * 원본은 개인 OneDrive `hsol.info-assets/` 이고, hsol-info-blob 저장소의
- * sync-onedrive-to-blob 워크플로가 Blob `info/assets/<키>` 로 올린다. store 가 private 이라
- * 브라우저가 Blob URL 을 직접 못 열기 때문에 여기서 토큰을 붙여 대신 받아 흘려보낸다.
+ * 원본은 개인 OneDrive `hsol-info-blob/assets/<키>` 다. OneDrive 는 비공개라 서버가 Graph 로
+ * 파일의 단기 다운로드 URL 을 얻어 대신 받아 흘려보낸다(Range 그대로 전달).
  *
  *  - public/...  : 누구나. CDN 캐시 허용
  *  - private/... : /manage 세션(Sign in with Vercel)이 있을 때만. 없으면 존재 여부도 숨기려고 404
  *
- * 규약 정본: hsol-info-blob vault/README.md "바이너리 에셋은 OneDrive 에 둔다"
+ * 규약 정본: OneDrive hsol-info-blob/vault/README.md "바이너리"
  */
 
 export const runtime = "nodejs";
@@ -52,11 +50,6 @@ async function hasManageSession(req: NextRequest): Promise<boolean> {
   return Boolean(secret && token && (await verifySession(token, secret)));
 }
 
-async function resolveAsset(token: string, pathname: string) {
-  const page = await list({ prefix: pathname, token, limit: 5 }).catch(() => null);
-  return page?.blobs.find((b) => b.pathname === pathname) ?? null;
-}
-
 function contentDisposition(key: string, download: boolean): string {
   const filename = key.split("/").pop() ?? "file";
   const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
@@ -71,28 +64,33 @@ async function serve(req: NextRequest, params: Promise<{ key: string[] }>, headO
   const isPrivate = key.startsWith("private/");
   if (isPrivate && !(await hasManageSession(req))) return notFound();
 
-  const token = getBlobToken();
-  if (!token) return notFound();
+  if (!isOneDriveConfigured()) return notFound();
+  const item = await getItem(`assets/${key}`).catch(() => null);
+  const downloadUrl = item?.["@microsoft.graph.downloadUrl"];
+  if (!item || !downloadUrl) return notFound();
 
-  const blob = await resolveAsset(token, `${getBlobPrefix()}/assets/${key}`);
-  if (!blob) return notFound();
-
-  const upstreamHeaders: Record<string, string> = { Authorization: `Bearer ${token}` };
+  const upstreamHeaders: Record<string, string> = {};
   const range = req.headers.get("range");
   if (range) upstreamHeaders.Range = range;
 
-  const upstream = await fetch(blob.url, {
-    method: headOnly ? "HEAD" : "GET",
-    headers: upstreamHeaders,
-    cache: "no-store",
-  }).catch(() => null);
-  if (!upstream || (!upstream.ok && upstream.status !== 206)) return notFound();
+  const upstream = headOnly
+    ? null
+    : await fetch(downloadUrl, { headers: upstreamHeaders, cache: "no-store" }).catch(() => null);
+  if (!headOnly && (!upstream || (!upstream.ok && upstream.status !== 206))) return notFound();
 
   const headers = new Headers();
-  for (const h of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
-    const v = upstream.headers.get(h);
-    if (v) headers.set(h, v);
+  if (upstream) {
+    for (const h of ["content-length", "content-range", "accept-ranges"]) {
+      const v = upstream.headers.get(h);
+      if (v) headers.set(h, v);
+    }
+  } else {
+    headers.set("content-length", String(item.size));
+    headers.set("accept-ranges", "bytes");
   }
+  headers.set("content-type", item.file?.mimeType || upstream?.headers.get("content-type") || "application/octet-stream");
+  if (item.eTag) headers.set("etag", item.eTag);
+  if (item.lastModifiedDateTime) headers.set("last-modified", new Date(item.lastModifiedDateTime).toUTCString());
   headers.set("Content-Disposition", contentDisposition(key, req.nextUrl.searchParams.has("download")));
   if (isPrivate) {
     headers.set("Cache-Control", "private, no-store");
@@ -102,7 +100,7 @@ async function serve(req: NextRequest, params: Promise<{ key: string[] }>, headO
     headers.set("Cache-Control", "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400");
   }
 
-  return new Response(headOnly ? null : upstream.body, { status: upstream.status, headers });
+  return new Response(upstream ? upstream.body : null, { status: upstream?.status ?? 200, headers });
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string[] }> }) {
