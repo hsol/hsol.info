@@ -2,9 +2,19 @@ name: Build With Vault Refresh
 
 on:
   workflow_dispatch:
+    inputs:
+      vault_changed_files:
+        description: "바뀐 vault 경로(쉼표 구분). Sync OneDrive to Vercel Blob 이 채운다. 비우면 강제 리프레시"
+        type: string
+        default: ""
   push:
     branches:
       - dev
+
+# 생성물을 같은 Blob 경로에 올리므로 두 실행이 겹치지 않게 한다.
+concurrency:
+  group: build-with-vault-refresh-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -49,8 +59,10 @@ jobs:
           ANTHROPIC_MAX_TOKENS: "64000"
           GIT_DIFF_BASE_SHA: ${{ github.event.before }}
           GIT_DIFF_HEAD_SHA: ${{ github.sha }}
-          # vault(서브모듈) 수정이 있을 때만 자동 실행. 수동 실행(workflow_dispatch)은 명시적 의도라 강제.
-          CONTENT_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+          # vault 원본(OneDrive)이 바뀌면 동기화 워크플로가 바뀐 경로를 넘겨 디스패치한다 -> 그 목록으로 변경 판단.
+          # 코드 push 에서는 목록이 없어 스킵. 목록 없이 수동 실행하면 명시적 의도로 보고 강제.
+          VAULT_CHANGED_FILES: ${{ inputs.vault_changed_files }}
+          CONTENT_REFRESH_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.vault_changed_files == '' && '1' || '' }}
           # 빌드 로그(build_log 테이블) 적층용. 없으면 로그 적층만 건너뛰고 리프레시는 정상.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # 파이프라인 종류별 LLM 동작 토글(contentPipeline). 없으면 코드 기본값으로 폴백(빌드 정상).
@@ -105,7 +117,7 @@ jobs:
             const buf = readFileSync(p);
             const h = createHash("sha1").update(buf).digest("hex");
             if (pulled.get(f) === h) continue;
-            await put(`info/${f}`, buf, { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: types[f.split(".").pop()], token });
+            await put(`info/${f}`, buf, { access: "private", addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60, contentType: types[f.split(".").pop()], token });
             changed.push(f);
             console.log(`uploaded info/${f}`);
           }

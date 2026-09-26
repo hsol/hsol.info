@@ -48,6 +48,8 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      # vault 가 바뀌면 Build With Vault Refresh 를 디스패치한다(GITHUB_TOKEN 의 workflow_dispatch 는 새 실행을 만든다).
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -65,6 +67,7 @@ jobs:
           rclone version | head -1
 
       - name: Sync OneDrive -> Blob
+        id: sync
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
@@ -75,3 +78,14 @@ jobs:
           FORCE_ARTICLES: ${{ inputs.force_articles && '1' || '' }}
           MAINT_OP: ${{ inputs.maint_op }}
         run: node ops/scripts/sync-onedrive-to-blob.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # 예전 서브모듈 포인터 이동을 대신하는 신호. vault 원본이 바뀐 회차에만 사이트 생성물 재생성을 건다.
+      - name: Dispatch site refresh when vault changed
+        if: ${{ steps.sync.outputs.vault_changed_files != '' && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILES: ${{ steps.sync.outputs.vault_changed_files }}
+        run: |
+          set -euo pipefail
+          echo "vault 변경 파일: $(echo "$FILES" | tr ',' '\n' | wc -l)개 -> Build With Vault Refresh 디스패치"
+          gh workflow run build-with-vault-refresh.yml -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f vault_changed_files="$FILES"

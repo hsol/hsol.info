@@ -1950,7 +1950,7 @@ async function main() {
   }
   // vault(서브모듈 hsol-info-blob) 포인터가 안 바뀐 코드-only 푸시에선 스킵 → site-data 유지.
   if (hasExistingSiteData && !vaultChange.changed && !forceRefresh) {
-    logStep("No vault change (hsol-info-blob submodule pointer unchanged). Keep existing site-data as-is.");
+    logStep("No vault change (no VAULT_CHANGED_FILES from OneDrive sync). Keep existing site-data as-is.");
     return;
   }
 

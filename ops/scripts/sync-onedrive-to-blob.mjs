@@ -25,7 +25,7 @@
  * 플래그: --dry-run (업로드/삭제/역기록 없이 차이만 출력)
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -380,6 +380,27 @@ async function maintenance(op) {
   }
 }
 
+/**
+ * 사이트 생성물(site-data, 원페이저) 재생성은 Build With Vault Refresh 가 한다. 예전에는 서브모듈 포인터
+ * 이동이 그 신호였지만 이제 vault 는 git 밖(OneDrive)에 있으므로, 이 동기화가 실제로 올리거나 지운
+ * vault 경로를 워크플로 출력으로 넘기고 워크플로가 빌드를 디스패치한다. 생성물 자체는 제외(자기 트리거 방지).
+ */
+async function reportVaultChanges(result) {
+  const files = [...new Set([...result.changed, ...result.deleted])]
+    .filter((k) => !VAULT_GENERATED.has(k))
+    .sort();
+  if (!files.length || DRY_RUN) return;
+  console.log(`[vault] 사이트 재생성 대상 변경 ${files.length}개`);
+  if (!process.env.GITHUB_OUTPUT) return;
+  // workflow_dispatch 입력은 합계 65,535자 제한. 힌트 목록이라 앞부분만 넘겨도 변경 여부 판단은 같다.
+  let joined = "";
+  for (const f of files) {
+    if (joined.length + f.length + 1 > 30000) break;
+    joined += (joined ? "," : "") + f;
+  }
+  await appendFile(process.env.GITHUB_OUTPUT, `vault_changed_files=${joined}\n`);
+}
+
 async function main() {
   const key = requireEnv();
   const workDir = await mkdtemp(path.join(os.tmpdir(), "od-sync-"));
@@ -411,6 +432,7 @@ async function main() {
         k.startsWith("objects/news-articles/"),
       );
       if (touched || process.env.FORCE_ARTICLES === "1") await syncArticles(workDir);
+      await reportVaultChanges(results.vault);
     }
   } finally {
     // 성공이든 실패든 rclone 이 갱신한 토큰은 반드시 보존한다. 잃으면 재인증이 필요하다.
