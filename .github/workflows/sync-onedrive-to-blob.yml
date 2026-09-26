@@ -71,6 +71,7 @@ jobs:
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
+          ONEDRIVE_TOKEN_KEY_NEON: ${{ secrets.ONEDRIVE_TOKEN_KEY_NEON }}
           ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
           ONEDRIVE_BOOTSTRAP_TOKEN: ${{ secrets.ONEDRIVE_BOOTSTRAP_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

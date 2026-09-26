@@ -415,6 +415,18 @@ async function main() {
       { mode: 0o600 },
     );
 
+    if (process.env.MAINT_OP === "migrate-token-to-neon") {
+      // 1회용: Blob 토큰을 Neon 으로 옮긴다(Blob 제거 준비). 새 키 ONEDRIVE_TOKEN_KEY_NEON 으로 암호화.
+      const tok = await import("./lib/onedrive-token.mjs");
+      const sql = tok.getSql();
+      const neonKey = tok.keyFrom(process.env.ONEDRIVE_TOKEN_KEY_NEON, "ONEDRIVE_TOKEN_KEY_NEON");
+      await tok.ensureTables(sql);
+      await tok.saveToken(sql, neonKey, tokenBefore);
+      const back = await tok.loadToken(sql, neonKey);
+      if (back !== tokenBefore) throw new Error("Neon 토큰 왕복 검증 실패");
+      console.log("토큰을 Neon onedrive_token 으로 옮겼다(왕복 검증 통과).");
+      return;
+    }
     if (process.env.MAINT_OP) {
       for (const op of process.env.MAINT_OP.split(",").map((s) => s.trim()).filter(Boolean)) await maintenance(op);
       return;
