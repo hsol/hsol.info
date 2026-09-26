@@ -1,0 +1,77 @@
+# hsol.info 콘텐츠의 정본은 개인 OneDrive 의 hsol-info-blob 폴더다. 이 워크플로가 OneDrive -> Vercel Blob 으로 올린다.
+#   vault  : OneDrive hsol-info-blob/vault/   -> Blob info/vault/   (site-data, 원페이저, Ask Hansol)
+#   assets : OneDrive hsol-info-blob/assets/  -> Blob info/assets/  (/files/<키>)
+#   기사   : vault/objects/news-articles 가 바뀌면 Neon articles 미러 갱신 + dbId 를 OneDrive 원본에 역기록
+# Build With Vault Refresh 가 Blob 에 올린 생성물(site-data.json, onepager-*.html)은 OneDrive 로 역미러한다.
+# 2026-09-27 hsol-info-blob 저장소 폐기와 함께 이 저장소로 옮겼다. 코드: ops/scripts/sync-onedrive-to-blob.mjs
+#
+# Repository secrets
+#   BLOB_READ_WRITE_TOKEN   Blob 읽기/쓰기
+#   ONEDRIVE_TOKEN_KEY      OneDrive 토큰 암호화 키(32바이트 base64). 잃으면 재인증 필요
+#   ONEDRIVE_DRIVE_ID       개인 OneDrive drive id
+#   DATABASE_URL            Neon (기사 미러)
+#   ONEDRIVE_BOOTSTRAP_TOKEN (선택) 재인증할 때만. rclone authorize onedrive 출력 JSON
+
+name: Sync OneDrive to Vercel Blob
+
+on:
+  schedule:
+    # 매시 17분(UTC). 리프레시 토큰이 계속 갱신되도록 주기 실행이 필요하다.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "업로드/삭제/역기록 없이 차이만 출력"
+        type: boolean
+        default: false
+      tracks:
+        description: "동기화할 트랙 (assets,vault)"
+        type: string
+        default: "assets,vault"
+      force_articles:
+        description: "변경이 없어도 기사 DB 동기화 실행"
+        type: boolean
+        default: false
+      maint_op:
+        description: "정비 작업(stats). 지정하면 동기화 대신 실행"
+        type: string
+        default: ""
+
+# 토큰이 실행마다 회전하므로 두 실행이 겹치면 한쪽 토큰이 버려진다. 반드시 직렬.
+concurrency:
+  group: sync-onedrive-to-blob
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version | head -1
+
+      - name: Sync OneDrive -> Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
+          ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
+          ONEDRIVE_BOOTSTRAP_TOKEN: ${{ secrets.ONEDRIVE_BOOTSTRAP_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SYNC_TRACKS: ${{ inputs.tracks || 'assets,vault' }}
+          FORCE_ARTICLES: ${{ inputs.force_articles && '1' || '' }}
+          MAINT_OP: ${{ inputs.maint_op }}
+        run: node ops/scripts/sync-onedrive-to-blob.mjs ${{ inputs.dry_run && '--dry-run' || '' }}

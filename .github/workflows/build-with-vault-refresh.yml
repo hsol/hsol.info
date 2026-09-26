@@ -10,19 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate required secrets
-        run: |
-          if [ -z "${{ secrets.SUBMODULES_PAT }}" ]; then
-            echo "SUBMODULES_PAT secret is missing."
-            exit 1
-          fi
-
-      - name: Checkout repository with private submodules
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULES_PAT }}
-          # vault 변경 감지(부모 BASE 커밋의 서브모듈 포인터 비교)를 위해 전체 히스토리 필요.
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -34,36 +24,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Sync hsol-info-blob to latest origin/main
-        # 부모 repo의 서브모듈 pin(gitlink)은 이 워크플로가 자동으로 올리지 않고 한솔님이 수동으로만
-        # 갱신한다(chore(submodule): ... 포인터 갱신 커밋). 그래서 체크아웃 직후 상태는 종종 오래된
-        # onepager-ko.html 스냅샷(또는 그 파일이 아예 없던 시점)을 가리킨다.
-        # 원페이저 빌더(getExistingOnePagerHtml)는 이 로컬 파일을 "기존 버전 유무" 판단 기준으로 쓰므로,
-        # pin 이 stale 하면 항상 hasCurrent=false 로 읽혀 mode 가 매번 NEW 로 찍히고, 그 사이 origin/main
-        # 에 쌓인 PATCH/OVERHAUL 개선분이 통째로 덮어써진다. 여기서 로컬 체크아웃만 origin/main 최신으로
-        # 맞춰 읽기 문제를 해소한다(부모 repo 의 pin 커밋 자체는 건드리지 않음 — vault change 감지는
-        # 부모 히스토리의 gitlink 비교로 별도 동작하므로 영향 없음).
-        run: |
-          cd hsol-info-blob
-          git fetch origin main
-          git checkout origin/main
-
-      # vault 콘텐츠의 정본은 OneDrive 다. hsol-info-blob 저장소에는 코드만 남아 있고, OneDrive -> Blob
-      # 동기화(hsol-info-blob sync-onedrive-to-blob.yml)가 올린 info/vault 를 여기서 내려받아 쓴다.
+      # vault 콘텐츠의 정본은 개인 OneDrive 의 hsol-info-blob 폴더다(2026-09-27 hsol-info-blob 저장소 폐기).
+      # sync-onedrive-to-blob.yml 이 올린 Blob info/vault 를 hsol-info-blob/vault 로 내려받아 기존 스크립트 경로를 그대로 쓴다.
       # 내려받은 직후의 생성물 해시를 적어 두고, 아래 업로드 스텝이 실제로 바뀐 것만 Blob 에 되올린다.
       - name: Pull vault from Blob
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
         run: |
           set -euo pipefail
-          cd hsol-info-blob
-          npm ci --no-audit --no-fund
-          node scripts/pull-blob-to-vault.mjs --clean
-          mkdir -p ../generated
+          node ops/scripts/pull-blob-to-vault.mjs --vault-dir hsol-info-blob/vault --clean
+          mkdir -p generated
           for f in vault/object-views/site-data.json vault/object-views/onepager-ko.html vault/object-views/onepager-en.html; do
-            if [ -f "$f" ]; then echo "$(sha1sum "$f" | cut -d' ' -f1) $f"; fi
-          done > ../generated/pulled-generated.sha1
-          cat ../generated/pulled-generated.sha1
+            if [ -f "hsol-info-blob/$f" ]; then echo "$(sha1sum "hsol-info-blob/$f" | cut -d' ' -f1) $f"; fi
+          done > generated/pulled-generated.sha1
+          cat generated/pulled-generated.sha1
 
       - name: Refresh site-data with Claude
         env:
