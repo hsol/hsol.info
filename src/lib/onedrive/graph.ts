@@ -193,10 +193,13 @@ export async function readBytes(relPath: string): Promise<ArrayBuffer | null> {
   return res.arrayBuffer();
 }
 
-/** 텍스트 파일 읽기. 인스턴스 메모리에 5분 캐시(오류는 캐시하지 않는다). 없으면 null. */
-export async function readText(relPath: string): Promise<string | null> {
+/**
+ * 텍스트 파일 읽기. 없으면 null. 기본은 인스턴스 메모리에 5분 캐시(오류는 캐시하지 않는다).
+ * `fresh: true` 면 메모리 캐시를 건너뛴다(바깥에 다른 캐시가 있을 때 두 캐시가 겹쳐 반영이 늦어지지 않게).
+ */
+export async function readText(relPath: string, opts: { fresh?: boolean } = {}): Promise<string | null> {
   const now = Date.now();
-  const hit = textCache.get(relPath);
+  const hit = opts.fresh ? undefined : textCache.get(relPath);
   if (hit && hit.expiresAt > now) return hit.text;
   const buf = await readBytes(relPath);
   const text = buf ? new TextDecoder("utf-8").decode(buf) : null;
