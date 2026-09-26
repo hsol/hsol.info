@@ -10,19 +10,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate required secrets
-        run: |
-          if [ -z "${{ secrets.SUBMODULES_PAT }}" ]; then
-            echo "SUBMODULES_PAT secret is missing."
-            exit 1
-          fi
-
-      - name: Checkout repository with private submodules
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          token: ${{ secrets.SUBMODULES_PAT }}
-          # vault 변경 감지(부모 BASE 커밋의 서브모듈 포인터 비교)를 위해 전체 히스토리 필요.
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -34,19 +24,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Sync hsol-info-blob to latest origin/main
-        # 부모 repo의 서브모듈 pin(gitlink)은 이 워크플로가 자동으로 올리지 않고 한솔님이 수동으로만
-        # 갱신한다(chore(submodule): ... 포인터 갱신 커밋). 그래서 체크아웃 직후 상태는 종종 오래된
-        # onepager-ko.html 스냅샷(또는 그 파일이 아예 없던 시점)을 가리킨다.
-        # 원페이저 빌더(getExistingOnePagerHtml)는 이 로컬 파일을 "기존 버전 유무" 판단 기준으로 쓰므로,
-        # pin 이 stale 하면 항상 hasCurrent=false 로 읽혀 mode 가 매번 NEW 로 찍히고, 그 사이 origin/main
-        # 에 쌓인 PATCH/OVERHAUL 개선분이 통째로 덮어써진다. 여기서 로컬 체크아웃만 origin/main 최신으로
-        # 맞춰 읽기 문제를 해소한다(부모 repo 의 pin 커밋 자체는 건드리지 않음 — vault change 감지는
-        # 부모 히스토리의 gitlink 비교로 별도 동작하므로 영향 없음).
+      # vault 콘텐츠의 정본은 개인 OneDrive 의 hsol-info-blob 폴더다(2026-09-27 hsol-info-blob 저장소 폐기).
+      # sync-onedrive-to-blob.yml 이 올린 Blob info/vault 를 hsol-info-blob/vault 로 내려받아 기존 스크립트 경로를 그대로 쓴다.
+      # 내려받은 직후의 생성물 해시를 적어 두고, 아래 업로드 스텝이 실제로 바뀐 것만 Blob 에 되올린다.
+      - name: Pull vault from Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
         run: |
-          cd hsol-info-blob
-          git fetch origin main
-          git checkout origin/main
+          set -euo pipefail
+          node ops/scripts/pull-blob-to-vault.mjs --vault-dir hsol-info-blob/vault --clean
+          mkdir -p generated
+          for f in vault/object-views/site-data.json vault/object-views/onepager-ko.html vault/object-views/onepager-en.html; do
+            if [ -f "hsol-info-blob/$f" ]; then echo "$(sha1sum "hsol-info-blob/$f" | cut -d' ' -f1) $f"; fi
+          done > generated/pulled-generated.sha1
+          cat generated/pulled-generated.sha1
 
       - name: Refresh site-data with Claude
         env:
@@ -87,60 +78,42 @@ jobs:
       - name: Gate regenerated one-pager (self-designation)
         run: npm run check:self-designation
 
-      - name: Commit and push vault updates to hsol-info-blob submodule
+      # 생성물(site-data, 원페이저)은 Blob 이 정본이다. 바뀐 것만 info/vault 로 올린다.
+      # OneDrive 로의 역미러는 hsol-info-blob 동기화 워크플로가 다음 회차에 한다.
+      - name: Upload regenerated vault outputs to Blob
         env:
-          TOKEN: ${{ secrets.SUBMODULES_PAT }}
-          # Push target on hsol-info-blob (parent pins submodule SHA; we commit on that commit then update this branch)
-          SUBMODULE_BRANCH: main
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
         run: |
           set -euo pipefail
-          SITE_FILE="vault/object-views/site-data.json"
-          REF_FILE="vault/object-views/hsol-info-parent-ref.json"
-          ONEPAGER_FILE="vault/object-views/onepager-ko.html"
-          ONEPAGER_EN_FILE="vault/object-views/onepager-en.html"
-          cd hsol-info-blob
-          git remote set-url origin "https://x-access-token:${TOKEN}@github.com/hsol/hsol-info-blob.git"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git fetch origin "${SUBMODULE_BRANCH}"
-          # refresh 가 '실제로 바꾼' 생성물만 임시 백업한다(미변경 파일은 origin/main 것을 보존).
-          # stash/pop 은 onepager 가 main 에선 추적·여기선 미추적이라 'already exists'로 충돌하므로 백업 방식으로 회피.
-          TMP="$(mktemp -d)"
-          CHANGED=""
-          for f in "$SITE_FILE" "$ONEPAGER_FILE" "$ONEPAGER_EN_FILE"; do
-            if [ -n "$(git status --porcelain --untracked-files=all -- "$f" 2>/dev/null || true)" ]; then
-              install -D "$f" "$TMP/$f"
-              CHANGED="$CHANGED $f"
-            fi
-          done
-          # 작업 트리를 깨끗이 한 뒤 origin/main 으로 전환(추적 변경 되돌리기 + 미추적 생성물 제거).
-          git checkout -- . 2>/dev/null || true
-          git clean -fd vault/object-views 2>/dev/null || true
-          git switch -C ci-sync "origin/${SUBMODULE_BRANCH}"
-          # 백업한 생성물을 origin/main 위에 덮어쓴다.
-          for f in $CHANGED; do
-            install -D "$TMP/$f" "$f"
-          done
-          mkdir -p "$(dirname "$REF_FILE")"
-          jq -n \
-            --arg sha "${{ github.sha }}" \
-            --arg ref "${{ github.ref }}" \
-            --argjson run ${{ github.run_id }} \
-            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            '{parentSha:$sha, parentRef:$ref, workflowRunId:$run, recordedAt:$at}' > "$REF_FILE"
-          git add "$REF_FILE"
-          for f in $CHANGED; do git add "$f"; done
-          if git diff --cached --quiet; then
-            echo "No staged vault changes; skip submodule push."
-            exit 0
-          fi
-          git commit -m "chore: vault sync from hsol.info CI (${{ github.sha }})"
-          # 동시 실행 경쟁이 있을 수 있어 rebase 후 1회 재시도
-          if ! git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"; then
-            git fetch origin "${SUBMODULE_BRANCH}"
-            git rebase "origin/${SUBMODULE_BRANCH}"
-            git push origin "HEAD:refs/heads/${SUBMODULE_BRANCH}"
-          fi
+          node --input-type=module -e '
+          import { readFileSync, existsSync } from "node:fs";
+          import { put } from "@vercel/blob";
+          const token = process.env.BLOB_READ_WRITE_TOKEN;
+          const pulled = new Map(
+            (existsSync("generated/pulled-generated.sha1") ? readFileSync("generated/pulled-generated.sha1", "utf8") : "")
+              .split("\n").filter(Boolean).map((l) => { const [h, f] = l.split(" "); return [f, h]; }),
+          );
+          const { createHash } = await import("node:crypto");
+          const files = ["vault/object-views/site-data.json", "vault/object-views/onepager-ko.html", "vault/object-views/onepager-en.html"];
+          const types = { json: "application/json", html: "text/html; charset=utf-8" };
+          const changed = [];
+          for (const f of files) {
+            const p = `hsol-info-blob/${f}`;
+            if (!existsSync(p)) continue;
+            const buf = readFileSync(p);
+            const h = createHash("sha1").update(buf).digest("hex");
+            if (pulled.get(f) === h) continue;
+            await put(`info/${f}`, buf, { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: types[f.split(".").pop()], token });
+            changed.push(f);
+            console.log(`uploaded info/${f}`);
+          }
+          if (changed.length) {
+            const ref = { parentSha: process.env.GITHUB_SHA, parentRef: process.env.GITHUB_REF, workflowRunId: Number(process.env.GITHUB_RUN_ID), recordedAt: new Date().toISOString(), changed };
+            await put("info/vault/object-views/hsol-info-parent-ref.json", JSON.stringify(ref, null, 2), { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", token });
+          } else {
+            console.log("No regenerated vault outputs; skip upload.");
+          }
+          '
 
       - name: Upload content refresh failure dumps
         if: failure()

@@ -1,0 +1,57 @@
+<svg width="1200" height="628" viewBox="0 0 1200 628" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#121738"/>
+      <stop offset="0.55" stop-color="#0a0e27"/>
+      <stop offset="1" stop-color="#14172d"/>
+    </linearGradient>
+    <linearGradient id="answer" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00d9ff"/>
+      <stop offset="1" stop-color="#6ee7b7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.80" cy="0.28" r="0.7">
+      <stop offset="0" stop-color="#00d9ff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#00d9ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="628" fill="url(#bg)"/>
+  <rect width="1200" height="628" fill="url(#glow)"/>
+
+  <g opacity="0.09" transform="translate(815 70) scale(1.7)">
+    <path d="M38 0 h150 a38 38 0 0 1 38 38 v84 a38 38 0 0 1 -38 38 h-62 l-38 38 v-38 h-50 a38 38 0 0 1 -38 -38 v-84 a38 38 0 0 1 38 -38 z"
+          fill="none" stroke="#7d8299" stroke-width="6"/>
+  </g>
+  <g opacity="0.13" transform="translate(950 250) scale(1.5)">
+    <path d="M38 0 h150 a38 38 0 0 1 38 38 v84 a38 38 0 0 1 -38 38 h-50 v38 l-38 -38 h-62 a38 38 0 0 1 -38 -38 v-84 a38 38 0 0 1 38 -38 z"
+          fill="url(#answer)"/>
+  </g>
+
+  <g transform="translate(80 66)">
+    <path d="M4 0 h56 a15 15 0 0 1 15 15 v30 a15 15 0 0 1 -15 15 h-20 v16 l-16 -16 h-20 a15 15 0 0 1 -15 -15 v-30 a15 15 0 0 1 15 -15 z" fill="url(#answer)"/>
+    <g transform="translate(34 31)" fill="#0a0e27">
+      <path d="M0 -15 L3.6 -4.3 L14.5 -4.3 L5.7 2.4 L9.3 13.3 L0 6.6 L-9.3 13.3 L-5.7 2.4 L-14.5 -4.3 L-3.6 -4.3 Z"/>
+    </g>
+    <text x="92" y="47" font-family="'Noto Sans CJK KR','Noto Sans','sans-serif'" font-size="40" font-weight="700"><tspan fill="#f5f5f7">Ask</tspan><tspan dx="14" fill="#00d9ff">Hansol</tspan></text>
+  </g>
+
+  <!-- SLOT 1: 호수 -->
+  <g transform="translate(1120 78)">
+    <rect x="-200" y="-25" width="200" height="50" rx="25" fill="none" stroke="#2a3052" stroke-width="2"/>
+    <text x="-100" y="8" text-anchor="middle" font-family="'Noto Sans Mono',monospace" font-size="22" font-weight="700" letter-spacing="4" fill="#6ee7b7">ISSUE {{ISSUE}}</text>
+  </g>
+
+  <!-- SLOT 2: 카테고리 -->
+  <g transform="translate(80 226)">
+    <rect x="0" y="-30" width="{{CATEGORY_W}}" height="52" rx="26" fill="#14172d" stroke="#00d9ff" stroke-width="1.5"/>
+    <circle cx="30" cy="-4" r="6" fill="#00d9ff"/>
+    <text x="54" y="5" font-family="'Noto Sans CJK KR','Noto Sans','sans-serif'" font-size="26" font-weight="500" fill="#e6e8f2">{{CATEGORY}}</text>
+  </g>
+
+  <!-- SLOT 3: 헤드라인 (2줄, **강조**=시안) -->
+  {{HEADLINE_BLOCK}}
+
+  <line x1="80" y1="540" x2="1120" y2="540" stroke="#2a3052" stroke-width="1.5"/>
+  <text x="80" y="582" font-family="'Noto Sans CJK KR','Noto Sans','sans-serif'" font-size="26" font-weight="400" fill="#a0a3b8">임한솔의 AI 클론의 자문록</text>
+  <text x="1120" y="582" text-anchor="end" font-family="'Noto Sans Mono',monospace" font-size="24" font-weight="500" letter-spacing="1" fill="#6ee7b7">hsol.info</text>
+</svg>

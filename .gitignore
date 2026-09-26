@@ -11,3 +11,6 @@ generated/
 *.tsbuildinfo
 .tmp*
 .dira
+
+# vault 콘텐츠 정본은 OneDrive hsol-info-blob 폴더. CI 는 Blob 에서 내려받고, 로컬은 OneDrive 를 가리키는 링크 폴더를 둔다.
+/hsol-info-blob/
