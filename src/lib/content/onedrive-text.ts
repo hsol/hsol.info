@@ -4,11 +4,11 @@ import { isOneDriveConfigured, readText } from "@/lib/onedrive/graph";
 /**
  * 사이트가 읽는 OneDrive 텍스트(site-data, 원페이저, Ask Hansol 문맥)를 Next 데이터 캐시에 얹는다.
  * Graph 조회는 콜드 스타트에 1~3초 걸려서, 인스턴스 사이에서 공유되는 캐시(5분 재검증, stale-while-revalidate)
- * 가 페이지 응답 시간을 지킨다. 파일을 고치면 늦어도 약 5분 뒤 반영된다.
+ * 가 페이지 응답 시간을 지킨다. 파일을 고치면 보통 5분 안팎, 늦어도 10분 안에 반영된다(재검증은 요청이 올 때 뒤에서 돈다).
  */
 const REVALIDATE_SECONDS = Number(process.env.ONEDRIVE_TEXT_REVALIDATE_SECONDS ?? 300);
 
-const cachedRead = unstable_cache(async (relPath: string) => readText(relPath), ["onedrive-text-v1"], {
+const cachedRead = unstable_cache(async (relPath: string) => readText(relPath, { fresh: true }), ["onedrive-text-v2"], {
   revalidate: REVALIDATE_SECONDS,
   tags: ["onedrive-text"],
 });
