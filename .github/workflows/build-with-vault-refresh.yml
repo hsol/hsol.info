@@ -30,6 +30,8 @@ jobs:
       - name: Pull vault from Blob
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          # 사이트 생성기가 읽지 않는 경로는 받지 않는다(예전 Blob 에 남은 datasources 등).
+          BLOB_PULL_EXCLUDE: "datasources/,.obsidian/,Templates/,Attachments/"
         run: |
           set -euo pipefail
           node ops/scripts/pull-blob-to-vault.mjs --vault-dir hsol-info-blob/vault --clean

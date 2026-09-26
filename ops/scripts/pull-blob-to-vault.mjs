@@ -11,6 +11,9 @@ const DEFAULT_VAULT_DIR = "vault";
 const DEFAULT_PREFIX = "info/vault";
 const SYNC_STATE_FILE = ".blob-sync-state.json";
 const IGNORED_FILENAMES = new Set([".DS_Store", ".DS-Store"]);
+const CONCURRENCY = Math.max(1, Number(process.env.BLOB_PULL_CONCURRENCY) || 16);
+/** 내려받지 않을 vault 상대경로 접두(쉼표 구분). CI 는 사이트가 쓰지 않는 datasources/ 등을 뺀다. */
+const EXCLUDED_PREFIXES = (process.env.BLOB_PULL_EXCLUDE || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -79,6 +82,7 @@ async function collectFiles(rootDir, currentDir = rootDir) {
 function shouldIgnoreRelativePath(relativePath) {
   const normalized = relativePath.replace(/\\/g, "/");
   const filename = normalized.split("/").pop() ?? "";
+  if (EXCLUDED_PREFIXES.some((p) => normalized.startsWith(p))) return true;
   return IGNORED_FILENAMES.has(filename);
 }
 
@@ -123,44 +127,39 @@ async function main() {
   const expectedLocalPaths = new Set();
   let downloadedCount = 0;
   let skippedCount = 0;
+  const work = [];
   for (const blob of blobs) {
     const relativePath = blob.pathname.slice(normalizedPrefix.length);
     if (!relativePath) continue;
-    if (shouldIgnoreRelativePath(relativePath)) {
-      console.log(`무시됨(시스템 파일): ${toPosixPath(relativePath)}`);
-      continue;
-    }
-
+    if (shouldIgnoreRelativePath(relativePath)) continue;
     const destinationPath = path.join(vaultRoot, relativePath);
-    const destinationResolved = path.resolve(destinationPath);
     expectedLocalPaths.add(path.resolve(destinationPath));
-    const blobTimestamp = blob.uploadedAt
-      ? new Date(blob.uploadedAt).toISOString()
-      : "";
-    const previousTimestamp = previousState[relativePath];
-    const alreadyExists = await pathExists(destinationResolved);
-    if (blobTimestamp && previousTimestamp === blobTimestamp && alreadyExists) {
-      nextState[relativePath] = blobTimestamp;
-      skippedCount += 1;
-      continue;
-    }
-
-    await mkdir(path.dirname(destinationPath), { recursive: true });
-    const response = await fetch(blob.url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`Blob 다운로드 실패: ${blob.url} (${response.status})`);
-    }
-
-    const content = Buffer.from(await response.arrayBuffer());
-    await writeFile(destinationPath, content);
-    nextState[relativePath] = blobTimestamp || previousTimestamp || "";
-    downloadedCount += 1;
-    console.log(`다운로드 완료: ${toPosixPath(relativePath)}`);
+    work.push({ blob, relativePath, destinationPath });
   }
+
+  let cursor = 0;
+  const runner = async () => {
+    while (cursor < work.length) {
+      const { blob, relativePath, destinationPath } = work[cursor++];
+      const blobTimestamp = blob.uploadedAt ? new Date(blob.uploadedAt).toISOString() : "";
+      const previousTimestamp = previousState[relativePath];
+      if (blobTimestamp && previousTimestamp === blobTimestamp && (await pathExists(destinationPath))) {
+        nextState[relativePath] = blobTimestamp;
+        skippedCount += 1;
+        continue;
+      }
+      await mkdir(path.dirname(destinationPath), { recursive: true });
+      const response = await fetch(blob.url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) {
+        throw new Error(`Blob 다운로드 실패: ${blob.url} (${response.status})`);
+      }
+      await writeFile(destinationPath, Buffer.from(await response.arrayBuffer()));
+      nextState[relativePath] = blobTimestamp || previousTimestamp || "";
+      downloadedCount += 1;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, work.length) }, runner));
+  console.log(`대상 ${work.length}건`);
 
   if (clean) {
     const localFiles = await collectFiles(vaultRoot);
