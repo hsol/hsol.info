@@ -3,6 +3,7 @@
 #   기사 : vault/objects/news-articles 가 바뀌면 Neon articles 미러 갱신 + dbId 를 OneDrive 원본에 역기록
 #   빌드 : vault 가 바뀌면 Build With Vault Refresh 를 바뀐 경로 목록과 함께 디스패치(site-data, 원페이저 재생성 판단)
 # 매시 실행이 OneDrive 리프레시 토큰도 살려 둔다(사이트 런타임도 필요할 때 갱신한다).
+# GitHub 스케줄이 밀릴 때를 대비해 Vercel Cron(매시 47분, /api/cron/watch-onedrive)이 최근 40분 안에 실행이 없으면 디스패치한다.
 #
 # Repository secrets
 #   DATABASE_URL             Neon (토큰, 변경 기준선, 기사 미러)
