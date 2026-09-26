@@ -70,7 +70,7 @@ const TRACK_DEFS = {
       const parts = rel.split("/");
       return parts.length >= 2 && (parts[0] === "public" || parts[0] === "private");
     },
-    reconcile: false,
+    reconcile: true,
   },
   vault: {
     odRoot: process.env.ONEDRIVE_VAULT_ROOT || "hsol-info-blob/vault",
@@ -153,7 +153,9 @@ async function listAllBlobs(prefix) {
 }
 
 async function fetchBlob(url) {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${BLOB_TOKEN}` }, cache: "no-store" });
+  // 같은 경로에 덮어쓴 Blob 은 CDN 이 한동안 옛 내용을 줄 수 있다(manifest, 토큰). 쿼리로 캐시를 우회한다.
+  const bust = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+  const res = await fetch(bust, { headers: { Authorization: `Bearer ${BLOB_TOKEN}` }, cache: "no-store" });
   if (!res.ok) throw new Error(`Blob 읽기 실패 ${url}: HTTP ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
@@ -170,6 +172,7 @@ async function putBlob(pathname, body, contentType) {
     access: ACCESS,
     addRandomSuffix: false,
     allowOverwrite: true,
+    cacheControlMaxAge: 60,
     contentType,
     token: BLOB_TOKEN,
   });
@@ -251,6 +254,8 @@ async function syncTrack(name, workDir) {
     const actual = new Set(blobs.map((b) => b.pathname.slice(def.prefix.length + 1).normalize("NFC")));
     // 동기화 대상인 경로만 정리한다. 제외 경로(datasources/ 등)에 남아 있는 예전 파일은 건드리지 않는다.
     for (const k of actual) if (!remote.has(k) && !VAULT_GENERATED.has(k) && def.include(k) && !isJunk(k)) deleteKeys.add(k);
+    // manifest 파일(assets 트랙은 같은 접두 아래에 있다)은 대상에서 뺀다
+    deleteKeys.delete(def.manifest.slice(def.prefix.length + 1));
     for (const k of remote.keys()) if (!actual.has(k)) uploadKeys.add(k);
   }
 
