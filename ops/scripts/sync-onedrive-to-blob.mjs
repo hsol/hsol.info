@@ -249,7 +249,8 @@ async function syncTrack(name, workDir) {
     // manifest 와 무관하게 Blob 실물과 대조한다. 첫 이관이나 manifest 유실에도 어긋나지 않게.
     const blobs = await listAllBlobs(`${def.prefix}/`);
     const actual = new Set(blobs.map((b) => b.pathname.slice(def.prefix.length + 1).normalize("NFC")));
-    for (const k of actual) if (!remote.has(k) && !VAULT_GENERATED.has(k)) deleteKeys.add(k);
+    // 동기화 대상인 경로만 정리한다. 제외 경로(datasources/ 등)에 남아 있는 예전 파일은 건드리지 않는다.
+    for (const k of actual) if (!remote.has(k) && !VAULT_GENERATED.has(k) && def.include(k) && !isJunk(k)) deleteKeys.add(k);
     for (const k of remote.keys()) if (!actual.has(k)) uploadKeys.add(k);
   }
 
