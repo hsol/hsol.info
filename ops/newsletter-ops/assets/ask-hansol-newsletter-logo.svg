@@ -1,0 +1,61 @@
+<svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#121738"/>
+      <stop offset="0.55" stop-color="#0a0e27"/>
+      <stop offset="1" stop-color="#14172d"/>
+    </linearGradient>
+    <linearGradient id="answer" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00d9ff"/>
+      <stop offset="1" stop-color="#6ee7b7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.40" r="0.62">
+      <stop offset="0" stop-color="#00d9ff" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#00d9ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#00d9ff" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="600" height="600" rx="128" fill="url(#bg)"/>
+  <rect x="0" y="0" width="600" height="600" rx="128" fill="url(#glow)"/>
+  <rect x="6" y="6" width="588" height="588" rx="122" fill="none" stroke="#2a3052" stroke-width="2"/>
+
+  <!-- question bubble (anonymous, incoming) -->
+  <g>
+    <path d="M146 120
+             h150 a38 38 0 0 1 38 38
+             v84 a38 38 0 0 1 -38 38
+             h-62 l-38 38 v-38 h-50
+             a38 38 0 0 1 -38 -38
+             v-84 a38 38 0 0 1 38 -38 z"
+          fill="none" stroke="#7d8299" stroke-width="7"/>
+    <text x="221" y="222" text-anchor="middle"
+          font-family="'Noto Sans','Liberation Sans',sans-serif"
+          font-size="104" font-weight="700" fill="#a0a3b8">?</text>
+  </g>
+
+  <!-- answer bubble (AI) -->
+  <g filter="url(#soft)">
+    <path d="M304 226
+             h150 a38 38 0 0 1 38 38
+             v84 a38 38 0 0 1 -38 38
+             h-50 v38 l-38 -38 h-62
+             a38 38 0 0 1 -38 -38
+             v-84 a38 38 0 0 1 38 -38 z"
+          fill="url(#answer)"/>
+    <g transform="translate(379 306)" fill="#0a0e27">
+      <path d="M0 -44 L10.5 -12.5 L42 -12.5 L16.5 7 L27 39 L0 19 L-27 39 L-16.5 7 L-42 -12.5 L-10.5 -12.5 Z"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="123.5" y="518" text-anchor="start"
+        font-family="'Noto Sans','Liberation Sans',sans-serif"
+        font-size="62" font-weight="700" fill="#f5f5f7">Ask</text>
+  <text x="262.5" y="518" text-anchor="start"
+        font-family="'Noto Sans','Liberation Sans',sans-serif"
+        font-size="62" font-weight="700" fill="#00d9ff">Hansol</text>
+</svg>
