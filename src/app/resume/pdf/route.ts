@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { getBlobPrefix, getBlobToken, resolveBlobUrl } from "@/lib/content/blob";
+import { isOneDriveConfigured, readBytes } from "@/lib/onedrive/graph";
 
 /**
- * /resume/pdf — CI 에서 사전 생성해 Blob 에 올린 원페이저 PDF 를 내려준다.
- * Blob store 가 private 라 브라우저 직접 접근이 안 되므로, 서버가 토큰으로 가져와 스트리밍한다
- * (site-data 읽기와 동일한 private read 패턴).
+ * /resume/pdf - CI 가 사전 생성해 개인 OneDrive `hsol-info-blob/vault/object-views/onepager-<lang>.pdf`
+ * 에 올린 원페이저 PDF 를 내려준다. OneDrive 는 비공개라 서버가 Graph 로 받아 흘려보낸다.
  *
  * `?lang=en` 이면 영문판을 내려준다. 언어 상태는 클라이언트 localStorage 에만 있어서 서버는
  * 요청만 보고 언어를 알 수 없다 — 링크에 실어 보내는 게 유일한 수단이다(useResumePdfHref).
@@ -18,16 +17,8 @@ const DOWNLOAD_FILENAME = {
 } as const;
 
 async function fetchPdf(lang: "ko" | "en"): Promise<ArrayBuffer | null> {
-  const token = getBlobToken();
-  if (!token) return null;
-  const url = await resolveBlobUrl(token, getBlobPrefix(), `resume/onepager-${lang}.pdf`);
-  if (!url) return null;
-  const upstream = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  }).catch(() => null);
-  if (!upstream || !upstream.ok) return null;
-  return upstream.arrayBuffer();
+  if (!isOneDriveConfigured()) return null;
+  return readBytes(`vault/object-views/onepager-${lang}.pdf`).catch(() => null);
 }
 
 export async function GET(request: Request) {

@@ -1,0 +1,77 @@
+# hsol.info 콘텐츠의 정본이자 유일한 저장소는 개인 OneDrive 의 hsol-info-blob 폴더다. 사이트는 OneDrive 를 직접 읽는다.
+# 이 워크플로는 vault 변경을 감시해 뒤따르는 일을 건다. 코드: ops/scripts/watch-onedrive.mjs
+#   기사 : vault/objects/news-articles 가 바뀌면 Neon articles 미러 갱신 + dbId 를 OneDrive 원본에 역기록
+#   빌드 : vault 가 바뀌면 Build With Vault Refresh 를 바뀐 경로 목록과 함께 디스패치(site-data, 원페이저 재생성 판단)
+# 매시 실행이 OneDrive 리프레시 토큰도 살려 둔다(사이트 런타임도 필요할 때 갱신한다).
+#
+# Repository secrets
+#   DATABASE_URL             Neon (토큰, 변경 기준선, 기사 미러)
+#   ONEDRIVE_TOKEN_KEY       OneDrive 토큰 암호화 키(32바이트 base64). Vercel env 와 같은 값. 잃으면 재인증 필요
+#   ONEDRIVE_DRIVE_ID        개인 OneDrive drive id
+#   ONEDRIVE_BOOTSTRAP_TOKEN (선택) 재인증할 때만. rclone authorize onedrive 출력 JSON
+
+name: Watch OneDrive
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "기록, 역기록, 디스패치 없이 차이만 출력"
+        type: boolean
+        default: false
+      force_articles:
+        description: "변경이 없어도 기사 DB 동기화 실행"
+        type: boolean
+        default: false
+
+# 기준선과 토큰을 같이 쓰므로 직렬로 돈다.
+concurrency:
+  group: watch-onedrive
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # vault 가 바뀌면 Build With Vault Refresh 를 디스패치한다(GITHUB_TOKEN 의 workflow_dispatch 는 새 실행을 만든다).
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version | head -1
+
+      - name: Watch OneDrive vault
+        id: watch
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
+          ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
+          ONEDRIVE_BOOTSTRAP_TOKEN: ${{ secrets.ONEDRIVE_BOOTSTRAP_TOKEN }}
+          FORCE_ARTICLES: ${{ inputs.force_articles && '1' || '' }}
+        run: node ops/scripts/watch-onedrive.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      # 예전 서브모듈 포인터 이동을 대신하는 신호. vault 원본이 바뀐 회차에만 사이트 생성물 재생성을 건다.
+      - name: Dispatch site refresh when vault changed
+        if: ${{ steps.watch.outputs.vault_changed_files != '' && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILES: ${{ steps.watch.outputs.vault_changed_files }}
+        run: |
+          set -euo pipefail
+          echo "vault 변경 파일: $(echo "$FILES" | tr ',' '\n' | wc -l)개 -> Build With Vault Refresh 디스패치"
+          gh workflow run build-with-vault-refresh.yml -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f vault_changed_files="$FILES"

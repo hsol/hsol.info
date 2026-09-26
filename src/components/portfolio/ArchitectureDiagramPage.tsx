@@ -6,7 +6,7 @@ import { BlockList } from "@/components/portfolio/blocks/BlockList";
 import { BlockCallbacksProvider } from "@/components/portfolio/blocks/context";
 
 /**
- * /architecture — vault·SiteData·Blob·CI·Ask 연결 구조를 Mermaid 한 장으로.
+ * /architecture — vault·SiteData·OneDrive·CI·Ask 연결 구조를 Mermaid 한 장으로.
  * 셸(app-layout/shell/Foot)과 블록 시퀀스(back·plate·viewHead+mermaid)만 조립한다.
  * 레이아웃은 site-data.layout.pages.architecture(없으면 DEFAULT_LAYOUT)가 정한다.
  */

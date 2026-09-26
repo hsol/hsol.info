@@ -6,7 +6,7 @@ import { getOnePagerHtml } from "@/lib/content/onepager";
 
 const SITE_URL = "https://hsol.info";
 
-// 정적 프리렌더 대신 요청 시 렌더 — Blob의 최신 원페이저를 리빌드 없이 반영한다.
+// 정적 프리렌더 대신 요청 시 렌더 — OneDrive 의 최신 원페이저를 리빌드 없이 반영한다.
 export const dynamic = "force-dynamic";
 
 const PAGE_TITLE = "임한솔 이력서·포트폴리오 (Hansol Lim Resume)";

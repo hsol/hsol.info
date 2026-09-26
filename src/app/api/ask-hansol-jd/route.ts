@@ -6,7 +6,7 @@ import { chatText } from "@/lib/llm";
 import {
   fetchComprehensiveProfileContext,
   fetchVaultReadmeGuideBody,
-} from "@/lib/ask-hansol/blob-context";
+} from "@/lib/ask-hansol/vault-context";
 import { summarizeMemoryMerge } from "@/lib/ask-hansol/memory-summarize";
 import { ASK_HANSOL_FALLBACK_MESSAGE, isValidAskHansolSessionId } from "@/lib/ask-hansol/shared";
 import {

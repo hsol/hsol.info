@@ -93,18 +93,16 @@ flowchart TB
         SD_COMPOSE[composition 페이지 컴포넌트-트리]
       end
 
-      subgraph L5["L5. 저장 및 Blob 동기화"]
+      subgraph L5["L5. 저장 OneDrive 단일 정본"]
         direction LR
-        BLOB_REPO[vault submodule git<br/>hsol-info-blob origin]
-        VBLOB[(원격 Blob 저장소)]
-        WF_BLOB_SYNC[hsol-info-blob 자체 CI<br/>Blob 업로드 전담]
+        OD_STORE[(개인 OneDrive<br/>hsol-info-blob 폴더)]
+        WF_WATCH[변경 감시 워크플로<br/>매시 기사 반영·빌드 디스패치]
       end
 
       subgraph L6["L6. CI 빌드 - hsol/hsol.info"]
         direction LR
         GH[(메인 repo git 호스팅)]
         WF_REF[빌드 갱신 워크플로]
-        WF_SUB[submodule 검증]
         SCRIPT_REF[콘텐츠 갱신 스크립트 LLM ETL]
         SCRIPT_GEN[폴백 스냅샷 생성]
         ZOD[스키마 검증 zod]
@@ -112,7 +110,7 @@ flowchart TB
         SITE_TS[빌드 타임 폴백 스냅샷]
         COMPOSE_GEN[컴포지션 빌더<br/>레이아웃 자가개선]
         ONEPAGER_GEN[원페이저 HTML·PDF 생성]
-        SYNC_ART[기사 동기화 수동 ETL]
+        SYNC_ART[기사 동기화 ETL]
       end
     end
   end
@@ -200,31 +198,31 @@ flowchart TB
   DS_BLOG --> OV_BLOG_ARCH
   DS_MED --> OV_MED_ARCH
 
-  EDIT_HUMAN -- commit·push --> BLOB_REPO
-  EDIT_CLAUDE -- commit·push --> BLOB_REPO
+  EDIT_HUMAN -- OneDrive 동기화 --> OD_STORE
+  EDIT_CLAUDE -- 파일 편집 --> OD_STORE
 
-  PEO --> BLOB_REPO
-  CON --> BLOB_REPO
-  ORG --> BLOB_REPO
-  PRJ --> BLOB_REPO
-  ART --> BLOB_REPO
-  OV_PERSONA --> BLOB_REPO
-  OV_WRIT --> BLOB_REPO
-  OV_PORT --> BLOB_REPO
-  OV_TIME --> BLOB_REPO
-  OV_BACK --> BLOB_REPO
-  OV_README --> BLOB_REPO
-  OV_NET --> BLOB_REPO
-  OV_BLOG_ARCH --> BLOB_REPO
-  OV_MED_ARCH --> BLOB_REPO
-  SD_META --> BLOB_REPO
-  NEWS_ART --> BLOB_REPO
+  PEO --> OD_STORE
+  CON --> OD_STORE
+  ORG --> OD_STORE
+  PRJ --> OD_STORE
+  ART --> OD_STORE
+  OV_PERSONA --> OD_STORE
+  OV_WRIT --> OD_STORE
+  OV_PORT --> OD_STORE
+  OV_TIME --> OD_STORE
+  OV_BACK --> OD_STORE
+  OV_README --> OD_STORE
+  OV_NET --> OD_STORE
+  OV_BLOG_ARCH --> OD_STORE
+  OV_MED_ARCH --> OD_STORE
+  SD_META --> OD_STORE
+  NEWS_ART --> OD_STORE
 
-  BLOB_REPO -- push event --> WF_BLOB_SYNC
-  WF_BLOB_SYNC -- Blob 업로드 --> VBLOB
+  OD_STORE -- 변경 감지 --> WF_WATCH
+  WF_WATCH -- 바뀐 경로와 함께 디스패치 --> WF_REF
+  WF_WATCH --> SYNC_ART
 
   GH --> WF_REF
-  GH --> WF_SUB
   WF_REF --> SCRIPT_REF
   OV_README ==> SCRIPT_REF
   OV_WRIT ==> SCRIPT_REF
@@ -234,7 +232,8 @@ flowchart TB
   PEO ==> SCRIPT_REF
   SCRIPT_REF --> ANTHROPIC
   ANTHROPIC --> SD_META
-  WF_REF -- submodule commit·push<br/>Blob에는 직접 업로드 안 함 --> BLOB_REPO
+  OD_STORE -- vault 내려받기 --> WF_REF
+  WF_REF -- 생성물 게시 --> OD_STORE
   WF_REF --> FAIL
   WF_REF --> SCRIPT_GEN
   SD_META --> SCRIPT_GEN
@@ -245,7 +244,7 @@ flowchart TB
   ANTHROPIC --> SD_COMPOSE
   COMPOSE_GEN -- 개선 기록 --> NEON
   WF_REF --> ONEPAGER_GEN
-  ONEPAGER_GEN --> VBLOB
+  ONEPAGER_GEN --> OD_STORE
   NEWS_ART --> SYNC_ART
   SYNC_ART -- 기사 미러 --> NEON
   WF_REF --> VERCEL
@@ -253,8 +252,7 @@ flowchart TB
   VERCEL --> LAYOUT
   LAYOUT --> PAGE
   PAGE --> LOADER
-  LOADER --> VBLOB
-  LOADER --> BLOB_REPO
+  LOADER -- Graph API --> OD_STORE
   LOADER --> SITE_TS
   LOADER --> CACHE
   CACHE --> LOADER
@@ -297,7 +295,7 @@ flowchart TB
 
   RETRIEVAL --> TOOL_LOOP
   TOOL_LOOP --> ANTHROPIC
-  TOOL_LOOP --> VBLOB
+  TOOL_LOOP --> OD_STORE
   TOOL_LOOP --> LINKIFY
 
   API_AH --> DB_MSG
@@ -308,7 +306,7 @@ flowchart TB
 
   NEWS_SSR --> NEON
   BUILDLOG_SSR --> NEON
-  RESUME_SSR --> VBLOB
+  RESUME_SSR --> OD_STORE
 
   CHATDOCK --> IO
   IO --> CHATDOCK
@@ -345,8 +343,8 @@ flowchart TB
   class PEO,ORG,PRJ,ART,CON,PLA,EVT,ALOG,NEWS_ART,DS_BLOG,DS_MED,DS_LI,DS_BK mermaid-obj
   class OV_PERSONA,OV_WRIT,OV_PORT,OV_TIME,OV_BACK,OV_NET,OV_BLOG_ARCH,OV_MED_ARCH,OV_README mermaid-view
   class SD_META,SD_HOME,SD_HIRE_COPY,SD_COLLAB_COPY,SD_BUILDER_COPY,SD_CURIOUS_COPY,SD_ASK_UI,SD_RESUME,SD_FAQ,SD_COMPOSE mermaid-hubInner
-  class BLOB_REPO,VBLOB,WF_BLOB_SYNC mermaid-store
-  class GH,WF_REF,WF_SUB,SCRIPT_REF,SCRIPT_GEN,ZOD,FAIL,SITE_TS,COMPOSE_GEN,ONEPAGER_GEN,SYNC_ART mermaid-ci
+  class OD_STORE,WF_WATCH mermaid-store
+  class GH,WF_REF,SCRIPT_REF,SCRIPT_GEN,ZOD,FAIL,SITE_TS,COMPOSE_GEN,ONEPAGER_GEN,SYNC_ART mermaid-ci
   class ANTHROPIC,VERCEL,NEON mermaid-ext
   class LAYOUT,PAGE,LOADER,CACHE,API_AH,API_SPEC,API_SEL,RETRIEVAL,TOOL_LOOP,DB_MSG,DB_MEM,LINKIFY,NEWS_SSR,RESUME_SSR,BUILDLOG_SSR mermaid-srv
   class PORT_APP,HOME_PAGE,VH,VL,VB,VC,CHATDOCK,ATOMS,IO,LS,ASK_CL mermaid-cli

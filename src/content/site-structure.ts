@@ -112,7 +112,7 @@ export const SITE_STRUCTURE: Record<PageKey, PageSpec> = {
     shell: "standalone",
     wrapperClass: "view",
     inSitemap: false,
-    role: "vault·SiteData·Blob·CI·Ask 연결 구조를 Mermaid 한 장으로.",
+    role: "vault·SiteData·OneDrive·CI·Ask 연결 구조를 Mermaid 한 장으로.",
   },
 };
 

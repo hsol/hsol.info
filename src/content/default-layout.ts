@@ -183,7 +183,7 @@ export const DEFAULT_LAYOUT: SiteLayout = {
             room: "META · ARCH",
             coord: "Z0",
             titleText: "사이트 구조",
-            lede: "온톨로지 vault와 SiteData, Blob·CI, Next 런타임·Ask가 서로 어떻게 연결되는지 한 도식으로 정리했습니다.",
+            lede: "온톨로지 vault와 SiteData, OneDrive·CI, Next 런타임·Ask가 서로 어떻게 연결되는지 한 도식으로 정리했습니다.",
             media: "architecture-mermaid",
           },
         },
