@@ -10,3 +10,6 @@ CREATE TABLE IF NOT EXISTS build_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_log_created ON build_log (id DESC);
+
+-- 회차별 최종 layout 의 페이지별 블록 순서. 레이아웃 핑퐁 방지 이력으로 쓴다(2026-09-29 추가).
+ALTER TABLE build_log ADD COLUMN IF NOT EXISTS layout_order JSONB;

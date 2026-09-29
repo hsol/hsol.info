@@ -1,7 +1,5 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { generateText, jsonSchema, stepCountIs, tool, type ModelMessage, type ToolSet } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { gatewayModel } from "../src/lib/llm";
@@ -25,9 +23,8 @@ import {
 } from "../src/content/compose/schema";
 import { COMPOSE_MANIFEST } from "../src/content/compose/manifest";
 import { renderComposeCatalog } from "../src/content/compose/catalog";
-import { recordBuildLog } from "../src/lib/db/build-log";
+import { listRecentLayoutOrders, recordBuildLog, type LayoutOrder } from "../src/lib/db/build-log";
 
-const execFileAsync = promisify(execFile);
 
 /** footer 에 띄울 빌드 버전(UTC 기준 YYYYMMDD.HHmmss). 매 실행 달라져 "실제로 돌았는지"를 알린다. */
 function buildVersion(d: Date): string {
@@ -1178,61 +1175,58 @@ function isEmitLayoutToolUseBlock(
  * 현재 레이아웃을 앵커로 두고, 리서치 메모를 참고해 **점진적으로 개선된** layout 을 생성한다.
  * 실패하면 null(호출부에서 기존/DEFAULT 로 폴백). layoutSchema 로 가드레일 검증.
  */
-/**
- * submodule git 에서 최근 N개 커밋의 site-data.json 을 복원해, 페이지별 "블록 순서" 변화만
- * 컴팩트하게 뽑는다(레이아웃 diff 궤적). 전체 changelog 를 읽는 것보다 컨텍스트가 작고,
- * 어떤 페이지가 회차마다 왕복(A→B→A)했는지 구조적으로 드러나 핑퐁 방지에 강하다.
- * 변하지 않은 페이지(home/about/architecture 등)는 노이즈라 생략한다.
- */
-async function getLayoutOrderTimeline(maxCommits = 8): Promise<string> {
-  const firstSlash = SITE_DATA_PATH.indexOf("/");
-  if (firstSlash < 0) return "(git 레이아웃 히스토리 없음)";
-  const subDir = SITE_DATA_PATH.slice(0, firstSlash);
-  const relPath = SITE_DATA_PATH.slice(firstSlash + 1);
-  try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["-C", subDir, "log", "-n", String(maxCommits), "--format=%H", "--", relPath],
-      { cwd: process.cwd() },
-    );
-    const shas = stdout.split("\n").map((s) => s.trim()).filter(Boolean).reverse(); // 과거→현재
-    if (!shas.length) return "(git 레이아웃 히스토리 없음 — 첫 진화)";
-
-    const perPage: Record<string, string[]> = {};
-    for (const sha of shas) {
-      let parsed: { layout?: { pages?: Record<string, { blocks?: { type?: string }[] }> } };
-      try {
-        const { stdout: content } = await execFileAsync(
-          "git",
-          ["-C", subDir, "show", `${sha}:${relPath}`],
-          { cwd: process.cwd(), maxBuffer: 32 * 1024 * 1024 },
-        );
-        parsed = JSON.parse(content);
-      } catch {
-        continue; // 해당 커밋에 파일이 없거나 파싱 실패 → 건너뜀
-      }
-      const pages = parsed.layout?.pages;
-      if (!pages) continue;
-      for (const key of PAGE_KEYS) {
-        const blocks = pages[key]?.blocks;
-        const seq = Array.isArray(blocks) ? blocks.map((b) => b.type ?? "?").join(",") : "(none)";
-        (perPage[key] ??= []).push(seq);
-      }
-    }
-
-    const lines: string[] = [];
-    for (const key of PAGE_KEYS) {
-      const seqs = perPage[key] ?? [];
-      if (seqs.length < 2) continue;
-      const varied = new Set(seqs).size > 1;
-      if (!varied) continue; // 한 번도 안 바뀐 페이지는 생략
-      lines.push(`${key} (과거→현재):`);
-      seqs.forEach((s, i) => lines.push(`  ${i === seqs.length - 1 ? "현재" : "c" + (i + 1)}: ${s}`));
-    }
-    return lines.length ? lines.join("\n") : "(레이아웃이 아직 변한 적 없음)";
-  } catch {
-    return "(git 레이아웃 히스토리 조회 실패 — 현재 상태 기준으로 보수적으로 개선)";
+/** layout 의 페이지별 블록 순서. build_log.layout_order 로 적층한다. */
+function layoutOrderOf(layout: SiteLayout | null | undefined): LayoutOrder | null {
+  const pages = layout?.pages as Record<string, { blocks?: { type?: string }[] } | undefined> | undefined;
+  if (!pages) return null;
+  const order: LayoutOrder = {};
+  for (const key of PAGE_KEYS) {
+    const blocks = pages[key]?.blocks;
+    order[key] = Array.isArray(blocks) ? blocks.map((b) => b.type ?? "?").join(",") : "(none)";
   }
+  return order;
+}
+
+/**
+ * build_log 의 최근 N회 layout_order 로 페이지별 "블록 순서" 변화만 컴팩트하게 뽑는다(레이아웃 diff 궤적).
+ * 전체 changelog 를 읽는 것보다 컨텍스트가 작고, 어떤 페이지가 회차마다 왕복(A->B->A)했는지
+ * 구조적으로 드러나 핑퐁 방지에 강하다. 변하지 않은 페이지는 노이즈라 생략한다.
+ * 연속으로 같은 레이아웃이 이어진 회차는 하나로 접어, 최근 N개의 서로 다른 레이아웃 상태를 비교한다.
+ * (2026-09-27 까지는 hsol-info-blob 서브모듈의 git 이력에서 읽었다. 그 이전 회차는 build_log 에 백필돼 있다.)
+ */
+async function getLayoutOrderTimeline(maxEntries = 8): Promise<string> {
+  const fetched = await listRecentLayoutOrders(60);
+  if (fetched === null) return "(레이아웃 이력 없음: DATABASE_URL 미설정 — 현재 상태 기준으로 보수적으로 개선)";
+  // 콘텐츠만 바뀐 회차가 대부분이라 연속으로 같은 레이아웃은 하나로 접고, 서로 다른 상태 N개를 본다.
+  const distinct: typeof fetched = [];
+  for (const row of fetched) {
+    const prev = distinct[distinct.length - 1];
+    if (prev && JSON.stringify(prev.layoutOrder) === JSON.stringify(row.layoutOrder)) {
+      distinct[distinct.length - 1] = row;
+      continue;
+    }
+    distinct.push(row);
+  }
+  const rows = distinct.slice(-maxEntries);
+  if (!rows.length) return "(레이아웃 이력 없음 — 첫 진화)";
+
+  const perPage: Record<string, string[]> = {};
+  for (const row of rows) {
+    for (const key of PAGE_KEYS) {
+      (perPage[key] ??= []).push(row.layoutOrder[key] ?? "(none)");
+    }
+  }
+
+  const lines: string[] = [];
+  for (const key of PAGE_KEYS) {
+    const seqs = perPage[key] ?? [];
+    if (seqs.length < 2) continue;
+    const varied = new Set(seqs).size > 1;
+    if (!varied) continue; // 한 번도 안 바뀐 페이지는 생략
+    lines.push(`${key} (과거→현재):`);
+    seqs.forEach((seq, i) => lines.push(`  ${i === seqs.length - 1 ? "현재" : "c" + (i + 1)}: ${seq}`));
+  }
+  return lines.length ? lines.join("\n") : "(레이아웃이 아직 변한 적 없음)";
 }
 
 async function generateLayout(
@@ -2149,7 +2143,7 @@ ${contextText}
 
   // --- 레이아웃 빌더: 현재 레이아웃을 앵커로 점진 개선 ---
   if (runLayout) {
-    // git 으로 회차별 레이아웃 변화 이력을 컴팩트하게 뽑아 핑퐁(반복·되돌리기)을 막는다.
+    // build_log 에서 회차별 레이아웃 변화 이력을 컴팩트하게 뽑아 핑퐁(반복·되돌리기)을 막는다.
     const layoutHistory = await getLayoutOrderTimeline(8);
     logStep("Generating layout (anchor + evolve)...");
     const generated = await generateLayout(apiKey, {
@@ -2244,7 +2238,12 @@ ${contextText}
   const layoutAndContentChanges = buildChanges.length > 0 ? buildChanges : ["콘텐츠 리프레시(레이아웃 변경 없음)"];
   const logChanges = [...layoutAndContentChanges, ...compositionChanges, ...onePagerChanges];
   try {
-    await recordBuildLog({ version, lens: buildLens ?? null, changes: logChanges });
+    await recordBuildLog({
+      version,
+      lens: buildLens ?? null,
+      changes: logChanges,
+      layoutOrder: layoutOrderOf(siteData.layout),
+    });
     logStep(`Build log recorded to DB (version ${version}, ${logChanges.length} change(s)).`);
   } catch (error) {
     logStep(`Build log DB write skipped (${error instanceof Error ? error.message : String(error)}).`);
