@@ -584,78 +584,23 @@ async function loadContextFiles({
   return chunks.join("\n\n");
 }
 
-function toPosixPath(filePath: string): string {
-  return filePath.replace(/\\/g, "/");
-}
-
 function toVaultContextPath(relativeVaultPath: string): string {
   const normalized = relativeVaultPath.replace(/^\/+/, "");
   return path.posix.join(VAULT_ROOT, normalized);
 }
 
-/** 부모 커밋에서 서브모듈(hsol-info-blob) 포인터 gitlink SHA 를 읽는다(서브모듈 객체 불필요). */
-async function submodulePointerAt(commit: string): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync("git", ["rev-parse", `${commit}:hsol-info-blob`], {
-      cwd: process.cwd(),
-    });
-    return stdout.trim() || null;
-  } catch {
-    return null;
-  }
-}
-
 /**
- * "vault 가 수정됐는가" = 부모 dev 푸시에서 **서브모듈(hsol-info-blob=vault) 포인터가 바뀌었는가**.
- * hsol-info-blob 은 통째로 vault 저장소라, 포인터가 움직였으면 vault 내용이 바뀐 것이다.
- * (CI 의 vault 자동 커밋은 부모 포인터를 안 바꾸므로 자기 자신을 오탐하지 않는다.)
- * files 는 가능하면 서브모듈 내부 diff 로 채우는 best-effort(없으면 [] → legacy 컨텍스트).
- *
- * 주의: 부모 checkout 이 shallow 면 BASE 커밋이 없어 감지가 안 되므로 워크플로에서 fetch-depth: 0 필요.
+ * vault 변경 여부. Watch OneDrive 가 디스패치하며 넘긴 VAULT_CHANGED_FILES(쉼표/줄바꿈 구분)만 본다.
+ * 목록이 없으면(코드 push 등) 변경 없음으로 본다.
  */
-async function detectVaultChangeFromGit(): Promise<{ changed: boolean; files: string[] }> {
-  const baseSha = process.env.GIT_DIFF_BASE_SHA;
-  const headSha = process.env.GIT_DIFF_HEAD_SHA;
-  if (!baseSha || !headSha || /^0+$/.test(baseSha)) return { changed: false, files: [] };
-
-  const oldSub = await submodulePointerAt(baseSha);
-  const newSub = await submodulePointerAt(headSha);
-  if (!oldSub || !newSub) return { changed: false, files: [] };
-  if (oldSub === newSub) return { changed: false, files: [] }; // 포인터 그대로 → vault 미수정
-
-  // 포인터가 바뀜 → vault 수정됨. 변경 파일 목록은 서브모듈 내부 diff 로(객체 없으면 생략).
-  let files: string[] = [];
-  try {
-    const { stdout } = await execFileAsync(
-      "git",
-      ["-C", "hsol-info-blob", "diff", "--name-only", oldSub, newSub, "--", "vault"],
-      { cwd: process.cwd() },
-    );
-    files = stdout
-      .split("\n")
-      .map((line) => toPosixPath(line.trim()))
-      .filter(Boolean)
-      .map((filePath) => filePath.replace(/^vault\//, "")); // vault 루트 상대 경로로
-  } catch {
-    files = [];
-  }
-  return { changed: true, files };
-}
-
 async function detectVaultChange(): Promise<{ changed: boolean; files: string[] }> {
   const fromEnv = process.env.VAULT_CHANGED_FILES;
-  if (fromEnv && fromEnv.trim()) {
-    const files = fromEnv
-      .split(/\r?\n|,/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return { changed: files.length > 0, files };
-  }
-  try {
-    return await detectVaultChangeFromGit();
-  } catch {
-    return { changed: false, files: [] };
-  }
+  if (!fromEnv || !fromEnv.trim()) return { changed: false, files: [] };
+  const files = fromEnv
+    .split(/\r?\n|,/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return { changed: files.length > 0, files };
 }
 
 async function getExistingSiteDataText(): Promise<{ text: string; exists: boolean }> {
@@ -1948,7 +1893,7 @@ async function main() {
   if (forceRefresh) {
     logStep("Force refresh: vault change guard skipped.");
   }
-  // vault(서브모듈 hsol-info-blob) 포인터가 안 바뀐 코드-only 푸시에선 스킵 → site-data 유지.
+  // VAULT_CHANGED_FILES 가 없는 코드-only 푸시에선 스킵하고 site-data 를 유지한다.
   if (hasExistingSiteData && !vaultChange.changed && !forceRefresh) {
     logStep("No vault change (no VAULT_CHANGED_FILES from OneDrive sync). Keep existing site-data as-is.");
     return;

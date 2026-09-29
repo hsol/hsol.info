@@ -5,8 +5,8 @@
  * buildCommand 도 `npm run build` 라 배포 경로에서 그대로 강제된다.
  *
  * 검사 대상은 (1) 커밋된 `src/data/site.ts` 와 (2) 원페이저 HTML(KO·EN) 이다. site.ts 는 vault
- * 서브모듈이 없는 환경에서도 돌아야 해서 site-data.json 이 아니라 이 쪽을 본다. 원페이저는
- * 서브모듈에만 있어 없을 수 있으므로 **있을 때만** 검사한다 — 이력서로 나가는 문서라 site.ts 만
+ * 로컬 vault 가 없는 환경에서도 돌아야 해서 site-data.json 이 아니라 이 쪽을 본다. 원페이저는
+ * 로컬 vault 에만 있어 없을 수 있으므로 **있을 때만** 검사한다 — 이력서로 나가는 문서라 site.ts 만
  * 보다가 헤더 한 줄이 새어 나간 적이 있다(PRF-149). 생성 단계 게이트는
  * scripts/generate-site-ts-from-vault.ts, 규칙 본문은 src/lib/self-designation.ts.
  */
