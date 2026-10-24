@@ -20,13 +20,12 @@ interface CatalogEntry {
 
 /** 블록 카탈로그(빌더가 읽는 요약). registry.tsx MANIFESTS 와 의미가 일치해야 한다. */
 export const BLOCK_CATALOG: CatalogEntry[] = [
-  { type: "back", role: "뒤로가기 바 + 언어 토글", pages: ["hire", "collab", "builder", "curious", "about", "architecture"] },
-  { type: "plate", role: "신원 플레이트(이름·언어·상태)", pages: ["architecture"] },
+  { type: "back", role: "뒤로가기 바 + 언어 토글", pages: ["hire", "collab", "builder", "curious", "about"] },
   {
     type: "viewHead",
     role: "방번호·좌표·제목·lede. persona 면 제목/lede 자동, 아니면 titleText/lede/media",
-    props: { room: "좌상단 라벨", coord: "GRID 좌표", persona: "있으면 viewHeaders[persona]", titleText: "리터럴 제목", titleMeta: "제목 옆 작은 메타", lede: "리드 문장", media: "'about-portrait' | 'architecture-mermaid'" },
-    pages: ["hire", "collab", "builder", "curious", "about", "architecture"],
+    props: { room: "좌상단 라벨", coord: "GRID 좌표", persona: "있으면 viewHeaders[persona]", titleText: "리터럴 제목", titleMeta: "제목 옆 작은 메타", lede: "리드 문장", media: "'about-portrait'" },
+    pages: ["hire", "collab", "builder", "curious", "about"],
   },
   { type: "callout", role: "AI 기능 유도 박스(콜백 있을 때만 노출)", props: { dataSection: "값", eyebrow: "윗줄", body: "설명", buttonLabel: "버튼", action: "'jd' | 'advice'" }, pages: ["hire", "collab"] },
   { type: "coffeeCta", role: "Calendly 커피챗 CTA", props: { persona: "있으면 해당 coffee 카피" }, pages: ["hire", "collab", "builder", "curious", "about"] },
@@ -54,7 +53,6 @@ export const COMPOSITION_RULES = `
 - persona 섹션(pillarsSection·pillarGridSection·careerSection·factsSection·skillsSection·writingSection·ganttSection)은 **공용**이라 어느 persona 페이지에서나 쓸 수 있다. 페이지 성격에 맞게 고르되 카탈로그 pages 를 참고한다.
 - persona 페이지(hire/collab/builder/curious): 보통 back → viewHead(persona) → [callout?] → 섹션들 → coffeeCta(persona) 순.
 - about: back → viewHead(media:about-portrait) → aboutProse → aboutLinks → coffeeCta.
-- architecture: back → plate → viewHead(media:architecture-mermaid).
 - home: homeHero → homeDoors → homeBuilt → homeCoffee (hero/doors 는 항상 함께).
 - back 으로 시작(홈 제외), persona/about 은 coffeeCta 로 끝나는 골격은 유지.
 - 섹션 num(§번호)은 보이는 순서대로. dataSection 은 의미 있는 값으로.

@@ -2,7 +2,7 @@
  * SelectionAsk 넛지 스타일 — 컴포넌트와 함께 패키징한다.
  * SelectionAsk 는 루트 레이아웃에 떠서 어느 라우트에서든 동작하므로,
  * 스타일도 ChatDock(chatdock.css) 의존 없이 이 모듈이 직접 들고 있어야 한다
- * (Dock 이 없는 /build-log, /architecture 등에서도 깨지지 않도록).
+ * (Dock 이 없는 /build-log 등에서도 깨지지 않도록).
  */
 
 .selection-ask-nudge {

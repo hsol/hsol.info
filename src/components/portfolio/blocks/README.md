@@ -17,7 +17,7 @@
 
 `src/content/site-structure.ts`가 SSOT다. 빌더는 이 안에서만 자유롭다.
 
-- **페이지 집합은 고정**: `home, hire, collab, builder, curious, about, architecture`.
+- **페이지 집합은 고정**: `home, hire, collab, builder, curious, about`.
   페이지를 추가·삭제·개명할 수 없다(라우트·sitemap·메타가 여기 묶여 있음).
 - **4개 관점(hire/collab/builder/curious)과 경로는 고정.**
 - 바꿀 수 있는 것: **각 페이지 안의 블록 구성·순서·props.**
@@ -46,7 +46,6 @@ LAYOUT_OVERRIDES(사람, 코드)  >  site-data.layout(빌더 생성)  >  DEFAULT
 | type | 이름 | 언제 |
 |------|------|------|
 | `back` | 뒤로가기 바 | 홈 제외 모든 페이지 첫 블록 |
-| `plate` | 신원 플레이트 | standalone 셸에서 banner 필요 시(/architecture) |
 | `viewHead` | 뷰 헤더 | back 다음 제목 영역. `persona` 주면 제목·lede 자동, 아니면 `titleText`/`lede`, `media`로 초상·다이어그램 |
 | `callout` | 액션 콜아웃 | hire(JD)·collab(자문) AI 유도. `action: jd|advice` |
 | `coffeeCta` | 커피챗 CTA | persona/about 마지막. `persona` 주면 해당 coffee 카피 |
@@ -86,7 +85,6 @@ LAYOUT_OVERRIDES(사람, 코드)  >  site-data.layout(빌더 생성)  >  DEFAULT
 - **persona 페이지**(hire/collab/builder/curious)는 보통:
   `back` → `viewHead`(persona) → [선택: `callout`] → 섹션들… → `coffeeCta`(persona).
 - **about**: `back` → `viewHead`(titleText+media:about-portrait) → `aboutProse` → `aboutLinks` → `coffeeCta`.
-- **architecture**: `back` → `plate` → `viewHead`(media:architecture-mermaid).
 - **home**: `homeHero` → `homeDoors` → `homeBuilt` → `homeCoffee`
   (hero·doors는 활성 키를 공유하므로 둘 다 두는 것을 권장).
 - 섹션의 `num`(§ 번호)은 보이는 순서대로 매기면 깔끔하다.

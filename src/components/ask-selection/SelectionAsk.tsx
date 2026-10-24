@@ -26,7 +26,7 @@ export function SelectionAsk() {
     };
 
     const update = () => {
-      // 이 라우트에 답할 Ask 도크가 없으면(/architecture·/build-log 등) 넛지를 띄우지 않는다.
+      // 이 라우트에 답할 Ask 도크가 없으면(/build-log 등) 넛지를 띄우지 않는다.
       if (!hasSelectionAskSubscriber()) {
         setNudge(null);
         return;

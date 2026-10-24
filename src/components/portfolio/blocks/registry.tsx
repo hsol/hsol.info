@@ -36,7 +36,6 @@ import {
   HomeDoorsBlock,
   HomeHeroBlock,
   PillarGridSectionBlock,
-  PlateBlock,
   RawBlock,
   StrengthsSectionBlock,
   ViewHeadBlock,
@@ -47,7 +46,6 @@ export type BlockComponent = ComponentType<BlockRenderProps>;
 
 export const COMPONENTS: Record<BlockType, BlockComponent> = {
   back: BackBlock,
-  plate: PlateBlock,
   viewHead: ViewHeadBlock,
   callout: CalloutBlock,
   coffeeCta: CoffeeCtaBlock,
@@ -98,16 +96,7 @@ export const MANIFESTS: Record<CanonicalBlockType, BlockManifest> = {
     whenToUse: "홈을 제외한 모든 페이지 최상단. 보통 페이지의 첫 블록.",
     props: {},
     reads: [],
-    pages: ["hire", "collab", "builder", "curious", "about", "architecture"],
-  },
-  plate: {
-    type: "plate",
-    name: "신원 플레이트",
-    role: "이름·언어·상태(Open for coffee) 헤더 바.",
-    whenToUse: "standalone 셸 페이지에서 banner 가 필요할 때(예: /architecture).",
-    props: {},
-    reads: ["identity"],
-    pages: ["architecture"],
+    pages: ["hire", "collab", "builder", "curious", "about"],
   },
   viewHead: {
     type: "viewHead",
@@ -121,10 +110,10 @@ export const MANIFESTS: Record<CanonicalBlockType, BlockManifest> = {
       titleText: "persona 가 없을 때 제목 텍스트",
       titleMeta: "제목 옆 작은 메타(예: '30세 · 사회 12년차')",
       lede: "persona 가 없을 때 리드 문장",
-      media: "'about-portrait' | 'architecture-mermaid' (자식 시각요소)",
+      media: "'about-portrait' (자식 시각요소)",
     },
     reads: ["viewHeaders"],
-    pages: ["hire", "collab", "builder", "curious", "about", "architecture"],
+    pages: ["hire", "collab", "builder", "curious", "about"],
   },
   callout: {
     type: "callout",

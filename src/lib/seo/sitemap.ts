@@ -46,7 +46,6 @@ const SEO_WEIGHTS: Partial<Record<PageKey, { changefreq: ChangeFreq; priority: n
   collab: { changefreq: "weekly", priority: 0.8 },
   builder: { changefreq: "weekly", priority: 0.8 },
   curious: { changefreq: "weekly", priority: 0.8 },
-  architecture: { changefreq: "monthly", priority: 0.5 },
 };
 
 function locFor(route: string): string {

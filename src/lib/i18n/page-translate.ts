@@ -43,7 +43,7 @@ export function translatorSupported(): boolean {
  * 접속 위치가 한국 밖인지 — 기기 시간대로 판정한다.
  *
  * Vercel 의 IP 지오 헤더(`x-vercel-ip-country`)를 쓰려면 미들웨어가 응답에 Set-Cookie 를
- * 달아야 하고, 그러면 지금 CDN 에 올라가 있는 `/about`·`/architecture` 가 캐시에서 빠진다.
+ * 달아야 하고, 그러면 지금 CDN 에 올라가 있는 `/about` 이 캐시에서 빠진다.
  * 시간대는 브라우저 기본 기능이라 서버·쿠키가 필요 없고, 틀려도 안내문 한 줄이 더 보일 뿐이라
  * 실패 방향이 안전하다. (한국 시간대는 `Asia/Seoul` 하나뿐이다.)
  */
