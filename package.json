@@ -25,7 +25,7 @@
     "ai": "^7.0.4",
     "framer-motion": "^12.41.0",
     "gray-matter": "^4.0.3",
-    "next": "^15.1.0",
+    "next": "^15.5.25",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
@@ -41,13 +41,13 @@
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
     "playwright": "^1.50.0",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.31",
     "tailwindcss": "^3.4.16",
     "tsx": "^4.21.0",
     "typescript": "^5.7.2"
   },
   "overrides": {
-    "postcss": "^8.5.14"
+    "postcss": "^8.5.31"
   },
   "browserslist": [
     "chrome >= 111",
