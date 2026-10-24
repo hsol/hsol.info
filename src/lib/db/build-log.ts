@@ -4,7 +4,13 @@ import { neon } from "@neondatabase/serverless";
  * 빌드 로그 — 매 리프레시마다 에이전트가 "무엇을 어떤 의도로 개선했는지"를 누적하는 DB 로그.
  * site-data 는 매 실행 재생성되어 누적에 안 맞으므로, 상세 내역은 여기(Neon)에 쌓는다.
  * footer 의 빌드 버전을 누르면 보이는 /build-log 페이지가 이 테이블을 읽는다.
+ *
+ * layout_order 는 그 회차 최종 layout 의 페이지별 블록 순서({ home: "hero,about", ... }).
+ * 리프레시 스크립트가 최근 회차를 읽어 레이아웃 핑퐁(A->B->A)을 막는 데 쓴다.
  */
+
+/** 페이지 키 -> 블록 type 을 쉼표로 이은 순서. */
+export type LayoutOrder = Record<string, string>;
 
 export type BuildLogRow = {
   id: string;
@@ -37,6 +43,7 @@ async function ensureTable(sql: NonNullable<ReturnType<typeof getSql>>): Promise
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `;
+  await sql`ALTER TABLE build_log ADD COLUMN IF NOT EXISTS layout_order JSONB`;
 }
 
 /** 한 회차 빌드 로그를 적층한다. DB 미설정이면 조용히 무시. */
@@ -44,14 +51,39 @@ export async function recordBuildLog(entry: {
   version: string;
   lens?: string | null;
   changes: string[];
+  layoutOrder?: LayoutOrder | null;
 }): Promise<void> {
   const sql = getSql();
   if (!sql) return;
   await ensureTable(sql);
+  const layoutOrder = entry.layoutOrder ? JSON.stringify(entry.layoutOrder) : null;
   await sql`
-    INSERT INTO build_log (version, lens, changes)
-    VALUES (${entry.version}, ${entry.lens ?? null}, ${JSON.stringify(entry.changes)}::jsonb)
+    INSERT INTO build_log (version, lens, changes, layout_order)
+    VALUES (${entry.version}, ${entry.lens ?? null}, ${JSON.stringify(entry.changes)}::jsonb, ${layoutOrder}::jsonb)
   `;
+}
+
+/**
+ * layout_order 가 기록된 최근 회차들을 과거 -> 현재 순으로 돌려준다.
+ * DB 미설정이면 null(이력 소스 없음), 테이블/컬럼이 아직 없으면 빈 배열.
+ */
+export async function listRecentLayoutOrders(
+  limit = 8,
+): Promise<{ version: string; layoutOrder: LayoutOrder }[] | null> {
+  const sql = getSql();
+  if (!sql) return null;
+  try {
+    const rows = (await sql`
+      SELECT version, layout_order
+      FROM build_log
+      WHERE layout_order IS NOT NULL
+      ORDER BY id DESC
+      LIMIT ${limit}
+    `) as { version: string; layout_order: LayoutOrder }[];
+    return rows.reverse().map((r) => ({ version: r.version, layoutOrder: r.layout_order }));
+  } catch {
+    return [];
+  }
 }
 
 /** 최신순 빌드 로그. DB 미설정/테이블 없음이면 빈 배열. */

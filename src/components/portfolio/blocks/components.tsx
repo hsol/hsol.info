@@ -16,7 +16,6 @@ import {
   CareerList,
   CoffeeCTA,
   Pillars,
-  Plate,
   PlanDiagram,
   SecHead,
   useSiteData,
@@ -26,9 +25,7 @@ import {
   renderTitleLines,
   ViewHead,
 } from "@/components/portfolio/view-primitives";
-import { HomeBuiltFlowDiagram } from "@/components/portfolio/HomeBuiltFlowDiagram";
-import { MermaidDiagram } from "@/components/portfolio/MermaidDiagram";
-import { SITE_ARCHITECTURE_MERMAID } from "@/content/site-architecture.mermaid";
+import { HomeBuiltFigure } from "@/components/portfolio/HomeBuiltFigure";
 import { COORDS, type PersonaKey } from "@/components/portfolio/portfolio-types";
 import { GanttTimeline } from "@/components/portfolio/blocks/gantt";
 import {
@@ -56,21 +53,17 @@ export function BackBlock(_: BlockRenderProps) {
   return <Back onBack={cb.onBack ?? (() => {})} />;
 }
 
-export function PlateBlock(_: BlockRenderProps) {
-  return <Plate />;
-}
-
 /**
  * viewHead — 두 형태.
  *  1) persona 페이지: props.persona → 제목·lede 를 D.viewHeaders[persona] 에서.
- *  2) about/architecture: props.titleText(+titleMeta)·lede 리터럴, props.media 로 자식.
+ *  2) about: props.titleText(+titleMeta)·lede 리터럴, props.media 로 자식.
  */
 export function ViewHeadBlock({ props }: BlockRenderProps) {
   const D = useSiteData();
   const room = str(props, "room");
   const coord = str(props, "coord");
   const persona = str(props, "persona") as PersonaCopyKey | "";
-  const media = str(props, "media"); // "" | "about-portrait" | "architecture-mermaid"
+  const media = str(props, "media"); // "" | "about-portrait"
 
   let title: ReactNode;
   let lede: string;
@@ -102,12 +95,6 @@ export function ViewHeadBlock({ props }: BlockRenderProps) {
         height={172}
         className="about-portrait"
       />
-    );
-  } else if (media === "architecture-mermaid") {
-    child = (
-      <div className="architecture-mermaid-outer view-head-mermaid" aria-label="Architecture diagram">
-        <MermaidDiagram chart={SITE_ARCHITECTURE_MERMAID} diagramHead={null} panZoom />
-      </div>
     );
   }
 
@@ -533,7 +520,7 @@ export function HomeBuiltBlock(_: BlockRenderProps) {
         <h2 className="home-built-h">{D.portfolioCopy.home.builtTitle}</h2>
         <div className="home-built-meta">{D.portfolioCopy.home.builtMeta}</div>
       </div>
-      <p className="home-built-body">{D.portfolioCopy.home.builtBody}</p>
+      <HomeBuiltFigure />
       <div className="home-built-grid">
         {D.portfolioCopy.home.builtCards.map((card) => (
           <article className="home-built-card" key={card.title}>
@@ -542,7 +529,6 @@ export function HomeBuiltBlock(_: BlockRenderProps) {
           </article>
         ))}
       </div>
-      <HomeBuiltFlowDiagram />
       <div className="home-built-perspectives">
         <div className="home-built-perspectives-head">
           <h3 className="home-built-perspectives-title">{D.portfolioCopy.home.builtPerspectiveTitle}</h3>

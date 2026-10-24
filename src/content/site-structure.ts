@@ -32,7 +32,6 @@ export const PAGE_KEYS = [
   "builder",
   "curious",
   "about",
-  "architecture",
 ] as const;
 
 export type PageKey = (typeof PAGE_KEYS)[number];
@@ -46,7 +45,7 @@ export interface PageSpec {
   /**
    * 바깥 셸 종류.
    *  - "app"      : PortfolioApp 셸 안에서 렌더(홈·4관점). 자체 Foot/Dock 미포함.
-   *  - "standalone": 자체 app-layout/shell/Foot/Dock 포함(/about, /architecture).
+   *  - "standalone": 자체 app-layout/shell/Foot/Dock 포함.
    */
   shell: "app" | "standalone";
   /** `.view` 래퍼에 들어가는 className(레이아웃이 아니라 페이지 셸 속성 — 잠금) */
@@ -105,14 +104,6 @@ export const SITE_STRUCTURE: Record<PageKey, PageSpec> = {
     wrapperClass: "view about-view",
     inSitemap: true,
     role: "이력서에 안 적는 '임한솔이라는 사람' 줄글 + 외부 프로필/관점 링크.",
-  },
-  architecture: {
-    route: "/architecture",
-    persona: null,
-    shell: "standalone",
-    wrapperClass: "view",
-    inSitemap: false,
-    role: "vault·SiteData·OneDrive·CI·Ask 연결 구조를 Mermaid 한 장으로.",
   },
 };
 

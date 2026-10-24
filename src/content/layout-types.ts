@@ -24,7 +24,6 @@ import { PAGE_KEYS } from "@/content/site-structure";
 export const CANONICAL_BLOCK_TYPES = [
   // 프레임/공통
   "back",
-  "plate",
   "viewHead",
   "callout",
   "coffeeCta",
@@ -105,7 +104,15 @@ export type PageLayout = z.infer<typeof pageLayoutSchema>;
  * 빌더가 알 수 없는 페이지를 추가하면 Zod 가 거부한다(가드레일).
  * 일부 페이지만 채워도 되고, 빠진 페이지는 DEFAULT_LAYOUT 으로 폴백한다.
  */
-export const layoutSchema = z
+/** 없앤 페이지 키(2026-10-24 /architecture 제거). 예전 site-data 에 남아 있어도 strict 검증에 걸리지 않게 먼저 걷어낸다. */
+const RETIRED_PAGE_KEYS = ["architecture"];
+
+export const layoutSchema = z.preprocess((value) => {
+  const pages = (value as { pages?: Record<string, unknown> } | null)?.pages;
+  if (!pages || typeof pages !== "object") return value;
+  const kept = Object.fromEntries(Object.entries(pages).filter(([key]) => !RETIRED_PAGE_KEYS.includes(key)));
+  return { ...(value as object), pages: kept };
+}, z
   .object({
     pages: z
       .object(
@@ -116,6 +123,6 @@ export const layoutSchema = z
       )
       .strict(),
   })
-  .strict();
+  .strict());
 
 export type SiteLayout = z.infer<typeof layoutSchema>;

@@ -24,7 +24,7 @@ export function ViewHead({
   coord: string;
   title: ReactNode;
   lede: string;
-  /** 제목·lede 아래, 같은 view-head 프레임 안(예: /architecture Mermaid) */
+  /** 제목·lede 아래, 같은 view-head 프레임 안(예: about 초상) */
   children?: ReactNode;
 }) {
   return (

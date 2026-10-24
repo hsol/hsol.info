@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   experimental: {
     /** 외부 render-blocking CSS 링크 대신 HTML에 인라인 — 첫 방문 FCP/LCP 개선 */
     inlineCss: true,
-    optimizePackageImports: ["mermaid", "react-markdown", "remark-gfm"],
+    optimizePackageImports: ["react-markdown", "remark-gfm"],
   },
   images: { unoptimized: true },
   /** 로컬 링크 폴더(hsol-info-blob, ops/newsletter-ops) lockfile 때문에 워크스페이스 루트가 오인되지 않게 고정.
@@ -37,6 +37,10 @@ const nextConfig: NextConfig = {
       };
     }
     return config;
+  },
+  async redirects() {
+    // /architecture 는 2026-10-24 에 없앴다. 구조 그림은 홈 "이 홈페이지는 이렇게 만들었어요" 섹션에 있다.
+    return [{ source: "/architecture", destination: "/", permanent: true }];
   },
   async headers() {
     // sitemap 응답 헤더(Content-Type·Cache-Control)는 이제 라우트 핸들러
@@ -82,7 +86,7 @@ const nextConfig: NextConfig = {
           "img-src 'self' data: blob: https:",
           "font-src 'self' data: https://fonts.gstatic.com",
           "connect-src 'self' https://*.google-analytics.com https://*.googletagmanager.com https://*.googlesyndication.com https://*.doubleclick.net https://*.vercel-insights.com https://va.vercel-scripts.com",
-          "frame-src https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://calendly.com https://*.calendly.com https://www.youtube.com https://www.youtube-nocookie.com",
+          "frame-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://calendly.com https://*.calendly.com https://www.youtube.com https://www.youtube-nocookie.com",
         ].join("; "),
       },
     ];
