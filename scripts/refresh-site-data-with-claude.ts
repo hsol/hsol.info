@@ -33,7 +33,7 @@ function buildVersion(d: Date): string {
 }
 
 const MODEL =
-  process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-4.7";
+  process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-5.5";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
 const SITE_DATA_PATH =
   process.env.VAULT_SITE_DATA_PATH ??

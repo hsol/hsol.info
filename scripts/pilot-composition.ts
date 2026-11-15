@@ -24,7 +24,7 @@ import { SITE_STRUCTURE } from "../src/content/site-structure";
 import { gatewayModel } from "../src/lib/llm";
 
 const MODEL =
-  process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-4.7";
+  process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-5.5";
 const SITE_DATA_PATH = "hsol-info-blob/vault/object-views/site-data.json";
 const VAULT = "hsol-info-blob/vault";
 const CONTEXT_FILES = [

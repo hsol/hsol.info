@@ -10,7 +10,7 @@ import { generateText, stepCountIs, type ModelMessage, type ToolSet } from "ai";
  */
 
 /** 환경변수 미설정 시 기본 모델(이미 Gateway 슬러그 형태). */
-const DEFAULT_MODEL_ID = "anthropic/claude-opus-4.7";
+const DEFAULT_MODEL_ID = "anthropic/claude-opus-5.5";
 
 /**
  * 모델 식별자를 AI Gateway 슬러그로 정규화한다.
