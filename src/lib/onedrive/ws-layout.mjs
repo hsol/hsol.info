@@ -1,5 +1,6 @@
 /**
  * 개인 OneDrive 콘텐츠 배치(레이아웃) 정본. 사이트 런타임, CI, 감시 스크립트가 모두 이 표 하나로 경로를 푼다.
+ * (src 아래에 둔 이유: Vercel 업로드가 ops/ 를 제외한다. ops 스크립트는 여기서 import 한다.)
  *
  * - legacy: 2026-11 이전 배치. 모든 콘텐츠가 OneDrive `hsol-info-blob/` 아래에 있고 vault 는 `hsol-info-blob/vault/`.
  * - ws:     OneDrive 루트가 context-protocol 워크스페이스다. 폴더는 국문 개념 폴더(인물/, 조직/, 프로젝트/ ...).

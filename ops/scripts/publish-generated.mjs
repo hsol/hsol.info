@@ -17,7 +17,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
-import { layoutMode, toWs } from "./lib/ws-layout.mjs";
+import { layoutMode, toWs } from "../../src/lib/onedrive/ws-layout.mjs";
 
 const LOCAL_VAULT = process.env.LOCAL_VAULT_DIR || "hsol-info-blob/vault";
 // ONEDRIVE_LAYOUT=ws 면 워크스페이스의 `프로젝트/hsol-info/생성물/`, 아니면 옛 `hsol-info-blob/vault/object-views/`.

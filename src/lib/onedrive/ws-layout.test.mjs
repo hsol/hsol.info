@@ -1,4 +1,4 @@
-// node --test ops/scripts/lib/ws-layout.test.mjs
+// node --test src/lib/onedrive/ws-layout.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
 import { candidates, toLegacy, toWs, wsSources } from "./ws-layout.mjs";

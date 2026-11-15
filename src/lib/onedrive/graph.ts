@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
-import { candidates } from "../../../ops/scripts/lib/ws-layout.mjs";
+import { candidates } from "./ws-layout.mjs";
 
 /**
  * 개인 OneDrive(Microsoft Graph) 읽기 클라이언트. hsol.info 콘텐츠의 정본이자 유일한 저장소다.

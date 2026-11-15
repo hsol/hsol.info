@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { getState, setState } from "./lib/onedrive-token.mjs";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
-import { layoutMode, toLegacy, toWs, wsSources } from "./lib/ws-layout.mjs";
+import { layoutMode, toLegacy, toWs, wsSources } from "../../src/lib/onedrive/ws-layout.mjs";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));

@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
-import { LEGACY_ROOT, layoutMode, toLegacy, wsSources } from "./lib/ws-layout.mjs";
+import { LEGACY_ROOT, layoutMode, toLegacy, wsSources } from "../../src/lib/onedrive/ws-layout.mjs";
 
 const DEST = process.env.LOCAL_VAULT_DIR || "hsol-info-blob/vault";
 const COMMON = ["--exclude", ".DS_Store", "--exclude", "*.base", "--transfers", "16", "--checkers", "16"];
