@@ -68,7 +68,7 @@ const base = (p) => p.split("/").pop();
 export function planDestination(relRaw) {
   const rel = relRaw.normalize("NFC");
   const name = base(rel);
-  if (name === ".DS_Store" || name === "Icon\r" || name === ".gitkeep") return { kind: "stay" };
+  if (name === ".DS_Store" || name === "Icon\r") return { kind: "stay" };
   if (STAY_FILES.has(rel)) return { kind: "stay" };
   if (rel.startsWith(".obsidian/") || rel.startsWith("vault/.obsidian/")) return { kind: "delete" };
   if (rel.startsWith(".newsroom-watch/")) return { kind: "newsroom", dst: rel };
