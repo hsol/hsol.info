@@ -1,0 +1,82 @@
+# 개인 OneDrive 를 루트 워크스페이스로 옮기는 마이그레이션. 수동 실행만 한다. 코드: ops/scripts/ws-migrate.mjs
+# 매핑표 정본: OneDrive `OneDrive-WS-마이그레이션/이동-매핑표.md`
+#
+#   inventory: 이동 전 기준 목록(경로, 크기, QuickXorHash)과 hsol-info-blob 전체 백업을 아티팩트로 남긴다.
+#              OneDrive 에는 아무것도 쓰지 않는다.
+
+name: WS Migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "실행할 단계"
+        type: choice
+        options:
+          - inventory
+        default: inventory
+
+# Watch OneDrive 와 같은 토큰을 쓰므로 같은 그룹으로 직렬화한다.
+concurrency:
+  group: watch-onedrive
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
+      ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version | head -1
+
+      - name: Inventory
+        if: inputs.step == 'inventory'
+        run: node ops/scripts/ws-migrate.mjs inventory
+
+      - name: Download full backup
+        if: inputs.step == 'inventory'
+        run: |
+          set -euo pipefail
+          node ops/scripts/with-onedrive.mjs -- rclone copy od:hsol-info-blob ws-migrate-backup/hsol-info-blob \
+            --transfers 16 --checkers 16 --stats-one-line --stats 30s
+          n=$(find ws-migrate-backup -type f | wc -l)
+          want=$(node -e "console.log(require('./ws-migrate-out/manifest-before.json').files.length)")
+          echo "백업 파일 ${n}개 / 목록 ${want}개"
+          echo "- 백업 파일: ${n}개 (목록 ${want}개)" >> "$GITHUB_STEP_SUMMARY"
+          test "$n" -eq "$want"
+
+      - name: Upload inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ws-migrate-${{ inputs.step }}-${{ github.run_id }}
+          path: ws-migrate-out/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Upload backup
+        if: always() && inputs.step == 'inventory'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hsol-info-blob-backup-${{ github.run_id }}
+          path: ws-migrate-backup/
+          if-no-files-found: error
+          retention-days: 90
