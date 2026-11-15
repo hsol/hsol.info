@@ -3,6 +3,10 @@
 #
 #   inventory: 이동 전 기준 목록(경로, 크기, QuickXorHash)과 hsol-info-blob 전체 백업을 아티팩트로 남긴다.
 #              OneDrive 에는 아무것도 쓰지 않는다.
+#   plan     : 이동 계획(dry-run). OneDrive 에는 쓰지 않는다.
+#   move     : 백업 후 서버측 이동, 이어서 해시 대조. confirm 에 MOVE 를 적어야 돈다. 삭제는 하지 않는다.
+#              실행 전에 Watch OneDrive 워크플로를 꺼 둔다(이동 중 절반 상태를 기준선으로 쓰지 않게).
+#   cleanup  : .obsidian 두 곳 삭제(허가됨)와 hsol-info-blob 아래 빈 폴더 정리. confirm 에 CLEANUP 을 적어야 돈다.
 
 name: WS Migrate
 
@@ -14,7 +18,18 @@ on:
         type: choice
         options:
           - inventory
+          - plan
+          - move
+          - cleanup
         default: inventory
+      confirm:
+        description: "move 는 MOVE, cleanup 은 CLEANUP 을 그대로 적는다"
+        type: string
+        default: ""
+      with_newsroom:
+        description: ".newsroom-watch/ 도 옮긴다(쓰는 주체 경로를 먼저 바꾼 뒤에만)"
+        type: boolean
+        default: false
 
 # Watch OneDrive 와 같은 토큰을 쓰므로 같은 그룹으로 직렬화한다.
 concurrency:
@@ -24,13 +39,15 @@ concurrency:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
       contents: read
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
       ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
+      WS_MIGRATE_CONFIRM: ${{ inputs.confirm }}
+      WS_MIGRATE_WITH_NEWSROOM: ${{ inputs.with_newsroom && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,11 +65,11 @@ jobs:
           rclone version | head -1
 
       - name: Inventory
-        if: inputs.step == 'inventory'
+        if: inputs.step == 'inventory' || inputs.step == 'move'
         run: node ops/scripts/ws-migrate.mjs inventory
 
       - name: Download full backup
-        if: inputs.step == 'inventory'
+        if: inputs.step == 'inventory' || inputs.step == 'move'
         run: |
           set -euo pipefail
           node ops/scripts/with-onedrive.mjs -- rclone copy od:hsol-info-blob ws-migrate-backup/hsol-info-blob \
@@ -63,6 +80,19 @@ jobs:
           echo "- 백업 파일: ${n}개 (목록 ${want}개)" >> "$GITHUB_STEP_SUMMARY"
           test "$n" -eq "$want"
 
+      - name: Upload backup
+        if: always() && (inputs.step == 'inventory' || inputs.step == 'move')
+        uses: actions/upload-artifact@v4
+        with:
+          name: hsol-info-blob-backup-${{ github.run_id }}
+          path: ws-migrate-backup/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Plan, move or cleanup
+        if: inputs.step != 'inventory'
+        run: node ops/scripts/ws-migrate.mjs ${{ inputs.step }}
+
       - name: Upload inventory
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,11 +102,3 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
-      - name: Upload backup
-        if: always() && inputs.step == 'inventory'
-        uses: actions/upload-artifact@v4
-        with:
-          name: hsol-info-blob-backup-${{ github.run_id }}
-          path: ws-migrate-backup/
-          if-no-files-found: error
-          retention-days: 90
