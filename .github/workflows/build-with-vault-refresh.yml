@@ -44,14 +44,14 @@ jobs:
       # 받은 직후의 생성물 해시를 적어 두고, 뒤의 게시 스텝이 실제로 바뀐 것만 OneDrive 에 되쓴다.
       - name: Pull vault from OneDrive
         env:
+          ONEDRIVE_LAYOUT: ${{ vars.ONEDRIVE_LAYOUT || 'legacy' }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
           ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
         run: |
           set -euo pipefail
-          node ops/scripts/with-onedrive.mjs -- rclone copy od:hsol-info-blob/vault hsol-info-blob/vault \
-            --exclude "datasources/**" --exclude ".obsidian/**" --exclude "Templates/**" --exclude "Attachments/**" \
-            --exclude "*.base" --exclude ".DS_Store" --transfers 16 --checkers 16 --stats-one-line --stats 30s
+          # ONEDRIVE_LAYOUT(저장소 변수, 기본 legacy)에 맞춰 받고, 어느 배치든 로컬에는 옛 경로로 놓는다.
+          node ops/scripts/pull-vault.mjs
           echo "받은 파일: $(find hsol-info-blob/vault -type f | wc -l)개"
           mkdir -p generated
           for f in vault/object-views/site-data.json vault/object-views/onepager-ko.html vault/object-views/onepager-en.html; do
@@ -115,6 +115,7 @@ jobs:
       # 사이트는 생성물을 OneDrive 에서 바로 읽는다. 바뀐 것만 vault/object-views 에 쓴다.
       - name: Publish generated outputs to OneDrive
         env:
+          ONEDRIVE_LAYOUT: ${{ vars.ONEDRIVE_LAYOUT || 'legacy' }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
           ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}

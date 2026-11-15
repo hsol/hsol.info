@@ -60,6 +60,7 @@ jobs:
         id: watch
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONEDRIVE_LAYOUT: ${{ vars.ONEDRIVE_LAYOUT || 'legacy' }}
           ONEDRIVE_TOKEN_KEY: ${{ secrets.ONEDRIVE_TOKEN_KEY }}
           ONEDRIVE_DRIVE_ID: ${{ secrets.ONEDRIVE_DRIVE_ID }}
           ONEDRIVE_BOOTSTRAP_TOKEN: ${{ secrets.ONEDRIVE_BOOTSTRAP_TOKEN }}

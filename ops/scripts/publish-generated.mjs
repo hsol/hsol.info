@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build With Vault Refresh 가 만든 생성물을 개인 OneDrive `hsol-info-blob/vault/object-views/` 에 쓴다.
+ * Build With Vault Refresh 가 만든 생성물을 개인 OneDrive 의 object-views 위치(레이아웃별, 아래 OD_VIEWS)에 쓴다.
  * 사이트는 이 파일들을 OneDrive 에서 바로 읽는다.
  *
  *  - site-data.json, onepager-ko.html, onepager-en.html: 내려받은 직후 해시(generated/pulled-generated.sha1)와
@@ -17,9 +17,16 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
+import { layoutMode, toWs } from "./lib/ws-layout.mjs";
 
 const LOCAL_VAULT = process.env.LOCAL_VAULT_DIR || "hsol-info-blob/vault";
-const OD_VIEWS = `${process.env.ONEDRIVE_VAULT_ROOT || "hsol-info-blob/vault"}/object-views`;
+// ONEDRIVE_LAYOUT=ws 면 워크스페이스의 `프로젝트/hsol-info/생성물/`, 아니면 옛 `hsol-info-blob/vault/object-views/`.
+const LAYOUT = layoutMode("legacy");
+if (LAYOUT === "dual") throw new Error("publish-generated 는 legacy 또는 ws 중 하나만 받는다.");
+const OD_VIEWS =
+  LAYOUT === "ws"
+    ? toWs("vault/object-views/x").replace(/\/x$/, "")
+    : `${process.env.ONEDRIVE_VAULT_ROOT || "hsol-info-blob/vault"}/object-views`;
 const TEXT_OUTPUTS = ["object-views/site-data.json", "object-views/onepager-ko.html", "object-views/onepager-en.html"];
 
 const pulled = new Map(

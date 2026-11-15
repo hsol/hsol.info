@@ -12,7 +12,10 @@
  * 첫 실행(기록 없음)은 기준선만 남기고 변경으로 보지 않는다.
  *
  * 필요 환경변수: DATABASE_URL, ONEDRIVE_TOKEN_KEY, ONEDRIVE_DRIVE_ID
- * 선택: FORCE_ARTICLES=1, ONEDRIVE_VAULT_ROOT(기본 hsol-info-blob/vault)
+ * 선택: FORCE_ARTICLES=1, ONEDRIVE_VAULT_ROOT(기본 hsol-info-blob/vault),
+ *       ONEDRIVE_LAYOUT(legacy | ws, 기본 legacy). ws 면 OneDrive 루트 워크스페이스의 vault 소스 폴더만 훑고,
+ *       경로는 ws-layout 의 toLegacy() 로 논리 경로(vault 기준)로 되돌려 기준선과 비교한다. 서버측 이동은 해시를
+ *       바꾸지 않으므로 배치를 바꿔도 변경으로 잡히지 않는다.
  * 플래그: --dry-run (기록, 역기록, 출력 없이 차이만 출력)
  */
 import { execFile } from "node:child_process";
@@ -25,6 +28,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { getState, setState } from "./lib/onedrive-token.mjs";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
+import { layoutMode, toLegacy, toWs, wsSources } from "./lib/ws-layout.mjs";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +36,8 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const VAULT_ROOT = process.env.ONEDRIVE_VAULT_ROOT || "hsol-info-blob/vault";
 const ARTICLES_REL = "objects/news-articles/";
 const MANIFEST_KEY = "vault-manifest";
+const LAYOUT = layoutMode("legacy");
+if (LAYOUT === "dual") throw new Error("watch-onedrive 는 legacy 또는 ws 중 하나만 받는다.");
 
 const IGNORED_NAMES = new Set([".DS_Store", ".DS-Store", ".gitkeep", "Icon\r"]);
 /** 사이트 생성에 쓰지 않는 vault 경로. */
@@ -62,23 +68,56 @@ function include(rel) {
   );
 }
 
+const hashOf = (item) => item.Hashes?.quickxor ?? item.Hashes?.QuickXorHash ?? `${item.Size}:${item.ModTime}`;
+
 /** OneDrive 트리를 { rel(NFC) -> hash } 로. */
 async function listHashes(od, root) {
   const raw = await od.rclone(["lsjson", "-R", "--files-only", "--hash", "--hash-type", "QuickXorHash", `od:${root}`]);
   const out = {};
-  for (const item of JSON.parse(raw)) {
-    const rel = item.Path.normalize("NFC");
-    out[rel] = item.Hashes?.quickxor ?? item.Hashes?.QuickXorHash ?? `${item.Size}:${item.ModTime}`;
+  for (const item of JSON.parse(raw)) out[item.Path.normalize("NFC")] = hashOf(item);
+  return out;
+}
+
+/** vault 전체를 { vault 기준 논리 경로 -> hash } 로. 레이아웃과 무관하게 키가 같다. */
+async function listVault(od) {
+  if (LAYOUT === "legacy") return listHashes(od, VAULT_ROOT);
+  const out = {};
+  for (const src of wsSources()) {
+    const isDir = src.endsWith("/");
+    const target = `od:${isDir ? src.replace(/\/$/, "") : src}`;
+    const raw = await od
+      .rclone(["lsjson", ...(isDir ? ["-R"] : []), "--files-only", "--hash", "--hash-type", "QuickXorHash", target])
+      .catch((e) => {
+        if (isDir) throw e;
+        return "[]"; // 파일 소스는 없을 수 있다
+      });
+    for (const item of JSON.parse(raw)) {
+      const wsPath = isDir ? `${src}${item.Path}` : src;
+      const logical = toLegacy(wsPath);
+      if (!logical?.startsWith("vault/")) continue;
+      const rel = logical.slice("vault/".length);
+      if (rel in out) throw new Error(`논리 경로 충돌: ${wsPath} -> ${logical}`);
+      out[rel] = hashOf(item);
+    }
   }
   return out;
 }
 
 /** 기사 원본을 받아 Neon 에 반영하고, dbId 가 새로 붙은 파일을 OneDrive 에 되쓴다. 되쓴 파일 목록을 돌려준다. */
 async function syncArticles(od) {
-  const odDir = `${VAULT_ROOT}/${ARTICLES_REL.replace(/\/$/, "")}`;
+  const odDir =
+    LAYOUT === "ws"
+      ? toWs(`vault/${ARTICLES_REL}`).replace(/\/$/, "")
+      : `${VAULT_ROOT}/${ARTICLES_REL.replace(/\/$/, "")}`;
   const local = await mkdtemp(path.join(os.tmpdir(), "articles-"));
   try {
-    await od.rclone(["copy", `od:${odDir}`, local, "--exclude", ".*"]);
+    await od.rclone(["copy", `od:${odDir}`, local, "--exclude", ".*", "--max-depth", "1"]);
+    // ws 의 뉴스룸/ 에는 기사가 아닌 노트(뉴스룸-기자.md 등)도 산다. 논리 경로가 기사 폴더인 것만 남긴다.
+    if (LAYOUT === "ws") {
+      for (const n of await readdir(local)) {
+        if (!toLegacy(`${odDir}/${n}`)?.startsWith(`vault/${ARTICLES_REL}`)) await rm(path.join(local, n), { recursive: true, force: true });
+      }
+    }
     const names = (await readdir(local)).filter((n) => n.endsWith(".md"));
     const before = new Map();
     for (const n of names) before.set(n, sha1(await readFile(path.join(local, n))));
@@ -118,10 +157,15 @@ async function writeOutput(files) {
 async function main() {
   const od = await openOneDrive();
   try {
-    const all = await listHashes(od, VAULT_ROOT);
+    const all = await listVault(od);
     const current = Object.fromEntries(Object.entries(all).filter(([rel]) => include(rel)));
     const count = Object.keys(current).length;
-    if (count === 0) throw new Error(`OneDrive ${VAULT_ROOT} 가 비어 보인다. 기준선을 덮어쓰지 않고 멈춘다.`);
+    if (count === 0) throw new Error(`OneDrive vault(${LAYOUT}) 가 비어 보인다. 기준선을 덮어쓰지 않고 멈춘다.`);
+    // 배치 전환 직후 절반만 보이는 상태(이동 중)로 기준선을 덮지 않는다.
+    const prevCount = Object.keys((await getState(od.sql, MANIFEST_KEY))?.files ?? {}).length;
+    if (prevCount && count < prevCount * 0.8) {
+      throw new Error(`vault 파일 수가 ${prevCount} -> ${count} 로 20% 넘게 줄었다. 이동 중이거나 배치 설정이 틀렸을 수 있어 멈춘다.`);
+    }
 
     const prev = (await getState(od.sql, MANIFEST_KEY))?.files ?? null;
     const changed = [];
@@ -143,11 +187,8 @@ async function main() {
       const written = await syncArticles(od);
       if (written.length) {
         // 역기록한 파일은 새 해시로 기준선을 맞춰 다음 회차에 다시 변경으로 잡히지 않게 한다.
-        const fresh = await listHashes(od, `${VAULT_ROOT}/${ARTICLES_REL.replace(/\/$/, "")}`);
-        for (const [name, hash] of Object.entries(fresh)) {
-          const rel = `${ARTICLES_REL}${name}`;
-          if (rel in current) current[rel] = hash;
-        }
+        const fresh = await listVault(od);
+        for (const rel of written) if (rel in current && rel in fresh) current[rel] = fresh[rel];
       }
     }
 
