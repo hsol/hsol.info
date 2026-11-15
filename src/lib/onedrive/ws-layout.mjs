@@ -91,10 +91,17 @@ export function toWs(logical) {
   return null;
 }
 
+/**
+ * 승격된 프로젝트 폴더 안에 있지만 옛 vault 밖에서 온 자료(사이트가 읽지 않던 것). 감시와 CI 받기에서 뺀다.
+ * 인덱스 노트(FILE_RULES)는 이 검사보다 먼저 맞으므로 계속 vault 로 본다.
+ */
+const NON_VAULT_PREFIXES = ["프로젝트/온톨로지-빌더/"];
+
 /** ws 실제 경로 -> 논리 경로. vault 와 무관한 경로(사진/, 문서/, memory 의 다른 노트 등)면 null. */
 export function toLegacy(wsPath) {
   const p = nfc(wsPath);
   for (const [l, w] of FILE_RULES) if (p === w) return l;
+  if (NON_VAULT_PREFIXES.some((x) => p.startsWith(x))) return null;
   const aw = p.match(ACTION_LOG_WS);
   if (aw) return `vault/action-log/${aw[2]}/${aw[1]}`;
   for (const [l, w] of [...DIR_RULES, ...REVERSE_ONLY_DIR_RULES]) if (p.startsWith(w)) return l + p.slice(w.length);
