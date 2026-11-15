@@ -13,7 +13,7 @@ const cachedRead = unstable_cache(async (relPath: string) => readText(relPath, {
   tags: ["onedrive-text"],
 });
 
-/** OneDrive `hsol-info-blob/<relPath>` 텍스트. 설정이 없거나 실패하면 null. */
+/** OneDrive 텍스트(논리 경로 `vault/...`, 실제 위치는 ws-layout 이 푼다). 설정이 없거나 실패하면 null. */
 export async function readOneDriveText(relPath: string): Promise<string | null> {
   if (!isOneDriveConfigured()) return null;
   try {
