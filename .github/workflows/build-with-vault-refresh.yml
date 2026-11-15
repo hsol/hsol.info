@@ -63,7 +63,7 @@ jobs:
         env:
           # Vercel AI Gateway 경유(직접 Anthropic 호출 없음). CI엔 OIDC가 없으므로 키 필수.
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
-          AI_GATEWAY_MODEL: anthropic/claude-opus-4.7
+          AI_GATEWAY_MODEL: anthropic/claude-opus-5.5
           ANTHROPIC_MAX_TOKENS: "64000"
           # vault 원본(OneDrive)이 바뀌면 Watch OneDrive 가 바뀐 경로를 넘겨 디스패치한다 -> 그 목록으로 변경 판단.
           # 코드 push 에서는 목록이 없어 스킵. 목록 없이 수동 실행하면 명시적 의도로 보고 강제.
@@ -88,7 +88,7 @@ jobs:
           # KO 원페이저를 영어로 옮긴다(vault 재생성이 아니라 번역 — KO 가 단일 진실 원천).
           # KO 가 안 바뀌었으면 스크립트가 해시로 판단해 모델을 부르지 않는다.
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
-          AI_GATEWAY_MODEL: anthropic/claude-opus-4.7
+          AI_GATEWAY_MODEL: anthropic/claude-opus-5.5
         run: npm run content:translate:onepager
 
       # 게이트를 여기서 한 번 더 돌린다. prebuild(Build 스텝)에서도 돌지만, 그건 아래 OneDrive 게시와
