@@ -1,15 +1,18 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
+import { candidates } from "./ws-layout.mjs";
 
 /**
  * 개인 OneDrive(Microsoft Graph) 읽기 클라이언트. hsol.info 콘텐츠의 정본이자 유일한 저장소다.
  *
- * 경로는 OneDrive `hsol-info-blob/` 기준 상대경로("vault/object-views/site-data.json", "assets/public/..").
+ * 경로는 논리 경로(옛 `hsol-info-blob/` 기준 상대경로, "vault/object-views/site-data.json", "assets/public/..")로 받는다.
+ * 실제 OneDrive 위치는 ops/scripts/lib/ws-layout.mjs 가 푼다. ONEDRIVE_LAYOUT 기본값 dual: 새 워크스페이스 배치를 먼저
+ * 보고 없으면 옛 hsol-info-blob 배치를 본다.
  * 토큰은 Neon `onedrive_token` 행(ops/scripts/lib/onedrive-token.mjs 와 같은 형식, AES-256-GCM)을
  * CI 와 같이 쓴다. 액세스 토큰이 만료되면 여기서 리프레시해 새 토큰을 되쓴다.
  *
  * 환경변수: DATABASE_URL, ONEDRIVE_TOKEN_KEY, ONEDRIVE_DRIVE_ID, ONEDRIVE_CLIENT_ID, ONEDRIVE_CLIENT_SECRET
- * (선택) ONEDRIVE_ROOT(기본 hsol-info-blob)
+ * (선택) ONEDRIVE_ROOT(옛 배치 루트, 기본 hsol-info-blob), ONEDRIVE_LAYOUT(legacy | ws | dual, 기본 dual)
  */
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -148,9 +151,9 @@ export async function refreshOneDriveToken(): Promise<void> {
   await getAccessToken(true);
 }
 
-function itemUrl(relPath: string): string {
-  const root = (process.env.ONEDRIVE_ROOT || "hsol-info-blob").replace(/^\/+|\/+$/g, "");
-  const full = [root, ...relPath.split("/")].filter(Boolean).map(encodeURIComponent).join("/");
+/** OneDrive 루트 기준 실제 경로 -> Graph 아이템 URL. */
+function itemUrl(drivePath: string): string {
+  const full = drivePath.split("/").filter(Boolean).map(encodeURIComponent).join("/");
   return `${GRAPH}/drives/${encodeURIComponent(env("ONEDRIVE_DRIVE_ID"))}/root:/${full}`;
 }
 
@@ -171,14 +174,17 @@ function pathVariants(relPath: string): string[] {
   return nfc === nfd ? [nfc] : [nfc, nfd];
 }
 
-/** 파일 메타데이터(다운로드 URL 포함). 없거나 폴더면 null. */
+/** 파일 메타데이터(다운로드 URL 포함). 레이아웃 후보를 차례로 본다. 어디에도 없거나 폴더면 null. */
 export async function getItem(relPath: string): Promise<DriveItem | null> {
-  for (const p of pathVariants(relPath)) {
-    const res = await graphFetch(itemUrl(p));
-    if (res.status === 404) continue;
-    if (!res.ok) throw new Error(`OneDrive 조회 실패 ${relPath}: HTTP ${res.status}`);
-    const item = (await res.json()) as DriveItem;
-    return item.folder ? null : item;
+  for (const drivePath of candidates(relPath) as string[]) {
+    for (const p of pathVariants(drivePath)) {
+      const res = await graphFetch(itemUrl(p));
+      if (res.status === 404) continue;
+      if (!res.ok) throw new Error(`OneDrive 조회 실패 ${relPath}: HTTP ${res.status}`);
+      const item = (await res.json()) as DriveItem;
+      if (item.folder) continue;
+      return item;
+    }
   }
   return null;
 }
