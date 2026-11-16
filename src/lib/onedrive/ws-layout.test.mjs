@@ -29,7 +29,8 @@ test("쪼개진 concepts 는 논리 경로로만 되돌아온다", () => {
 });
 
 test("vault 와 무관한 ws 경로는 null", () => {
-  for (const p of ["사진/a.jpg", "memory/MEMORY.md", "CONTEXT.md", "문서/1. 커리어/x.pdf"]) assert.equal(toLegacy(p), null, p);
+  for (const p of ["사진/a.jpg", "memory/MEMORY.md", "CONTEXT.md", "문서/1. 커리어/x.pdf", "프로젝트/온톨로지-빌더/pilots/x.md"]) assert.equal(toLegacy(p), null, p);
+  assert.equal(toLegacy("프로젝트/온톨로지-빌더/온톨로지-빌더.md"), "vault/objects/projects/온톨로지-빌더.md");
 });
 
 test("후보 순서: dual 은 ws 먼저, legacy 폴백", () => {

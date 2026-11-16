@@ -27,6 +27,15 @@ export const FILE_RULES = [
   ["vault/objects/concepts/임한솔-self-presentation-preferences.md", "memory/임한솔-self-presentation-preferences.md"],
   ["vault/objects/concepts/뉴스룸-기자.md", "뉴스룸/뉴스룸-기자.md"],
   ...PROMOTED_PROJECTS.map((p) => [`vault/objects/projects/${p}.md`, `프로젝트/${p}/${p}.md`]),
+  // 승격된 프로젝트 폴더로 함께 들어가는 기존 부속 노트(legacy 에서는 projects/ 바로 아래 평평하게 있었다).
+  ...[
+    "AI-Native-취재노트-섭외메시지-템플릿",
+    "AI-Native-취재노트-질문지-윤동현",
+    "AI-Native-취재노트-창간호-구성안",
+    "AI-Native-취재노트-큐시트-종훈님편-2026-07-28",
+    "AI-Native-취재노트-큐카드-게스트용",
+    "AI-Native-취재노트-큐카드",
+  ].map((n) => [`vault/objects/projects/${n}.md`, `프로젝트/AI-Native-취재노트/${n}.md`]),
 ];
 
 /** 디렉터리 규칙 [논리 접두, ws 접두]. 위에서부터 처음 맞는 것을 쓴다(구체적인 것이 먼저). 양방향. */
@@ -82,10 +91,17 @@ export function toWs(logical) {
   return null;
 }
 
+/**
+ * 승격된 프로젝트 폴더 안에 있지만 옛 vault 밖에서 온 자료(사이트가 읽지 않던 것). 감시와 CI 받기에서 뺀다.
+ * 인덱스 노트(FILE_RULES)는 이 검사보다 먼저 맞으므로 계속 vault 로 본다.
+ */
+const NON_VAULT_PREFIXES = ["프로젝트/온톨로지-빌더/"];
+
 /** ws 실제 경로 -> 논리 경로. vault 와 무관한 경로(사진/, 문서/, memory 의 다른 노트 등)면 null. */
 export function toLegacy(wsPath) {
   const p = nfc(wsPath);
   for (const [l, w] of FILE_RULES) if (p === w) return l;
+  if (NON_VAULT_PREFIXES.some((x) => p.startsWith(x))) return null;
   const aw = p.match(ACTION_LOG_WS);
   if (aw) return `vault/action-log/${aw[2]}/${aw[1]}`;
   for (const [l, w] of [...DIR_RULES, ...REVERSE_ONLY_DIR_RULES]) if (p.startsWith(w)) return l + p.slice(w.length);
