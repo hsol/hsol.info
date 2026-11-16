@@ -680,11 +680,35 @@ function toAiTools(raw: unknown): ToolSet {
  * 형태로 반환한다(호출부의 tool_use/text 블록 파싱·max_tokens 감지 로직을 그대로 유지).
  * 일시적 오류(429/5xx/네트워크)는 AI SDK가 maxRetries 만큼 지수 백오프로 재시도한다.
  */
+/**
+ * LLM_REPLAY_DIR 이 있으면 Gateway 를 부르지 않는다. 호출마다 NN-request.json 을 쓰고, 같은 번호의
+ * NN-response.json({content, stop_reason})이 있으면 그것을 응답으로 쓴다. 없으면 멈춘다(사람이나 에이전트가 응답을 채운 뒤 다시 실행).
+ * API 토큰 없이 세션 안의 모델이 직접 응답을 만들 때 쓴다.
+ */
+let llmReplayCounter = 0;
+async function llmReplay(body: Record<string, unknown>) {
+  const dir = process.env.LLM_REPLAY_DIR;
+  if (!dir) return null;
+  const n = String(++llmReplayCounter).padStart(2, "0");
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, `${n}-request.json`), JSON.stringify(body, null, 1));
+  const resPath = path.join(dir, `${n}-response.json`);
+  const raw = await readFile(resPath, "utf8").catch(() => null);
+  if (raw == null) {
+    logStep(`LLM_REPLAY: ${resPath} 가 없어 멈춘다.`);
+    process.exit(42);
+  }
+  logStep(`LLM_REPLAY: ${n}-response.json 사용`);
+  return JSON.parse(raw) as { content?: AnthropicContent[]; stop_reason?: string };
+}
+
 async function anthropicFetchJson(
   _apiKey: string,
   body: Record<string, unknown>,
   opts?: { maxRetries?: number },
 ): Promise<{ content?: AnthropicContent[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }> {
+  const replay = await llmReplay(body);
+  if (replay) return replay;
   const tools = toAiTools(body.tools);
   const hasTools = Object.keys(tools).length > 0;
   const choice = body.tool_choice as { type?: string; name?: string } | undefined;
