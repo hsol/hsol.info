@@ -1,3 +1,4 @@
+import "./lib/long-fetch";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { chatText } from "../src/lib/llm";
