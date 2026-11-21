@@ -31,12 +31,28 @@ try {
   await w("objects/projects/스토키/스토키.md");
   await w("objects/projects/스토키/sub/sub.md"); // 중첩 개념
   await w("objects/projects/스토키/materials/a.md"); // 문서
+  const GROUP = "---\ntype: concept\nbroader: \"[[인물]]\"\n---\n";
+  await w("objects/people/임한솔.md");
+  await w("objects/people/가족-구성원/가족-구성원.md", GROUP);
+  await w("objects/people/가족-구성원/김연수.md"); // 분류 폴더의 인스턴스 -> 객체
+  await w("objects/people/직장-동료/직장-동료.md", GROUP);
+  await w("objects/people/직장-동료/PPB-동료/PPB-동료.md", GROUP);
+  await w("objects/people/직장-동료/PPB-동료/고형원.md");
+  await w("objects/people/사적-관계/사적-관계.md", "---\ntype: concept\nvisibility: private\n---\n");
+  await w("objects/people/사적-관계/김정훈.md"); // 비공개 분류 폴더라 빠짐
+  await w("objects/people/폴더없는/a.md"); // 개념 노트 없는 폴더의 파일은 객체 아님
 
-  const notes = (await listPublicObjectNotes([path.join(v, "objects/organizations"), path.join(v, "objects/projects")]))
+  const notes = (await listPublicObjectNotes([path.join(v, "objects/organizations"), path.join(v, "objects/projects"), path.join(v, "objects/people")]))
     .map((p) => path.relative(v, p).normalize("NFC"));
   assert.deepEqual(notes, [
     "objects/organizations/AWS.md",
     "objects/organizations/RIDI/RIDI.md",
+    "objects/people/가족-구성원/가족-구성원.md",
+    "objects/people/가족-구성원/김연수.md",
+    "objects/people/임한솔.md",
+    "objects/people/직장-동료/PPB-동료/PPB-동료.md",
+    "objects/people/직장-동료/PPB-동료/고형원.md",
+    "objects/people/직장-동료/직장-동료.md",
     "objects/projects/스토키/sub/sub.md",
     "objects/projects/스토키/스토키.md",
   ]);
