@@ -65,21 +65,13 @@ test("rclone 필터: 개념 폴더 소스는 md 와 예외 위치만, 예외 위
   assert.deepEqual(rcloneFilterArgs("memory/임한솔-persona.md"), []);
 });
 
-test("원본과 함께 승격한 객체: 인덱스는 평평한 논리 경로, 폴더 안 나머지는 사이트 밖", () => {
-  assert.equal(toLegacy("조직/RIDI/RIDI.md"), "vault/objects/organizations/RIDI.md");
-  assert.equal(toWs("vault/objects/organizations/RIDI.md"), "조직/RIDI/RIDI.md");
-  assert.equal(toLegacy("조직/건국대학교/건국대학교.md"), "vault/objects/organizations/건국대학교.md");
-  assert.equal(toLegacy("프로젝트/Tagit/Tagit.md"), "vault/objects/projects/Tagit.md");
-  for (const p of [
-    "조직/건국대학교/18_1학기/노트.md",
-    "조직/넥슨/양식 내용.md",
-    "조직/RIDI/면접질문_백업.xlsx",
-    "프로젝트/부캐-SNS/부캐-SNS.md",
-    "프로젝트/스토키-매매봇/stocky-agents/a.md",
-  ])
-    assert.equal(toLegacy(p), null, p);
-  // 승격하지 않은 평평한 노트와 기존 폴더형 객체는 그대로
+test("폴더형 객체는 경로 그대로(깊이 탐색은 사이트 쪽이 한다), 2단계 md 폴더만 사이트 밖", () => {
+  assert.equal(toLegacy("조직/RIDI/RIDI.md"), "vault/objects/organizations/RIDI/RIDI.md");
+  assert.equal(toLegacy("조직/건국대학교/18_1학기/노트.md"), "vault/objects/organizations/건국대학교/18_1학기/노트.md");
+  assert.equal(toLegacy("프로젝트/부캐-SNS/부캐-SNS.md"), "vault/objects/projects/부캐-SNS/부캐-SNS.md");
+  assert.equal(toLegacy("프로젝트/스토키-매매봇/stocky-agents/a.md"), null);
+  assert.equal(toLegacy("조직/RIDI/면접질문_백업.xlsx"), null);
   assert.equal(toLegacy("조직/AWS.md"), "vault/objects/organizations/AWS.md");
-  assert.equal(toLegacy("조직/무하유/무하유.md"), "vault/objects/organizations/무하유/무하유.md");
-  assert.equal(toLegacy("프로젝트/스토키-매매봇/스토키-매매봇.md"), "vault/objects/projects/스토키-매매봇/스토키-매매봇.md");
+  // 고정 경로로 읽는 예외 프로젝트는 그대로
+  assert.equal(toLegacy("프로젝트/hsol-info/hsol-info.md"), "vault/objects/projects/hsol-info.md");
 });
