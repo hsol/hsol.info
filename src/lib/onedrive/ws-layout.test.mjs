@@ -49,7 +49,6 @@ test("소스 목록에 사진/, 음악/ 같은 개인 폴더가 없고 하위 �
 test("개념 폴더의 원본(비-md)은 사이트 콘텐츠가 아니다. 생성물, 원천, assets 는 예외", () => {
   for (const p of ["조직/RIDI/계약서.pdf", "조직/건국대학교/18_1학기/a.pptx", "산출물/임한솔_이력서.docx", "프로젝트/Tagit/a.html", "인물/x.jpg"])
     assert.equal(toLegacy(p), null, p);
-  assert.equal(toLegacy("조직/RIDI/RIDI.md"), "vault/objects/organizations/RIDI/RIDI.md");
   assert.equal(toLegacy("조직/무하유/무하유.md"), "vault/objects/organizations/무하유/무하유.md");
   assert.equal(toLegacy("프로젝트/hsol-info/생성물/site-data.json"), "vault/object-views/site-data.json");
   assert.equal(toLegacy("원천/블로그/a.json"), "vault/datasources/blog/a.json");
@@ -64,4 +63,23 @@ test("rclone 필터: 개념 폴더 소스는 md 와 예외 위치만, 예외 위
   assert.deepEqual(rcloneFilterArgs("원천/블로그/"), []);
   assert.deepEqual(rcloneFilterArgs("assets/"), []);
   assert.deepEqual(rcloneFilterArgs("memory/임한솔-persona.md"), []);
+});
+
+test("원본과 함께 승격한 객체: 인덱스는 평평한 논리 경로, 폴더 안 나머지는 사이트 밖", () => {
+  assert.equal(toLegacy("조직/RIDI/RIDI.md"), "vault/objects/organizations/RIDI.md");
+  assert.equal(toWs("vault/objects/organizations/RIDI.md"), "조직/RIDI/RIDI.md");
+  assert.equal(toLegacy("조직/건국대학교/건국대학교.md"), "vault/objects/organizations/건국대학교.md");
+  assert.equal(toLegacy("프로젝트/Tagit/Tagit.md"), "vault/objects/projects/Tagit.md");
+  for (const p of [
+    "조직/건국대학교/18_1학기/노트.md",
+    "조직/넥슨/양식 내용.md",
+    "조직/RIDI/면접질문_백업.xlsx",
+    "프로젝트/부캐-SNS/부캐-SNS.md",
+    "프로젝트/스토키-매매봇/stocky-agents/a.md",
+  ])
+    assert.equal(toLegacy(p), null, p);
+  // 승격하지 않은 평평한 노트와 기존 폴더형 객체는 그대로
+  assert.equal(toLegacy("조직/AWS.md"), "vault/objects/organizations/AWS.md");
+  assert.equal(toLegacy("조직/무하유/무하유.md"), "vault/objects/organizations/무하유/무하유.md");
+  assert.equal(toLegacy("프로젝트/스토키-매매봇/스토키-매매봇.md"), "vault/objects/projects/스토키-매매봇/스토키-매매봇.md");
 });
