@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { getState, setState } from "./lib/onedrive-token.mjs";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
-import { layoutMode, toLegacy, toWs, wsSources } from "../../src/lib/onedrive/ws-layout.mjs";
+import { layoutMode, rcloneFilterArgs, toLegacy, toWs, wsSources } from "../../src/lib/onedrive/ws-layout.mjs";
 
 const execFileAsync = promisify(execFile);
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -86,7 +86,7 @@ async function listVault(od) {
     const isDir = src.endsWith("/");
     const target = `od:${isDir ? src.replace(/\/$/, "") : src}`;
     const raw = await od
-      .rclone(["lsjson", ...(isDir ? ["-R"] : []), "--files-only", "--hash", "--hash-type", "QuickXorHash", target])
+      .rclone(["lsjson", ...(isDir ? ["-R"] : []), ...rcloneFilterArgs(src), "--files-only", "--hash", "--hash-type", "QuickXorHash", target])
       .catch((e) => {
         if (isDir) throw e;
         return "[]"; // 파일 소스는 없을 수 있다
