@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { openOneDrive } from "./lib/rclone-onedrive.mjs";
-import { LEGACY_ROOT, layoutMode, toLegacy, wsSources } from "../../src/lib/onedrive/ws-layout.mjs";
+import { LEGACY_ROOT, layoutMode, rcloneFilterArgs, toLegacy, wsSources } from "../../src/lib/onedrive/ws-layout.mjs";
 
 const DEST = process.env.LOCAL_VAULT_DIR || "hsol-info-blob/vault";
 const COMMON = ["--exclude", ".DS_Store", "--exclude", "*.base", "--transfers", "16", "--checkers", "16"];
@@ -47,7 +47,7 @@ try {
       for (const src of wsSources()) {
         const local = path.join(staging, src);
         if (src.endsWith("/")) {
-          await od.rclone(["copy", `od:${src.replace(/\/$/, "")}`, local, ...COMMON]);
+          await od.rclone(["copy", `od:${src.replace(/\/$/, "")}`, local, ...rcloneFilterArgs(src), ...COMMON]);
         } else {
           await od.rclone(["copyto", `od:${src}`, local, ...COMMON]).catch(() => null);
         }
