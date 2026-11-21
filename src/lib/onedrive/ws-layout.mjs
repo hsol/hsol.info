@@ -16,18 +16,12 @@
 
 export const LEGACY_ROOT = (process.env.ONEDRIVE_ROOT || "hsol-info-blob").replace(/^\/+|\/+$/g, "");
 
-/** 프로젝트 폴더로 승격되면서 인덱스가 `프로젝트/<이름>/<이름>.md` 로 가는 프로젝트. legacy 에서는 평평한 `<이름>.md`. */
-const PROMOTED_PROJECTS = ["hsol-info", "AI-Native-취재노트", "온톨로지-빌더"];
-
 /**
- * 원본 자료를 함께 두려고 폴더로 승격한 객체(2026-11 기존 폴더 재정리). 인덱스 노트는 예전 평평한 논리 경로 그대로 읽는다.
- * 원페이저 근거 글롭이 `objects/<타입>/*.md` 한 단계만 보기 때문에, 경로가 바뀌면 경력 핵심 노트가 근거에서 빠진다.
- * 폴더 안 나머지(원본, 수업 노트 md 등)는 사이트 콘텐츠가 아니다(NON_VAULT_PREFIXES).
+ * 프로젝트 폴더로 승격되면서 인덱스가 `프로젝트/<이름>/<이름>.md` 로 가는 프로젝트. legacy 에서는 평평한 `<이름>.md`.
+ * 코드가 이 노트들을 고정 경로(`vault/objects/projects/hsol-info.md` 등)로 읽어서 남겨 둔 예외다. 그 밖의 폴더형 객체는
+ * 경로를 그대로 두고, 객체 노트 찾기가 깊이를 따라간다(scripts/lib/vault-objects.ts).
  */
-const PROMOTED_WITH_ORIGINALS = [
-  ["organizations", "조직", ["RIDI", "Toss", "PPB-Studios", "라이트형제", "타르트", "건국대학교", "앤틀러-코리아", "다윗", "제로원리퍼블릭", "넥슨"]],
-  ["projects", "프로젝트", ["Tagit", "템플레터"]],
-];
+const PROMOTED_PROJECTS = ["hsol-info", "AI-Native-취재노트", "온톨로지-빌더"];
 
 /** 파일 단위 규칙 [논리 경로, ws 경로]. 디렉터리 규칙보다 먼저, 양방향으로 쓴다. */
 export const FILE_RULES = [
@@ -37,9 +31,6 @@ export const FILE_RULES = [
   ["vault/objects/concepts/임한솔-self-presentation-preferences.md", "memory/임한솔-self-presentation-preferences.md"],
   ["vault/objects/concepts/뉴스룸-기자.md", "뉴스룸/뉴스룸-기자.md"],
   ...PROMOTED_PROJECTS.map((p) => [`vault/objects/projects/${p}.md`, `프로젝트/${p}/${p}.md`]),
-  ...PROMOTED_WITH_ORIGINALS.flatMap(([type, dir, names]) =>
-    names.map((n) => [`vault/objects/${type}/${n}.md`, `${dir}/${n}/${n}.md`]),
-  ),
   // 승격된 프로젝트 폴더로 함께 들어가는 기존 부속 노트(legacy 에서는 projects/ 바로 아래 평평하게 있었다).
   ...[
     "AI-Native-취재노트-섭외메시지-템플릿",
@@ -110,9 +101,7 @@ export function toWs(logical) {
  */
 const NON_VAULT_PREFIXES = [
   "프로젝트/온톨로지-빌더/",
-  ...PROMOTED_WITH_ORIGINALS.flatMap(([, dir, names]) => names.map((n) => `${dir}/${n}/`)),
-  // 재정리로 생긴 원본 전용 폴더(에이전트 열람 등급 2단계 자료가 md 로도 있다).
-  "프로젝트/부캐-SNS/",
+  // 에이전트 열람 등급 2단계 자료가 md 로 있는 폴더(에이전트 정의, 토큰이 있을 수 있다).
   "프로젝트/스토키-매매봇/stocky-agents/",
 ];
 
