@@ -1,4 +1,5 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import "./lib/long-fetch";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { generateText, jsonSchema, stepCountIs, tool, type ModelMessage, type ToolSet } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -13,6 +14,7 @@ import { LAYOUT_OVERRIDES, mergeLayout } from "../src/content/layout-overrides";
 import { PAGE_KEYS, SITE_STRUCTURE, type PageKey } from "../src/content/site-structure";
 import { loadPipelineFlags } from "../src/lib/pipeline-flags";
 import { parsePath, setByPath } from "./lib/site-data-patch";
+import { filterPublicPaths, listPublicObjectNotes } from "./lib/vault-objects";
 import { renderCatalogForPrompt } from "../src/content/layout-catalog";
 import {
   pageCompositionSchema,
@@ -35,6 +37,15 @@ function buildVersion(d: Date): string {
 const MODEL =
   process.env.AI_GATEWAY_MODEL ?? process.env.ANTHROPIC_MODEL ?? "anthropic/claude-opus-5.5";
 const VAULT_ROOT = process.env.VAULT_ROOT ?? "hsol-info-blob/vault";
+
+/**
+ * vault 근거 해석 규칙(소속과 지원 구분). 폴더 안 개념 노트까지 근거로 읽게 되면서(깊이 탐색) 지원, 검토, 조사 대상 노트도
+ * 근거에 들어온다. 임한솔 확정(2026-11-21): 지원서를 낸 것과 재직을 헷갈리지 않고, 조직 노트를 모두 소속 조직으로 오해하지 않는다.
+ */
+const AFFILIATION_RULE = `[근거 해석: 소속과 지원 구분 — 필수]
+- objects/organizations 의 조직 노트는 임한솔과 어떤 관계든 있는 조직의 기록이다. 소속 조직 목록이 아니다. 고객사, 지원한 회사, 조사 대상, 협력처, 학교가 섞여 있다.
+- 재직, 소속, 직책은 objects/people/임한솔.md 의 경력 서술과 해당 조직 노트 본문이 근무, 재직, 팀장, 창업처럼 명시할 때만 쓴다. 조직 노트가 근거에 있다는 사실만으로 경력, career 항목, "~에서 일했다" 를 만들지 않는다.
+- 지원, 검토, 조사 단계의 건(프로젝트 frontmatter role: 지원자, 이름에 "지원"/"합류" 가 들어간 지원 건, 조직 kind 가 밸류업 대상/조사 대상 등)은 재직이나 소속, 성과로 쓰지 않는다. 쓸 필요가 있으면 "지원" 으로만 쓰고, 기본은 쓰지 않는다.`
 const SITE_DATA_PATH =
   process.env.VAULT_SITE_DATA_PATH ??
   "hsol-info-blob/vault/object-views/site-data.json";
@@ -679,11 +690,35 @@ function toAiTools(raw: unknown): ToolSet {
  * 형태로 반환한다(호출부의 tool_use/text 블록 파싱·max_tokens 감지 로직을 그대로 유지).
  * 일시적 오류(429/5xx/네트워크)는 AI SDK가 maxRetries 만큼 지수 백오프로 재시도한다.
  */
+/**
+ * LLM_REPLAY_DIR 이 있으면 Gateway 를 부르지 않는다. 호출마다 NN-request.json 을 쓰고, 같은 번호의
+ * NN-response.json({content, stop_reason})이 있으면 그것을 응답으로 쓴다. 없으면 멈춘다(사람이나 에이전트가 응답을 채운 뒤 다시 실행).
+ * API 토큰 없이 세션 안의 모델이 직접 응답을 만들 때 쓴다.
+ */
+let llmReplayCounter = 0;
+async function llmReplay(body: Record<string, unknown>) {
+  const dir = process.env.LLM_REPLAY_DIR;
+  if (!dir) return null;
+  const n = String(++llmReplayCounter).padStart(2, "0");
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, `${n}-request.json`), JSON.stringify(body, null, 1));
+  const resPath = path.join(dir, `${n}-response.json`);
+  const raw = await readFile(resPath, "utf8").catch(() => null);
+  if (raw == null) {
+    logStep(`LLM_REPLAY: ${resPath} 가 없어 멈춘다.`);
+    process.exit(42);
+  }
+  logStep(`LLM_REPLAY: ${n}-response.json 사용`);
+  return JSON.parse(raw) as { content?: AnthropicContent[]; stop_reason?: string };
+}
+
 async function anthropicFetchJson(
   _apiKey: string,
   body: Record<string, unknown>,
   opts?: { maxRetries?: number },
 ): Promise<{ content?: AnthropicContent[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }> {
+  const replay = await llmReplay(body);
+  if (replay) return replay;
   const tools = toAiTools(body.tools);
   const hasTools = Object.keys(tools).length > 0;
   const choice = body.tool_choice as { type?: string; name?: string } | undefined;
@@ -938,6 +973,7 @@ ${targetPaths.map((p) => `- ${p}`).join("\n")}
 - 실제로 바뀔 게 없는 경로는 edits 에서 빼라(억지로 채우지 마라).
 
 ${SELF_DESIGNATION_RULE}
+${AFFILIATION_RULE}
 
 규칙:
 1) 근거: 새 값은 아래 [바뀐 vault 컨텍스트]에 실제로 있는 사실·고유명사·기간·수치로만. 증거 없는 추측·새 주장·새 수치 금지. 애매하면 현재 값 유지(그 경로 제외).
@@ -1523,6 +1559,7 @@ async function generateComposition(
   const sharedPrefix = `너는 hsol.info 포트폴리오의 **컴포지션 빌더**다. 대상 페이지를 디자인시스템 컴포넌트의 **트리**로 조합하고, content 컴포넌트의 내용을 **vault 근거로 직접 작성**한다.
 
 ${SELF_DESIGNATION_RULE}
+${AFFILIATION_RULE}
 
 원칙(중요):
 1) **앵커 후 진화**: 아래 "현재 composition"이 있으면 그것을 기준으로 통째로 갈아엎지 말고 근거 있는 1~3가지 개선만 적용한다. 없으면 페이지 성격에 맞게 새로 구성한다.
@@ -1710,6 +1747,7 @@ const ONEPAGER_DESIGN_SPEC = `
 - 단, **정량 데이터·항목 나열형 불릿**(핵심 성과·경력 임팩트 불릿처럼 사실·수치 위주로 짧게 끊는 부분)은 개조식(명사·동사 어간 종결, 예: "...로 단축", "...설계", "...승소")로 간결하게 둬도 된다. 즉 줄글은 존댓말, 팩트 불릿은 개조식.
 
 ${SELF_DESIGNATION_RULE}
+${AFFILIATION_RULE}
 
 [사실·표기 규칙]
 - 불릿은 핵심을 앞에, 1~2줄. XYZ("X를 Y만큼, Z로 달성")/PAR 패턴. 가능하면 정량화. 1인칭 대명사 금지.
@@ -1739,23 +1777,25 @@ async function getExistingOnePagerHtml(): Promise<string> {
   }
 }
 
-/** 원페이저 근거 컨텍스트: 척추(큐레이트 뷰) + objects/{projects,organizations,concepts,artifacts}/*.md 글롭. */
+/** 바뀐 vault 파일을 컨텍스트 경로로 바꾸고 비공개(visibility: private, 또는 비공개 개념 폴더 아래)를 뺀다. */
+async function publicChangedContextPaths(changedVaultFiles: string[]): Promise<string[]> {
+  return filterPublicPaths(
+    changedVaultFiles.map((relativePath) => toVaultContextPath(relativePath)),
+    VAULT_ROOT,
+  );
+}
+
+/**
+ * 원페이저 근거 컨텍스트: 척추(큐레이트 뷰) + objects/{projects,organizations,concepts,artifacts} 의 공개 개념 노트.
+ * 개념 노트는 깊이와 무관하게 찾는다(평평한 `<X>.md` 와 폴더형 `<X>/<X>.md`). 폴더 안 다른 문서와 비공개는 뺀다.
+ */
 async function loadOnePagerContext(changedVaultFiles: string[]): Promise<string> {
-  const objectFiles: string[] = [];
-  for (const dir of ONEPAGER_OBJECT_DIRS) {
-    const absDir = `${VAULT_ROOT}/objects/${dir}`;
-    try {
-      const entries = await readdir(absDir);
-      for (const entry of entries) {
-        if (entry.endsWith(".md")) objectFiles.push(`${absDir}/${entry}`);
-      }
-    } catch {
-      // 디렉터리 없음 → 건너뜀
-    }
-  }
+  const objectFiles = await listPublicObjectNotes(
+    ONEPAGER_OBJECT_DIRS.map((dir) => `${VAULT_ROOT}/objects/${dir}`),
+  );
   const highPriorityFiles = [
     ...ONEPAGER_SPINE_FILES,
-    ...changedVaultFiles.map((relativePath) => toVaultContextPath(relativePath)),
+    ...(await publicChangedContextPaths(changedVaultFiles)),
   ];
   return loadContextFiles({ highPriorityFiles, regularFiles: objectFiles });
 }
@@ -1911,7 +1951,7 @@ async function main() {
     logStep("contents=off — 콘텐츠 파이프라인 스킵(기존 site-data 유지). onepager 는 별개 판단.");
   } else if (hasExistingSiteData && !forceRefresh && changedVaultFiles.length > 0) {
     const changedContext = await loadContextFiles({
-      highPriorityFiles: changedVaultFiles.map((relativePath) => toVaultContextPath(relativePath)),
+      highPriorityFiles: await publicChangedContextPaths(changedVaultFiles),
       regularFiles: [],
     });
     gateResult = await gateContentRelevance(apiKey, { currentSiteDataText, changedContext });
@@ -1937,9 +1977,7 @@ async function main() {
       })
     : changedVaultFiles.length > 0
       ? await loadContextFiles({
-          highPriorityFiles: changedVaultFiles.map((relativePath) =>
-            toVaultContextPath(relativePath),
-          ),
+          highPriorityFiles: await publicChangedContextPaths(changedVaultFiles),
           regularFiles: [VAULT_README_PATH, ...BASE_CONTEXT_FILES],
         })
       : await loadContextFilesLegacy();
@@ -1949,6 +1987,7 @@ async function main() {
 너는 vault 내용을 읽고 site-data.json을 갱신하는 데이터 편집기다.
 
 ${SELF_DESIGNATION_RULE}
+${AFFILIATION_RULE}
 
 규칙:
 1) 반드시 ${EMIT_TOOL_NAME} tool_use로만 결과를 반환한다. 일반 텍스트 답변 금지.

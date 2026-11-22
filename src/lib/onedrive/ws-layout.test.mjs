@@ -1,7 +1,7 @@
 // node --test src/lib/onedrive/ws-layout.test.mjs
 import assert from "node:assert/strict";
 import test from "node:test";
-import { candidates, toLegacy, toWs, wsSources } from "./ws-layout.mjs";
+import { candidates, rcloneFilterArgs, toLegacy, toWs, wsSources } from "./ws-layout.mjs";
 
 test("사이트 런타임이 읽는 논리 경로가 ws 로 풀리고 되돌아온다", () => {
   const cases = {
@@ -44,4 +44,44 @@ test("소스 목록에 사진/, 음악/ 같은 개인 폴더가 없고 하위 �
   assert.ok(s.includes("프로젝트/"));
   assert.ok(!s.includes("프로젝트/hsol-info/생성물/"));
   assert.ok(!s.some((x) => x.startsWith("사진") || x.startsWith("원천")));
+});
+
+test("개념 폴더의 원본(비-md)은 사이트 콘텐츠가 아니다. 생성물, 원천, assets 는 예외", () => {
+  for (const p of ["조직/RIDI/계약서.pdf", "조직/건국대학교/18_1학기/a.pptx", "산출물/임한솔_이력서.docx", "프로젝트/Tagit/a.html", "인물/x.jpg"])
+    assert.equal(toLegacy(p), null, p);
+  assert.equal(toLegacy("조직/무하유/무하유.md"), "vault/objects/organizations/무하유/무하유.md");
+  assert.equal(toLegacy("프로젝트/hsol-info/생성물/site-data.json"), "vault/object-views/site-data.json");
+  assert.equal(toLegacy("원천/블로그/a.json"), "vault/datasources/blog/a.json");
+  assert.equal(toLegacy("assets/public/profile/a.jpg"), "assets/public/profile/a.jpg");
+});
+
+test("rclone 필터: 개념 폴더 소스는 md 와 예외 위치만, 예외 위치 소스와 파일 소스는 필터 없음", () => {
+  assert.deepEqual(rcloneFilterArgs("조직/"), ["--filter", "+ *.md", "--filter", "+ *.MD", "--filter", "- *"]);
+  assert.deepEqual(rcloneFilterArgs("프로젝트/"), [
+    "--filter", "+ /hsol-info/생성물/**", "--filter", "+ *.md", "--filter", "+ *.MD", "--filter", "- *",
+  ]);
+  assert.deepEqual(rcloneFilterArgs("원천/블로그/"), []);
+  assert.deepEqual(rcloneFilterArgs("assets/"), []);
+  assert.deepEqual(rcloneFilterArgs("memory/임한솔-persona.md"), []);
+});
+
+test("폴더형 객체는 경로 그대로(깊이 탐색은 사이트 쪽이 한다), 2단계 md 폴더만 사이트 밖", () => {
+  assert.equal(toLegacy("조직/RIDI/RIDI.md"), "vault/objects/organizations/RIDI/RIDI.md");
+  assert.equal(toLegacy("조직/건국대학교/18_1학기/노트.md"), "vault/objects/organizations/건국대학교/18_1학기/노트.md");
+  assert.equal(toLegacy("프로젝트/부캐-SNS/부캐-SNS.md"), "vault/objects/projects/부캐-SNS/부캐-SNS.md");
+  assert.equal(toLegacy("프로젝트/스토키-매매봇/stocky-agents/a.md"), null);
+  assert.equal(toLegacy("조직/RIDI/면접질문_백업.xlsx"), null);
+  assert.equal(toLegacy("조직/AWS.md"), "vault/objects/organizations/AWS.md");
+  // 고정 경로로 읽는 예외 프로젝트는 그대로
+  assert.equal(toLegacy("프로젝트/hsol-info/hsol-info.md"), "vault/objects/projects/hsol-info.md");
+});
+
+test("매핑된 폴더 자신의 개념 노트는 사이트 콘텐츠가 아니다. 하위 분류 폴더의 개념 노트는 그대로", () => {
+  for (const p of ["뉴스룸/뉴스룸.md", "인물/인물.md", "모음/모음.md", "멘티/멘티.md", "원천/원천.md", "원천/블로그/블로그.md", "스킬/기술/기술.md", "가치관/가치관.md", "에이전트/런북/런북.md"]) {
+    assert.equal(toLegacy(p), null, p);
+  }
+  assert.equal(toLegacy("인물/가족-구성원/가족-구성원.md"), "vault/objects/people/가족-구성원/가족-구성원.md");
+  assert.equal(toLegacy("뉴스룸/뉴스룸-기자.md"), "vault/objects/concepts/뉴스룸-기자.md");
+  assert.equal(toLegacy("프로젝트/hsol-info/hsol-info.md"), "vault/objects/projects/hsol-info.md");
+  assert.equal(toLegacy("가치관/AI-Native-Workflow.md"), "vault/objects/concepts/AI-Native-Workflow.md");
 });

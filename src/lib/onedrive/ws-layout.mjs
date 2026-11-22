@@ -16,7 +16,11 @@
 
 export const LEGACY_ROOT = (process.env.ONEDRIVE_ROOT || "hsol-info-blob").replace(/^\/+|\/+$/g, "");
 
-/** 프로젝트 폴더로 승격되면서 인덱스가 `프로젝트/<이름>/<이름>.md` 로 가는 프로젝트. legacy 에서는 평평한 `<이름>.md`. */
+/**
+ * 프로젝트 폴더로 승격되면서 인덱스가 `프로젝트/<이름>/<이름>.md` 로 가는 프로젝트. legacy 에서는 평평한 `<이름>.md`.
+ * 코드가 이 노트들을 고정 경로(`vault/objects/projects/hsol-info.md` 등)로 읽어서 남겨 둔 예외다. 그 밖의 폴더형 객체는
+ * 경로를 그대로 두고, 객체 노트 찾기가 깊이를 따라간다(scripts/lib/vault-objects.ts).
+ */
 const PROMOTED_PROJECTS = ["hsol-info", "AI-Native-취재노트", "온톨로지-빌더"];
 
 /** 파일 단위 규칙 [논리 경로, ws 경로]. 디렉터리 규칙보다 먼저, 양방향으로 쓴다. */
@@ -95,13 +99,40 @@ export function toWs(logical) {
  * 승격된 프로젝트 폴더 안에 있지만 옛 vault 밖에서 온 자료(사이트가 읽지 않던 것). 감시와 CI 받기에서 뺀다.
  * 인덱스 노트(FILE_RULES)는 이 검사보다 먼저 맞으므로 계속 vault 로 본다.
  */
-const NON_VAULT_PREFIXES = ["프로젝트/온톨로지-빌더/"];
+const NON_VAULT_PREFIXES = [
+  "프로젝트/온톨로지-빌더/",
+  // 에이전트 열람 등급 2단계 자료가 md 로 있는 폴더(에이전트 정의, 토큰이 있을 수 있다).
+  "프로젝트/스토키-매매봇/stocky-agents/",
+];
 
-/** ws 실제 경로 -> 논리 경로. vault 와 무관한 경로(사진/, 문서/, memory 의 다른 노트 등)면 null. */
+/**
+ * 개념 폴더에서 md 가 아닌 파일을 사이트 콘텐츠로 받는 예외 위치. 나머지 개념 폴더의 비-md 파일은 원본 자료
+ * (계약서, 사진, 발표 파일 등. 워크스페이스 규칙상 노트와 같은 폴더에 둔다)라서 사이트가 읽지 않는다.
+ * 원본은 에이전트 열람 등급 2단계라 CI 와 감시가 받지도 않게 한다(팀 프루퍼 `업무자료/에이전트운영/에이전트-열람-등급.md`).
+ */
+export const NON_MD_PASS_PREFIXES = ["프로젝트/hsol-info/생성물/", "원천/", "assets/"];
+
+const isMd = (p) => p.toLowerCase().endsWith(".md");
+
+/**
+ * 매핑된 폴더 자신의 개념 노트(`뉴스룸/뉴스룸.md`, `스킬/기술/기술.md`, `인물/인물.md` 등). 폴더가 무엇을 담는지 적은
+ * 분류 설명이지 객체가 아니다. 받으면 타입 루트의 객체로 잡히거나(인물, 개념) 기사 동기화가 type 검사에서 멈춘다(뉴스룸).
+ */
+export function isMappedRootConceptNote(wsPath) {
+  const p = nfc(wsPath);
+  return [...DIR_RULES, ...REVERSE_ONLY_DIR_RULES].some(([, w]) => {
+    const name = w.replace(/\/$/, "").split("/").pop();
+    return p === `${w}${name}.md`;
+  });
+}
+
+/** ws 실제 경로 -> 논리 경로. vault 와 무관한 경로(사진/, 문서/, memory 의 다른 노트, 개념 폴더의 원본 파일 등)면 null. */
 export function toLegacy(wsPath) {
   const p = nfc(wsPath);
   for (const [l, w] of FILE_RULES) if (p === w) return l;
   if (NON_VAULT_PREFIXES.some((x) => p.startsWith(x))) return null;
+  if (isMappedRootConceptNote(p)) return null;
+  if (!isMd(p) && !NON_MD_PASS_PREFIXES.some((x) => p.startsWith(x))) return null;
   const aw = p.match(ACTION_LOG_WS);
   if (aw) return `vault/action-log/${aw[2]}/${aw[1]}`;
   for (const [l, w] of [...DIR_RULES, ...REVERSE_ONLY_DIR_RULES]) if (p.startsWith(w)) return l + p.slice(w.length);
@@ -121,6 +152,21 @@ export function wsSources({ includeDatasources = false, includeAssets = false } 
   // 상위 폴더가 이미 있으면 하위 소스는 뺀다(프로젝트/ 가 프로젝트/hsol-info/생성물/ 을 덮는다).
   const all = [...set];
   return all.filter((s) => !all.some((o) => o !== s && o.endsWith("/") && s.startsWith(o))).sort();
+}
+
+/**
+ * wsSources() 의 소스 하나를 rclone 으로 훑거나 받을 때 붙일 필터 인자. toLegacy() 와 같은 기준으로 md 와 예외 위치만 남겨,
+ * 개념 폴더에 같이 사는 원본 파일(수 GB 가 될 수 있다)을 내려받지도 나열하지도 않는다.
+ * 소스 자체가 예외 위치 안이면 필터가 없다. 파일 소스(FILE_RULES)는 필터가 필요 없다.
+ */
+export function rcloneFilterArgs(src) {
+  const s = nfc(src);
+  if (!s.endsWith("/")) return [];
+  if (NON_MD_PASS_PREFIXES.some((x) => s.startsWith(x))) return [];
+  const args = [];
+  for (const x of NON_MD_PASS_PREFIXES) if (x.startsWith(s) && x !== s) args.push("--filter", `+ /${x.slice(s.length)}**`);
+  args.push("--filter", "+ *.md", "--filter", "+ *.MD", "--filter", "- *");
+  return args;
 }
 
 export function layoutMode(fallback = "legacy") {
