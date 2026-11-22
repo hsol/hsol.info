@@ -75,3 +75,13 @@ test("폴더형 객체는 경로 그대로(깊이 탐색은 사이트 쪽이 한
   // 고정 경로로 읽는 예외 프로젝트는 그대로
   assert.equal(toLegacy("프로젝트/hsol-info/hsol-info.md"), "vault/objects/projects/hsol-info.md");
 });
+
+test("매핑된 폴더 자신의 개념 노트는 사이트 콘텐츠가 아니다. 하위 분류 폴더의 개념 노트는 그대로", () => {
+  for (const p of ["뉴스룸/뉴스룸.md", "인물/인물.md", "모음/모음.md", "멘티/멘티.md", "원천/원천.md", "원천/블로그/블로그.md", "스킬/기술/기술.md", "가치관/가치관.md", "에이전트/런북/런북.md"]) {
+    assert.equal(toLegacy(p), null, p);
+  }
+  assert.equal(toLegacy("인물/가족-구성원/가족-구성원.md"), "vault/objects/people/가족-구성원/가족-구성원.md");
+  assert.equal(toLegacy("뉴스룸/뉴스룸-기자.md"), "vault/objects/concepts/뉴스룸-기자.md");
+  assert.equal(toLegacy("프로젝트/hsol-info/hsol-info.md"), "vault/objects/projects/hsol-info.md");
+  assert.equal(toLegacy("가치관/AI-Native-Workflow.md"), "vault/objects/concepts/AI-Native-Workflow.md");
+});

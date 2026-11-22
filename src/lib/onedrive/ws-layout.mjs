@@ -114,11 +114,24 @@ export const NON_MD_PASS_PREFIXES = ["프로젝트/hsol-info/생성물/", "원�
 
 const isMd = (p) => p.toLowerCase().endsWith(".md");
 
+/**
+ * 매핑된 폴더 자신의 개념 노트(`뉴스룸/뉴스룸.md`, `스킬/기술/기술.md`, `인물/인물.md` 등). 폴더가 무엇을 담는지 적은
+ * 분류 설명이지 객체가 아니다. 받으면 타입 루트의 객체로 잡히거나(인물, 개념) 기사 동기화가 type 검사에서 멈춘다(뉴스룸).
+ */
+export function isMappedRootConceptNote(wsPath) {
+  const p = nfc(wsPath);
+  return [...DIR_RULES, ...REVERSE_ONLY_DIR_RULES].some(([, w]) => {
+    const name = w.replace(/\/$/, "").split("/").pop();
+    return p === `${w}${name}.md`;
+  });
+}
+
 /** ws 실제 경로 -> 논리 경로. vault 와 무관한 경로(사진/, 문서/, memory 의 다른 노트, 개념 폴더의 원본 파일 등)면 null. */
 export function toLegacy(wsPath) {
   const p = nfc(wsPath);
   for (const [l, w] of FILE_RULES) if (p === w) return l;
   if (NON_VAULT_PREFIXES.some((x) => p.startsWith(x))) return null;
+  if (isMappedRootConceptNote(p)) return null;
   if (!isMd(p) && !NON_MD_PASS_PREFIXES.some((x) => p.startsWith(x))) return null;
   const aw = p.match(ACTION_LOG_WS);
   if (aw) return `vault/action-log/${aw[2]}/${aw[1]}`;
