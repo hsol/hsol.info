@@ -4,7 +4,7 @@
  */
 import assert from "node:assert";
 
-import { buildWritingCards, isIssueOf, pieceNo } from "./writing-cards";
+import { buildWritingCards, foldWritingSeriesInPlace, isIssueOf, pieceNo } from "./writing-cards";
 
 // 2026-11-24 hsol.info 라이브에서 채집한 중복
 assert.ok(isIssueOf("Ask Hansol 자문록 18호 - 컴공 3학년, 자동매매 봇을 더 팔까 넓힐까", "Ask Hansol 자문록"));
@@ -48,5 +48,34 @@ assert.strictEqual(buildWritingCards(w("블로그"), [], [w("Ask Hansol 자문�
 
 assert.strictEqual(pieceNo(0), "PIECE · 01");
 assert.strictEqual(pieceNo(9), "PIECE · 10");
+
+// 빌드 단계: site-data 자체에서 회차 항목을 뺀다
+const sd = {
+  publications: [{ title: "메이커와 엔지니어" }],
+  portfolioCopy: {
+    builder: {
+      blog: w("블로그 - blog.hsol.info"),
+      extraWritings: [
+        w("Measurable Developer"),
+        w("Ask Hansol 자문록"),
+        w("Ask Hansol 자문록 18호 - 컴공 3학년"),
+        w("Ask Hansol 자문록 19호 - 개발 6년차"),
+        w("Measurable Developer"),
+        w("자소 - macOS 파일명 자소분리 자동변환 유틸리티"),
+      ],
+    },
+  },
+};
+assert.deepStrictEqual(foldWritingSeriesInPlace(sd), [
+  "Ask Hansol 자문록 18호 - 컴공 3학년",
+  "Ask Hansol 자문록 19호 - 개발 6년차",
+  "Measurable Developer",
+]);
+assert.deepStrictEqual(
+  sd.portfolioCopy.builder.extraWritings.map((x) => x.name),
+  ["Measurable Developer", "Ask Hansol 자문록", "자소 - macOS 파일명 자소분리 자동변환 유틸리티"],
+);
+// 깨끗한 데이터는 그대로
+assert.deepStrictEqual(foldWritingSeriesInPlace(sd), []);
 
 console.log("writing-cards.check: ok");

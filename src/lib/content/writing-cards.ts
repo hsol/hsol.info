@@ -47,3 +47,30 @@ export function buildWritingCards(
 
 /** PIECE 번호: 01, 02 ... 10 (기존 `0${i+1}` 는 10번째부터 "010" 이 됐다). */
 export const pieceNo = (i: number) => `PIECE · ${String(i + 1).padStart(2, "0")}`;
+
+/**
+ * 빌드 단계 정리: 저장 전에 extraWritings 에서 시리즈 회차 항목과 같은 이름 중복을 뺀다.
+ * 렌더 필터만으로는 site-data.json 자체에 회차가 남아 원페이저·Ask Hansol 등 다른 소비처에 보인다.
+ * 부모 후보는 blog·publications·extraWritings 이름 전부. 반환값은 뺀 항목 이름(로그용).
+ */
+export function foldWritingSeriesInPlace(data: {
+  publications: { title: string }[];
+  portfolioCopy: { builder: { blog: { name: string }; extraWritings: WritingCardItem[] } };
+}): string[] {
+  const b = data.portfolioCopy.builder;
+  const parents = [b.blog.name, ...data.publications.map((p) => p.title), ...b.extraWritings.map((w) => w.name)];
+  const seen = new Set<string>();
+  const removed: string[] = [];
+  const kept = b.extraWritings.filter((w) => {
+    const key = norm(w.name);
+    if (seen.has(key) || parents.some((p) => isIssueOf(w.name, p))) {
+      removed.push(w.name);
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+  // 스키마가 extraWritings.min(1) 이라 전부 빠지는 일은 없게(이론상 불가하지만 방어).
+  if (kept.length > 0) b.extraWritings = kept;
+  return kept.length > 0 ? removed : [];
+}

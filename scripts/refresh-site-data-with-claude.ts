@@ -6,6 +6,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { gatewayModel } from "../src/lib/llm";
 import { siteDataSchema, type SiteData } from "../src/content/schema";
 import { stripAiTypographyDeep } from "../src/lib/ai-typography";
+import { foldWritingSeriesInPlace } from "../src/lib/content/writing-cards";
 import { SELF_DESIGNATION_RULE, selfDesignationHint } from "../src/lib/self-designation";
 import { HSOL_DATA } from "../src/data/site";
 import { layoutSchema, type SiteLayout } from "../src/content/layout-types";
@@ -2127,6 +2128,13 @@ ${contextText}
       error: err,
     });
     throw err;
+  }
+
+  // 쓴 것들 시리즈 접기: 재사용·PATCH·OVERHAUL 어느 경로로 왔든 저장 전에 회차 항목을 뺀다.
+  // 프롬프트 규칙 10 은 확률적이라, 저장되는 site-data 자체를 결정적으로 정리한다.
+  const foldedWritings = foldWritingSeriesInPlace(siteData);
+  if (foldedWritings.length > 0) {
+    logStep(`extraWritings 시리즈 접기: ${foldedWritings.length}건 제거 - ${foldedWritings.join(" / ")}`);
   }
 
   // --- 구조 진화 판정: 현재 layout·composition·onepager 상태를 보고 각각 "이번 회차에 진화할 가치가 있나"를
