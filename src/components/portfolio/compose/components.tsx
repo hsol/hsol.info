@@ -26,6 +26,7 @@ import { useBlockCallbacks } from "@/components/portfolio/blocks/context";
 import { GanttTimeline } from "@/components/portfolio/blocks/gantt";
 import { ViewHead, renderTitleLines } from "@/components/portfolio/view-primitives";
 import { COORDS, type PersonaKey } from "@/components/portfolio/portfolio-types";
+import { buildWritingCards, pieceNo } from "@/lib/content/writing-cards";
 
 type Cols = 2 | 3 | 4;
 
@@ -474,24 +475,11 @@ function WritingCard({ no, name, en, blurb, href }: { no: string; name: string; 
 export function WritingBound(_: { props: Record<string, never> }) {
   const D = useSiteData();
   const { blog, extraWritings } = D.portfolioCopy.builder;
-  const raw = [
-    blog,
-    ...D.publications.map((p) => ({ name: p.title, en: "Publication", blurb: p.desc, href: p.href })),
-    ...extraWritings,
-  ];
-  // 같은 글이 publications·extraWritings 등 여러 출처에 겹쳐도 한 번만 — 뒤(더 구체적 분류)를 우선해 중복 제거.
-  const seen = new Set<string>();
-  const cards: typeof raw = [];
-  for (let i = raw.length - 1; i >= 0; i -= 1) {
-    const key = raw[i].name.trim().toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    cards.unshift(raw[i]);
-  }
+  const cards = buildWritingCards(blog, D.publications, extraWritings);
   return (
     <div className="cz-cards cz-cols-auto">
       {cards.map((c, i) => (
-        <WritingCard key={i} no={`PIECE · 0${i + 1}`} name={c.name} en={c.en} blurb={c.blurb} href={c.href} />
+        <WritingCard key={i} no={pieceNo(i)} name={c.name} en={c.en} blurb={c.blurb} href={c.href} />
       ))}
     </div>
   );

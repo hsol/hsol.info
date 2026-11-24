@@ -33,6 +33,7 @@ import {
   useHomeInteraction,
 } from "@/components/portfolio/blocks/context";
 import type { SiteData } from "@/content/schema";
+import { buildWritingCards, pieceNo } from "@/lib/content/writing-cards";
 
 export interface BlockRenderProps {
   props?: Record<string, unknown>;
@@ -290,11 +291,7 @@ function WritingPillar({
 export function BuilderWritingSectionBlock({ props }: BlockRenderProps) {
   const D = useSiteData();
   const { blog, extraWritings } = D.portfolioCopy.builder;
-  const writingCards = [
-    blog,
-    ...D.publications.map((p) => ({ name: p.title, en: "Publication", blurb: p.desc, href: p.href })),
-    ...extraWritings,
-  ];
+  const writingCards = buildWritingCards(blog, D.publications, extraWritings);
   return (
     <div className="sec" data-ask-section={str(props, "dataSection")}>
       <SecHead title={str(props, "title")} num={str(props, "num") || undefined} meta={str(props, "meta") || undefined} />
@@ -302,7 +299,7 @@ export function BuilderWritingSectionBlock({ props }: BlockRenderProps) {
         {writingCards.map((card, i) => (
           <WritingPillar
             key={i}
-            no={`PIECE · 0${i + 1}`}
+            no={pieceNo(i)}
             name={card.name}
             en={card.en}
             blurb={card.blurb}
